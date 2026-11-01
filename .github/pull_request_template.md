@@ -1,42 +1,44 @@
-<box border radius="lg" padding={3} gap={2}>
-  **Deliverable 3**
-
-
-<text color="secondary" size="xs">.github/pull_request_template.md</text>
-<button block variant="outline" size="sm" onClick={() => GenUI.copy(`## Related Task
+## Related Task
 - Jira Task ID:
-- Task Owner:
-- Reviewer:
-Description
+- Owner:
+- Reviewer (must not be the owner):
+
+## Description
 Describe what this Pull Request changes and why.
-Changes
-- [ ] Added new functionality
-- [ ] Fixed a bug
-- [ ] Updated documentation
-- [ ] Added or updated tests
+
+## Files changed
+-
+
+## Type of change
+- [ ] Feature
+- [ ] Fix
+- [ ] Documentation
+- [ ] Tests
 - [ ] Other:
-Testing
-Testing steps:
+
+## Impact
+- [ ] Changes an MCP tool schema or contract (tell A and B)
+- [ ] Touches sudoers, the helper, the allowlist or permissions (security review needed)
+- [ ] None of the above
+
+## Testing
+Testing steps (use the VM and real logs when applicable):
 1.
 2.
 3.
-Testing results:
+
+Result:
 - [ ] Passed
 - [ ] Failed
-- [ ] Not applicable (explain why)
-Acceptance Criteria
-- [ ] All task acceptance criteria are addressed.
-- [ ] Existing README content is preserved.
-- [ ] Planned features are not presented as implemented.
+- [ ] Not applicable (explain why):
+
+## Evidence
+Attach screenshots, command output or test results.
+
+## Checklist
+- [ ] All acceptance criteria of the task are addressed.
+- [ ] No secrets, API keys, or logs containing sensitive data (IPs, tokens, passwords) are committed.
 - [ ] No unrelated files are modified.
-Evidence
-Attach screenshots, test outputs, or other relevant evidence.
-Review Checklist
-- [ ] Code/documentation has been reviewed.
-- [ ] No secrets or API keys are committed.
-- [ ] No unnecessary files are included.
-- [ ] Changes are ready for review.
-Reviewer Comments
-Add review notes here.
-`)}> <icon name="copy" size="xs"/> Sao chép nội dung </button>
-</box>
+- [ ] Existing README content is preserved (`git diff main -- README.md` is empty).
+- [ ] Planned features are not presented as implemented, and `docs/documentation-matrix.md` is updated if a status changed.
+- [ ] I synced with main (`git pull --rebase origin main`) before opening this PR.
