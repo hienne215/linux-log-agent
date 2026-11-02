@@ -1,0 +1,30 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "listening_ports request",
+  "description": "Request to list listening network ports.",
+  "type": "object",
+  "allOf": [
+    {
+      "$ref": "../common-request.schema.json"
+    }
+  ],
+  "properties": {
+    "protocol": {
+      "type": "string",
+      "enum": ["tcp", "udp"],
+      "description": "Filter by network protocol."
+    },
+    "port": {
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 65535,
+      "description": "Filter by port number."
+    },
+    "unit": {
+      "type": "string",
+      "pattern": "^[a-zA-Z0-9_.@-]+\\.service$",
+      "description": "Optional service unit filter."
+    }
+  },
+  "unevaluatedProperties": false
+}

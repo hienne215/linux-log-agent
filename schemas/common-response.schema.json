@@ -1,0 +1,139 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Common MCP Tool Response",
+  "type": "object",
+  "properties": {
+    "schema_version": {
+      "type": "string",
+      "const": "1.0.0"
+    },
+    "trace_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "logical_tool_call_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "attempt_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "tool": {
+      "type": "string",
+      "minLength": 1
+    },
+    "status": {
+      "type": "string",
+      "enum": [
+        "ok",
+        "partial",
+        "error",
+        "approval_required"
+      ]
+    },
+    "started_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "completed_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "unit": {
+      "type": ["string", "null"]
+    },
+    "data": {
+      "type": ["object", "array", "null"]
+    },
+    "evidence": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "evidence_id": {
+            "type": "string"
+          },
+          "observed_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "source": {
+            "type": "string"
+          },
+          "unit": {
+            "type": ["string", "null"]
+          },
+          "excerpt": {
+            "type": "string"
+          },
+          "redacted": {
+            "type": "boolean"
+          },
+          "truncated": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "evidence_id",
+          "observed_at",
+          "source",
+          "excerpt",
+          "redacted",
+          "truncated"
+        ],
+        "additionalProperties": false
+      }
+    },
+    "command_source": {
+      "type": ["string", "null"]
+    },
+    "error_code": {
+      "type": ["string", "null"],
+      "enum": [
+        "INVALID_INPUT",
+        "PERMISSION_DENIED",
+        "TIMEOUT",
+        "OUTPUT_LIMIT",
+        "NOT_FOUND",
+        "UNSUPPORTED",
+        "POLICY_DENIED",
+        "APPROVAL_REQUIRED",
+        "EXPIRED",
+        "REPLAY",
+        "HELPER_UNAVAILABLE",
+        "EXECUTION_UNKNOWN",
+        null
+      ]
+    },
+    "truncated": {
+      "type": "boolean"
+    },
+    "next_cursor": {
+      "type": ["string", "null"]
+    },
+    "duration_ms": {
+      "type": "integer",
+      "minimum": 0
+    }
+  },
+  "required": [
+    "schema_version",
+    "trace_id",
+    "logical_tool_call_id",
+    "attempt_id",
+    "tool",
+    "status",
+    "started_at",
+    "completed_at",
+    "unit",
+    "data",
+    "evidence",
+    "command_source",
+    "error_code",
+    "truncated",
+    "next_cursor",
+    "duration_ms"
+  ],
+  "additionalProperties": false
+}

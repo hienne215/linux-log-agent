@@ -1,0 +1,24 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "disk_usage Request",
+  "allOf": [
+    {
+      "$ref": "../common-request.schema.json"
+    },
+    {
+      "type": "object",
+      "properties": {
+        "filesystem": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 255
+        },
+        "include_inodes": {
+          "type": "boolean",
+          "default": true
+        }
+      }
+    }
+  ],
+  "unevaluatedProperties": false
+}
