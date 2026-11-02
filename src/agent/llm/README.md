@@ -45,7 +45,7 @@ Từ gốc worktree:
 PYTHONDONTWRITEBYTECODE=1 PYTHONPATH=src python3 -m unittest discover -s tests/llm -p 'test_*.py' -v
 ```
 
-32 tests dùng mocked HTTP bytes/errors và transport, không kết nối Ollama/MCP hoặc thực thi tools. Case `service_status/lab.service` chỉ là fixture nội bộ của test, không thay contracts SCRUM-12. Test validate request giữ baseline options và không có think; tests cũng kiểm cả adapter normalization lẫn HTTP transport layer (proxy, redirects, byte cap, timeout, refused connection,404/500, truncated HTTP).
+57 tests dùng mocked HTTP bytes/errors và transport, không kết nối Ollama/MCP hoặc thực thi tools. Case `service_status/lab.service` chỉ là fixture nội bộ của test, không thay contracts SCRUM-12. Test validate request giữ baseline options và không có think; tests cũng kiểm cả adapter normalization lẫn HTTP transport layer (proxy, redirects, byte cap, timeout, refused connection,404/500, truncated HTTP).
 
 ## Cần thống nhất với Thủy
 
@@ -59,6 +59,18 @@ SCRUM-22 chưa được triển khai ở đây. SCRUM-23 chưa thể coi hoàn t
 
 Tham khảo API: https://docs.ollama.com/api/chat. Cấu trúc response được xử lý theo fixtures và baseline đã đo, chưa xác minh tương thích adapter bằng inference thật.
 
-## Review trước PR
+## Lịch sử review ban đầu
 
 Đã sửa lỗi redaction JSON có dấu nháy escape (lọc thiếu secret và phá cấu trúc JSON), bổ sung Authorization Basic/quoted credentials và chặn bypass bằng control characters. HTTP error response được đóng mà không đọc body; input containers sai trả AdapterError trước HTTP. Tổng32 tests, gồm6 regression tests mới; không thay cấu hình hoặc policy baseline. Giới hạn hard wall deadline, MCP và live inference vẫn giữ như trên.
+
+## Khắc phục review blocker về redaction
+
+Bộ lọc nằm trong `redaction.py`, được Adapter dùng cho cả text và kiểm tool arguments. Không dựa vào `\b` trước từ khóa bên trong tên biến: phân loại toàn identifier, tách underscore/hyphen/dot/camelCase, chuẩn hóa Unicode NFKC và nhận diện các hậu tố nhạy cảm phổ biến. Bao phủ password/passwd/secret/token/authorization/api_key, gồm db_password, client_secret, AWS_SECRET_ACCESS_KEY, secret_key, access_token và refresh_token.
+
+- JSON object/list, JSON-encoded JSON strings, các fragment JSON trong log và Unicode-escaped keys được parse/duyệt có giới hạn. Giữ JSON hợp lệ và không thay nội dung không nhạy cảm; chỉ reserialize phần đã lọc. Các field text hỗ trợ `key=value`, `key: value`, quoted values, `password is value`; giá trị unquoted là một scalar tới delimiter/whitespace, giá trị nhiều từ phải quote hoặc dùng JSON.
+- Text/log: redact trước HTTP; quoted escapes/multiline được tiêu thụ đầy đủ. Tool arguments: từ chối cả sensitive key (kể cả rỗng) hoặc chuỗi cần redact với DATA_POLICY, không tự sửa arguments.
+- CLI `-pVALUE`: chỉ xem là password khi executable thuộc MySQL/MariaDB đã biết; lệnh curl/python/grep/nginx... có ý nghĩa flag khác được giữ nguyên. Bare `-pVALUE`, command chưa biết hoặc tổ hợp shell không phân tích chắc chắn bị DATA_POLICY; không chạy shlex output. Không coi mọi từ bắt đầu bằng -p là password. `--password=VALUE` cũng được lọc như assignment. Các CLI grammar khác chưa được khẳng định hỗ trợ.
+- Empty text values/JSON empty string/null không bị hút sang record kế tiếp; mentions thông thường của token/password và keys tokenizer/passwordless giữ nguyên. Sensitive-key metadata có thể bị lọc dù không phải credential (ví dụ token_count); không tự tạo ngoại lệ theo schema chưa được nhóm duyệt.
+- JSON lỗi/duplicate keys, quoted secret thiếu dấu đóng, private-key marker, vượt1MiB hoặc quá16 bước đệ quy bị DATA_POLICY. Không log body/exception chứa giá trị. Các formats/encoding ngoài phạm vi (base64, ciphertext, Unicode confusables tùy ý, unlabeled secrets) không có bảo đảm nhận biết; collector vẫn phải lọc trước.
+
+Kết quả: **57/57 offline unit tests PASS**, gồm32 tests cũ +25 regression tests. Không inference mới;4/4 live smoke là bằng chứng lịch sử trước bản sửa này, không chứng minh redaction mới đã qua live inference. Hard wall deadline/cancellation và MCP/Agent integration vẫn ngoài phạm vi.

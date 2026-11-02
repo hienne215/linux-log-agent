@@ -15,6 +15,7 @@ from jsonschema import Draft202012Validator, FormatChecker
 from jsonschema.exceptions import SchemaError, ValidationError
 
 from .interface import AdapterError, Completion, Message, ToolCall, ToolDefinition, Usage
+from .redaction import _clean, _is_secret_key
 
 
 @dataclass(frozen=True)
@@ -84,47 +85,6 @@ class HTTPTransport:
             raise AdapterError('CONNECTION_ERROR') from None
 
 
-# A secondary filter, not a guarantee that all secrets are detected. Inputs must
-# already be collector-redacted; this adapter never logs raw requests/responses.
-_AUTH = re.compile(
-    r'(?i)(\bauthorization\s*:\s*)(?:basic|bearer)\s+[A-Za-z0-9._~+/=-]+'
-)
-_SECRET = re.compile(
-    r"""(?i)((?:["'])?\b(?:password|passwd|api[_-]?key|access[_-]?token|secret|authorization)\b(?:["'])?\s*[:=]\s*)"""
-    r"""(?:"(?:\\.|[^"\\\r\n])*"|'(?:\\.|[^'\\\r\n])*'|[^\s,;}]+)"""
-    r'|(\bbearer\s+)[A-Za-z0-9._~+/=-]+'
-)
-
-
-def _redact_match(match):
-    prefix = match.group(1) or match.group(2)
-    value = match.group(0)[len(prefix):]
-    # Preserve quoted JSON values and consume escaped quotes as part of the value.
-    quote = value[0] if len(value) >= 2 and value[0] in ('"', "'") and value[-1] == value[0] else ''
-    return prefix + quote + '[REDACTED]' + quote
-
-
-_PRIVATE = re.compile(r'-----BEGIN [A-Z ]*PRIVATE KEY-----')
-_CONTROL = re.compile(r'[\x00-\x08\x0b\x0c\x0e-\x1f\x7f]')
-
-
-def _clean(text):
-    if not isinstance(text, str):
-        raise AdapterError('DATA_POLICY')
-    try:
-        text.encode('utf-8')
-    except UnicodeError:
-        raise AdapterError('DATA_POLICY') from None
-    # Normalize controls before matching secrets, so interleaved controls cannot
-    # turn an unrecognized key/PEM marker into an unredacted one after filtering.
-    text = _CONTROL.sub('', text)
-    if _PRIVATE.search(text):
-        raise AdapterError('DATA_POLICY')
-    filtered = _AUTH.sub(lambda m: m.group(1) + '[REDACTED]', text)
-    filtered = _SECRET.sub(_redact_match, filtered)
-    return filtered
-
-
 def _safe_json(value):
     """Native JSON only, finite numbers, bounded nesting; prohibit secret arguments."""
     def visit(node, depth=0):
@@ -144,7 +104,7 @@ def _safe_json(value):
             return
         if isinstance(node, dict) and all(isinstance(k, str) for k in node):
             for key, item in node.items():
-                if key.lower() in ('password', 'passwd', 'api_key', 'access_token', 'secret', 'authorization'):
+                if _is_secret_key(key):
                     raise AdapterError('DATA_POLICY')
                 visit(key, depth + 1)
                 visit(item, depth + 1)
