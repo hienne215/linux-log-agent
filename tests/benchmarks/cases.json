@@ -1,0 +1,21 @@
+{
+  "schema_version": "1.0",
+  "description": "SCRUM-14 mock tool selection only; no real diagnostic tool is implemented or dispatched.",
+  "system_prompt": "You are a Linux diagnostic assistant. Select exactly ONE most appropriate tool for the requested next diagnostic step. Use native tool_calls with an arguments object that exactly matches the tool schema. Do not answer with prose or write a tool call as JSON inside content. Do not execute anything. All tools are mocks. Use only information in the request; do not invent extra arguments.",
+  "tools": [
+    {"type":"function","function":{"name":"service_status","description":"Read the current systemd state of one service.","parameters":{"type":"object","properties":{"unit":{"type":"string"}},"required":["unit"],"additionalProperties":false}}},
+    {"type":"function","function":{"name":"query_journal","description":"Read journal messages for a service within an explicit UTC time window.","parameters":{"type":"object","properties":{"unit":{"type":"string"},"since":{"type":"string"},"until":{"type":"string"}},"required":["unit","since","until"],"additionalProperties":false}}},
+    {"type":"function","function":{"name":"disk_usage","description":"Read filesystem capacity and free space for a mount path.","parameters":{"type":"object","properties":{"path":{"type":"string"}},"required":["path"],"additionalProperties":false}}},
+    {"type":"function","function":{"name":"listening_ports","description":"Read sockets listening on a TCP or UDP port to identify a port conflict.","parameters":{"type":"object","properties":{"port":{"type":"integer","minimum":1,"maximum":65535},"protocol":{"type":"string","enum":["tcp","udp"]}},"required":["port","protocol"],"additionalProperties":false}}},
+    {"type":"function","function":{"name":"failed_logins","description":"Read failed SSH login events within an explicit UTC time window.","parameters":{"type":"object","properties":{"since":{"type":"string"},"until":{"type":"string"}},"required":["since","until"],"additionalProperties":false}}},
+    {"type":"function","function":{"name":"check_config","description":"Check syntax using a fixed allowlisted configuration profile. This benchmark never executes the validator.","parameters":{"type":"object","properties":{"profile":{"type":"string","enum":["nginx"]}},"required":["profile"],"additionalProperties":false}}}
+  ],
+  "cases": [
+    {"id":"S1","name":"Nginx failed","prompt":"Nginx is reported as failed. First inspect the current systemd state of nginx.service. Do not fetch logs yet.","expected":{"name":"service_status","arguments":{"unit":"nginx.service"}}},
+    {"id":"S2","name":"Read Nginx journal","prompt":"Read the journal messages for nginx.service from 2026-11-01T15:00:00Z (inclusive) to 2026-11-01T15:15:00Z (exclusive). I need logs, not the current service state.","expected":{"name":"query_journal","arguments":{"unit":"nginx.service","since":"2026-11-01T15:00:00Z","until":"2026-11-01T15:15:00Z"}}},
+    {"id":"S3","name":"Disk nearly full","prompt":"The root filesystem mounted at / may be nearly full. Inspect its capacity and free space without deleting anything.","expected":{"name":"disk_usage","arguments":{"path":"/"}}},
+    {"id":"S4","name":"Nginx port conflict","prompt":"Nginx cannot start: address already in use on TCP port 80. Identify what is listening on that port as the next diagnostic step.","expected":{"name":"listening_ports","arguments":{"port":80,"protocol":"tcp"}}},
+    {"id":"S5","name":"Failed SSH logins","prompt":"Inspect repeated failed SSH login events from 2026-11-01T15:00:00Z (inclusive) to 2026-11-01T15:15:00Z (exclusive). Do not change SSH configuration.","expected":{"name":"failed_logins","arguments":{"since":"2026-11-01T15:00:00Z","until":"2026-11-01T15:15:00Z"}}},
+    {"id":"S6","name":"Nginx syntax error","prompt":"Nginx is suspected to have a syntax error in its configuration. Request syntax validation for the nginx configuration profile, without starting or restarting it.","expected":{"name":"check_config","arguments":{"profile":"nginx"}}}
+  ]
+}
