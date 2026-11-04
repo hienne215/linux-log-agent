@@ -196,3 +196,112 @@ Draft chỉ bao gồm contract-independent foundation. Python 3.12 baseline,
 real cancellation, SCRUM-12 contracts và LLM Adapter integration còn pending;
 không có hard wall deadline, chưa chạy Linux tools thật. Giữ nguyên tất cả giới
 hạn trong README; không đề xuất merge hoặc chuyển Jira Done trong nhiệm vụ này.
+
+## Bổ sung — Baseline Python 3.12 (04/11/2026)
+
+### Môi trường và bảo toàn
+
+Worktree/branch đúng `linux-log-agent-scrum22` / `feat/SCRUM-22-mcp-client`, HEAD
+vẫn `00fb81e36a80855e58c38b6cbcbdbcc458553ff2`. Working tree sạch lúc bắt đầu.
+Không có Python 3.12 sẵn. Trước khi tải/cài đã thông báo phương án uv riêng,
+ước lượng 60–100 MB tải, 300–600 MB đĩa. Cài uv **0.13.7** unmanaged vào thư mục
+task ngoài repo, không modify shell/profile/PATH; cài CPython **3.12.16** với
+`uv python install 3.12 --no-bin` (archive Python 32.9 MiB). Tạo venv riêng
+`.venv-scrum22-py312/`, không system-site-packages; không sửa venv Python 3.14 cũ.
+
+Packages thực đo: **mcp 2.3.0**, mcp-types 2.3.0, anyio 4.16.0, pydantic 2.14.2,
+jsonschema 4.26.0. SDK cài bằng uv pip với explicit venv interpreter, không global
+pip. System Python vẫn 3.14.4. Nguồn runtime: Astral python-build-standalone, được
+uv quản lý; chưa kiểm chứng VM/hardening môi trường triển khai của Trang.
+
+### Kiểm thử ban đầu và lỗi tái hiện
+
+- Offline: 39 PASS, 4 opt-in SKIP, 0 FAIL/ERROR (43 discovered, 0.379s).
+- Real SDK suite: normal call và real cancellation PASS; disconnect FAIL và timeout
+  ERROR (4 tests, 6.947s). Tất cả subprocess đã được cleanup kể cả lượt thất bại.
+- Các integration tests chạy ngoài sandbox đã biết chặn stdio của phiên làm việc;
+  không đổi sandbox policy, không chạy production MCP server.
+
+Hai root causes:
+
+1. **Client error normalization:** SDK 2.3.0 dùng MCPError với code -32000 cho mất
+   kết nối, nhưng wrapper trước đây đổi mọi MCPError thành PROTOCOL_ERROR.
+   Sửa mapping -32000 → DISCONNECTED, -32001 → TIMEOUT; các code khác giữ
+   PROTOCOL_ERROR. Đã đối chiếu constants/property từ SDK thật đã pin, không tự
+   tạo error schema dự án và không lộ raw error text.
+2. **Client timeout configuration:** ClientSession dùng request_timeout làm default
+   nên initialize cũng bị giới hạn 0.5s dù connect_timeout=10s. Đây không phải lỗi
+   API SDK hoặc fixture. Đổi SDK default sang max(connect_timeout, request_timeout),
+   wrapper tiếp tục áp hai budget độc lập; call_tool vẫn có SDK timeout riêng.
+   Không tăng request budget để vượt test, không thêm hard wall deadline.
+
+### Kết quả sau fix
+
+| Suite | PASS | FAIL/ERROR | SKIP | Thời gian |
+|---|---:|---:|---:|---:|
+| Offline toàn bộ, Python 3.12.16 | 42 | 0 | 4 opt-in | 0.415s |
+| Real SDK stdio, Python 3.12.16 | 4 | 0 | 0 | 5.566s |
+
+**46 test cases phân biệt đã PASS** qua hai lệnh. Không cộng SKIP thành PASS.
+
+- Normal flow: subprocess startup, initialize, discovery, mock_echo arguments,
+  structured/content/isError normalization, disconnect và process reap đều đạt.
+- Real cancellation: chờ marker wait_started từ handler server thật trước khi
+  cancel caller task; caller nhận CancelledError; server ghi wait_cancelled,
+  không wait_completed; client disconnected và subprocess có returncode.
+- Real timeout: handler wait_started, request 0.5s trả TIMEOUT, không hoàn tất tool;
+  initialize vẫn dùng connect budget; subprocess được thu hồi.
+- Real disconnect: mock tự exit(23), client trả DISCONNECTED, returncode=23,
+  đúng một marker disconnect_started; không reconnect/retry.
+- Từng integration test chỉ sinh một fixture process và kiểm returncode sau
+  disconnect/cleanup; fixture không sinh children. Marker tạm không chứa payload,
+  secret hoặc reasoning và được TemporaryDirectory tự thu hồi.
+- Asyncio debug có cảnh báo cold SDK import ~0.7s, không phải lifecycle failure.
+
+Regression offline thêm ba tests cho SDK CONNECTION_CLOSED, REQUEST_TIMEOUT và
+protocol error khác; SDK binding test kiểm shared timeout ceiling không ngắn hơn
+connect budget. Fixture chỉ thêm mock_wait và mock_disconnect cho test, không phải
+contracts mới hoặc tools production.
+
+### File thay đổi, review và trạng thái
+
+8 file trong SCRUM-22:
+- src/agent/mcp_client/client.py
+- src/agent/mcp_client/sdk.py
+- tests/mcp_client/test_client.py
+- tests/mcp_client/test_sdk_binding.py
+- tests/mcp_client/test_stdio_optional.py
+- tests/mcp_client/mock_stdio_server.py
+- tests/mcp_client/README.md
+- tests/mcp_client/REPORT.md
+
+Cần cập nhật PR #7 bằng hai fixes, regression tests và bằng chứng baseline này sau
+khi Hiền review/cho phép commit-push. Chưa cập nhật PR trong lượt này. Không stage,
+commit, push, merge hoặc đổi Jira; không sửa PR #6/contracts, worktree khác.
+
+Không còn blocker “Python 3.12 baseline chưa chạy” hoặc “chưa real cancellation”
+trong phạm vi synthetic stdio tests. Vẫn cần SCRUM-12 finalized contracts, LLM
+Adapter integration, SDK logging/redaction review, pre-parse output bound, và
+VM/deployment validation. Không thay đổi phạm vi mock thành nghiệm thu Linux tools
+thật hoặc bảo đảm hủy side effect bất kỳ. Cooperative timeout/không hard wall
+và không tự retry write vẫn giữ nguyên.
+
+Kiểm tra cuối: không còn PID mock_stdio_server.py. Dung lượng file thường đo được
+sau cài: task runtime/uv khoảng 134.1 MiB, venv 3.12 khoảng 33.8 MiB (không tính
+symlink như bản sao, không phải filesystem allocated blocks). Không có đường dẫn
+cá nhân trong 8 file thay đổi; index rỗng và HEAD chưa đổi. Benchmark worktree vẫn
+b2e6ac8 với 53 untracked/0 tracked changes; Adapter vẫn 8f4c146, clean.
+Marker wait_cancelled là quan sát handler bị hủy, không phải cancellation ACK
+contract chính thức; semantics ACK/execution_unknown vẫn chờ SCRUM-12.
+
+## Chạy lại trước cập nhật Draft PR #7 (04/11/2026)
+
+Review đúng 8 file SCRUM-22, không phát hiện blocker mới, credentials hoặc đường
+dẫn cá nhân; venv/cache/temp artifacts nằm ngoài tập stage. Python 3.12.16, MCP
+SDK 2.3.0 trong venv riêng. Offline: **42 PASS, 4 optional SKIP**, 0 FAIL/ERROR,
+0.397s. Real SDK stdio ngoài sandbox: **4/4 PASS**, 0 FAIL/ERROR/SKIP, 5.543s.
+Initialize/discovery/call/normalization, cancellation/timeout/disconnect và cleanup
+đều đạt; kiểm tra sau suite không còn PID fixture. Không chạy inference hoặc
+Linux tools thật. Các mục chưa commit/push/PR trong các phần trên là snapshot
+lịch sử của lượt triển khai/kiểm chứng; lần này Hiền đã cho phép commit và cập
+nhật Draft PR. Không thay đổi giới hạn còn lại hoặc nghiệm thu toàn bộ SCRUM-22.

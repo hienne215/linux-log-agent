@@ -303,6 +303,25 @@ class ClientTests(unittest.IsolatedAsyncioTestCase):
         await self.client.list_tools()
         await self.assert_code("TOOL_NOT_ALLOWED", self.client.call_tool("mock_echo", {}))
 
+    async def assert_sdk_transport_code(self, code, expected):
+        class MCPError(Exception):
+            def __init__(self):
+                self.code = code
+                super().__init__("synthetic_private_value")
+        await self.ready()
+        self.server.error = MCPError()
+        await self.assert_code(expected, self.client.call_tool("mock_echo", {}))
+        self.assertEqual(self.server.exited, 1)
+
+    async def test_sdk_connection_closed_code(self):
+        await self.assert_sdk_transport_code(-32000, "DISCONNECTED")
+
+    async def test_sdk_request_timeout_code(self):
+        await self.assert_sdk_transport_code(-32001, "TIMEOUT")
+
+    async def test_sdk_other_protocol_error_code(self):
+        await self.assert_sdk_transport_code(-32602, "PROTOCOL_ERROR")
+
 
 class ConfigTests(unittest.TestCase):
     def test_invalid_config(self):

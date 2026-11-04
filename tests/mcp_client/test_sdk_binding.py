@@ -65,7 +65,7 @@ class BindingTests(unittest.IsolatedAsyncioTestCase):
         modules["mcp.client.stdio"].DEFAULT_INHERITED_ENV_VARS = ["HOME", "PATH", "USER"]
         modules["mcp.client.session"].ClientSession = Session
         modules["mcp_types"].PaginatedRequestParams = lambda **kw: SimpleNamespace(**kw)
-        config = StdioConfig("/trusted/python", ("mock.py",), frozenset({"mock_echo"}))
+        config = StdioConfig("/trusted/python", ("mock.py",), frozenset({"mock_echo"}), connect_timeout=20)
         with patch.dict(sys.modules, modules), patch("agent.mcp_client.sdk.version", return_value="2.3.0"):
             async with StdioMCPClient(config) as client:
                 await client.list_tools()
@@ -78,6 +78,7 @@ class BindingTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(captured["stderr"], "/dev/null")
         self.assertEqual(captured["streams"], ("read", "write"))
         self.assertTrue(captured["initialized"])
+        self.assertEqual(captured["timeout"], 20)  # short request budget must not limit initialize
         self.assertEqual(captured["calls"], [("mock_echo", {}, 10.0, True), ("mock_echo", {"invalid_output": True}, 10.0, True)])
         self.assertEqual([name for name, _ in events], ["transport_enter", "session_enter", "session_exit", "transport_exit"])
         self.assertEqual(len({id(task) for _, task in events}), 1)

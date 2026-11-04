@@ -44,7 +44,10 @@ async def sdk_peer(config: StdioConfig):
 
     with open(os.devnull, "w", encoding="utf-8") as errlog:
         async with stdio_client(params, errlog=errlog) as (read, write):
-            async with ClientSession(read, write, read_timeout_seconds=config.request_timeout) as session:
+            # The SDK default also governs initialize. A short request budget
+            # must not shorten connect_timeout. Wrapper deadlines bound each
+            # phase; call_tool additionally receives its own SDK read timeout.
+            async with ClientSession(read, write, read_timeout_seconds=max(config.connect_timeout, config.request_timeout)) as session:
                 # Explicit supported handshake path. Modern auto-discover is
                 # deliberately deferred until the server launch contract is set.
                 await session.initialize()

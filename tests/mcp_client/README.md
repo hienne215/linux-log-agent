@@ -56,7 +56,7 @@ Wrapper không ghi logs/payload/reasoning; repr của kết quả che content. C
 đi vào /dev/null. SDK baseline environment bị override rồi mới thêm biến allowlist;
 không copy toàn bộ os.environ. Payload trả về vẫn untrusted và **không được coi là
 đã redacted**; collector/LLM adapter/CLI giữ trách nhiệm redaction/rendering. Chưa
-kiểm chứng logging nội bộ SDK bằng runtime thật; không bật SDK debug/trace hoặc
+kiểm chứng logging nội bộ SDK với payload nhạy cảm/malformed peer; không bật SDK debug/trace hoặc
 đưa dữ liệu nhạy cảm vào optional fixture. Hợp nhất logging policy với Trang trước
 production; wrapper không thay đổi global logging configuration.
 
@@ -87,9 +87,11 @@ cài theo `requirements.txt`. Lệnh bên dưới không cài package:
 RUN_MCP_STDIO_SMOKE=1 PYTHONDONTWRITEBYTECODE=1 PYTHONPATH=src python3.12 -m unittest discover -s tests/mcp_client -p 'test_stdio_optional.py' -v
 ```
 
-Fixture `mock_stdio_server.py` do Hiền sở hữu, chỉ echo dữ liệu giả bằng MCPServer
-v2 qua stdio. Không dùng server/contracts của Thủy, không gọi Ollama, không đọc
-journal/file hệ thống, không có Linux commands. Fixture là test artifact, không
+Fixture `mock_stdio_server.py` do Hiền sở hữu, dùng MCPServer v2 qua stdio: echo
+dữ liệu giả, chờ để test cancellation/timeout và tự thoát subprocess để giả lập
+disconnect. Chỉ ghi marker cố định trong TemporaryDirectory của test launcher;
+không nhận đường dẫn qua tool arguments. Không dùng server/contracts của Thủy,
+không gọi Ollama, không đọc journal/file hệ thống, không có Linux commands. Fixture là test artifact, không
 phải contract mới. Test này mặc định SKIP, không được tính PASS khi chưa chạy.
 
 ## Interfaces chờ SCRUM-12
@@ -142,3 +144,43 @@ Lượt runtime Python 3.14.4 đã PASS ngoài sandbox của phiên làm việc 
 và probe SDK trực tiếp timeout ở initialize trong sandbox. REPORT.md giữ cả hai
 kết quả. Điều này chưa chứng minh deployment sandbox/VM của nhóm tương thích;
 cần chạy lại trên môi trường Python 3.12 mục tiêu.
+
+
+## Baseline Python 3.12 — đã kiểm chứng 04/11/2026
+
+Môi trường riêng `.venv-scrum22-py312/`: CPython **3.12.16**, **mcp==2.3.0**.
+Runtime do uv quản lý ở thư mục task ngoài repository (`../.scrum22-runtime/`),
+không thay Python hệ thống, PATH hay shell profile. Venv 3.14 cũ vẫn giữ nguyên.
+uv dùng bản phân phối Astral python-build-standalone; đây là kiểm chứng host Linux,
+không phải nghiệm thu VM hoặc deployment hardening của Trang.
+
+```bash
+RUN_MCP_STDIO_SMOKE=0 PYTHONDONTWRITEBYTECODE=1 PYTHONPATH=src .venv-scrum22-py312/bin/python -m unittest discover -s tests/mcp_client -p 'test_*.py' -v
+RUN_MCP_STDIO_SMOKE=1 PYTHONDONTWRITEBYTECODE=1 PYTHONPATH=src .venv-scrum22-py312/bin/python -m unittest discover -s tests/mcp_client -p 'test_stdio_optional.py' -v
+```
+
+Offline: **42 PASS, 4 opt-in SKIP**. Stdio thật ngoài sandbox của phiên này:
+**4 PASS**, 0 FAIL/ERROR/SKIP. Hạn chế sandbox đã ghi ở lượt 3.14 vẫn áp dụng;
+không tự thay profile sandbox để chạy tests.
+
+- Normal call: startup, initialize, discovery, content/structuredContent/isError.
+- Cancellation: marker chứng minh handler mock_wait đã bắt đầu; CancelledError
+  được truyền về caller; marker wait_cancelled xác nhận server xử lý hủy; không
+  có wait_completed. Client mất kết nối và SDK thu hồi subprocess.
+- Timeout: request budget 0.5s không làm ngắn connect budget 10s; mock handler đã
+  bắt đầu, trả TIMEOUT và subprocess được thu hồi.
+- Disconnect: chỉ subprocess mock tự exit(23); client trả DISCONNECTED, không retry.
+  Mọi test kiểm returncode để xác nhận không để lại orphan.
+
+SDK default read timeout dùng max(connect_timeout, request_timeout) vì initialize
+cũng chịu SDK default. Wrapper vẫn áp budget riêng cho connect/request; call_tool
+vẫn truyền request_timeout xuống SDK. Các mã SDK 2.3.0 CONNECTION_CLOSED (-32000)
+và REQUEST_TIMEOUT (-32001) được chuẩn hóa thành DISCONNECTED/TIMEOUT, không lộ
+raw message; các MCPError khác giữ PROTOCOL_ERROR. Đây là mã transport MCP, không
+phải error contracts của SCRUM-12.
+
+Giữ nguyên các giới hạn: cooperative timeout, không hard wall deadline; cap sau
+SDK parse; schema/business policy/manifest/logging cần review; chưa tích hợp
+contracts hoặc LLM Adapter, chưa chạy Linux tools thật. Kết quả cancellation chỉ
+áp dụng synthetic handler hợp tác trên asyncio, không chứng minh tác vụ ghi bất kỳ
+đã được dừng hoặc rollback. Không được tự retry write khi kết quả chưa rõ.

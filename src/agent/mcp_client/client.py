@@ -128,6 +128,13 @@ def _normalize_error(exc: Exception) -> MCPClientError:
     if type(exc).__name__ == "ValidationError":
         return MCPClientError("MALFORMED_RESULT")
     if type(exc).__name__ == "MCPError":
+        # Official SDK 2.3.0 MCP transport codes (mcp_types), not business
+        # tool-contract codes. Preserve these without exposing peer messages.
+        code = getattr(exc, "code", None)
+        if code == -32000:  # CONNECTION_CLOSED
+            return MCPClientError("DISCONNECTED")
+        if code == -32001:  # REQUEST_TIMEOUT
+            return MCPClientError("TIMEOUT")
         return MCPClientError("PROTOCOL_ERROR")
     return MCPClientError("TRANSPORT_ERROR")
 
