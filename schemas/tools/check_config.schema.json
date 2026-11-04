@@ -1,0 +1,31 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "check_config request",
+  "description": "Request to validate a system configuration using a fixed profile.",
+  "type": "object",
+  "allOf": [
+    {
+      "$ref": "../common-request.schema.json"
+    }
+  ],
+  "properties": {
+    "profile": {
+      "type": "string",
+      "enum": [
+        "ssh",
+        "firewall",
+        "systemd"
+      ],
+      "description": "Predefined configuration validation profile."
+    },
+    "unit": {
+      "type": "string",
+      "pattern": "^[a-zA-Z0-9_.@-]+\\.service$",
+      "description": "Optional service unit to validate."
+    }
+  },
+  "required": [
+    "profile"
+  ],
+  "unevaluatedProperties": false
+}

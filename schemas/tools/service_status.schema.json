@@ -1,0 +1,24 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "service_status Request",
+  "allOf": [
+    {
+      "$ref": "../common-request.schema.json"
+    },
+    {
+      "type": "object",
+      "properties": {
+        "unit": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_.@-]+\\.service$"
+        }
+      },
+      "required": [
+        "unit"
+      ]
+    }
+  ],
+  "unevaluatedProperties": false
+}
