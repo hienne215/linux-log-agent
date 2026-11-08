@@ -73,128 +73,152 @@ async def main():
         }
 
         test_cases = [
-            (
-                "query_journal",
-                {
-                    **common,
-                    "trace_id": "trace-query-journal",
-                    "unit": "nginx.service",
-                    "since": "2026-11-02T00:00:00Z",
-                    "until": "2026-11-02T23:59:59Z",
-                    "priority": 3,
-                    "limit": 100,
-                },
-            ),
-            (
-                "search_log",
-                {
-                    **common,
-                    "trace_id": "trace-search-log",
-                    "source_id": "system-journal",
-                    "query": "error",
-                    "since": "2026-11-02T00:00:00Z",
-                    "until": "2026-11-02T23:59:59Z",
-                    "limit": 100,
-                },
-            ),
-            (
-                "service_status",
-                {
-                    **common,
-                    "trace_id": "trace-service-status",
-                    "unit": "nginx.service",
-                },
-            ),
-            (
-                "list_failed_units",
-                {
-                    **common,
-                    "trace_id": "trace-list-failed",
-                    "limit": 100,
-                },
-            ),
-            (
-                "disk_usage",
-                {
-                    **common,
-                    "trace_id": "trace-disk-usage",
-                    "filesystem": "/dev/mock",
-                    "include_inodes": True,
-                },
-            ),
-            (
-                "listening_ports",
-                {
-                    **common,
-                    "trace_id": "trace-listening-ports",
-                    "protocol": "tcp",
-                    "port": 8080,
-                    "unit": "nginx.service",
-                },
-            ),
-            (
-                "check_config",
-                {
-                    **common,
-                    "trace_id": "trace-check-config",
-                    "profile": "ssh",
-                    "unit": "sshd.service",
-                },
-            ),
-            (
-                "memory_oom_events",
-                {
-                    **common,
-                    "trace_id": "trace-memory-oom",
-                    "since": "2026-11-02T00:00:00Z",
-                    "until": "2026-11-02T23:59:59Z",
-                    "limit": 100,
-                },
-            ),
-            (
-                "failed_logins",
-                {
-                    **common,
-                    "trace_id": "trace-failed-logins",
-                    "since": "2026-11-02T00:00:00Z",
-                    "until": "2026-11-02T23:59:59Z",
-                    "limit": 100,
-                },
-            ),
-            (
-                "detect_anomaly",
-                {
-                    **common,
-                    "trace_id": "trace-detect-anomaly",
-                    "source_id": "system-journal",
-                    "window": "1h",
-                    "baseline_window": "24h",
-                    "threshold": 2.0,
-                },
-            ),
-            (
-                "verify_fix",
-                {
-                    **common,
-                    "trace_id": "trace-verify-fix",
-                    "unit": "nginx.service",
-                    "since": "2026-11-02T00:00:00Z",
-                    "evidence_ids": ["evidence-001"],
-                },
-            ),
-            (
-                "restart_service",
-                {
-                    **common,
-                    "trace_id": "trace-restart-service",
-                    "mode": "propose",
-                    "unit": "nginx.service",
-                    "reason": "Testing mock restart proposal",
-                    "evidence_ids": ["evidence-001"],
-                },
-            ),
-        ]
-
+    (
+        "query_journal",
+        {
+            **common,
+            "trace_id": "trace-query-journal",
+            "logical_tool_call_id": "call-query-journal",
+            "attempt_id": "attempt-query-journal",
+            "unit": "nginx.service",
+            "since": "2026-11-02T00:00:00Z",
+            "until": "2026-11-02T23:59:59Z",
+            "priority": 3,
+            "limit": 100,
+        },
+    ),
+    (
+        "search_log",
+        {
+            **common,
+            "trace_id": "trace-search-log",
+            "logical_tool_call_id": "call-search-log",
+            "attempt_id": "attempt-search-log",
+            "source_id": "system-journal",
+            "query": "error",
+            "since": "2026-11-02T00:00:00Z",
+            "until": "2026-11-02T23:59:59Z",
+            "limit": 100,
+        },
+    ),
+    (
+        "service_status",
+        {
+            **common,
+            "trace_id": "trace-service-status",
+            "logical_tool_call_id": "call-service-status",
+            "attempt_id": "attempt-service-status",
+            "unit": "nginx.service",
+        },
+    ),
+    (
+        "list_failed_units",
+        {
+            **common,
+            "trace_id": "trace-list-failed",
+            "logical_tool_call_id": "call-list-failed",
+            "attempt_id": "attempt-list-failed",
+            "limit": 100,
+        },
+    ),
+    (
+        "disk_usage",
+        {
+            **common,
+            "trace_id": "trace-disk-usage",
+            "logical_tool_call_id": "call-disk-usage",
+            "attempt_id": "attempt-disk-usage",
+            "filesystem": "/dev/mock",
+            "include_inodes": True,
+        },
+    ),
+    (
+        "listening_ports",
+        {
+            **common,
+            "trace_id": "trace-listening-ports",
+            "logical_tool_call_id": "call-listening-ports",
+            "attempt_id": "attempt-listening-ports",
+            "protocol": "tcp",
+            "port": 8080,
+            "unit": "nginx.service",
+        },
+    ),
+    (
+        "check_config",
+        {
+            **common,
+            "trace_id": "trace-check-config",
+            "logical_tool_call_id": "call-check-config",
+            "attempt_id": "attempt-check-config",
+            "profile": "ssh",
+            "unit": "sshd.service",
+        },
+    ),
+    (
+        "memory_oom_events",
+        {
+            **common,
+            "trace_id": "trace-memory-oom",
+            "logical_tool_call_id": "call-memory-oom",
+            "attempt_id": "attempt-memory-oom",
+            "since": "2026-11-02T00:00:00Z",
+            "until": "2026-11-02T23:59:59Z",
+            "limit": 100,
+        },
+    ),
+    (
+        "failed_logins",
+        {
+            **common,
+            "trace_id": "trace-failed-logins",
+            "logical_tool_call_id": "call-failed-logins",
+            "attempt_id": "attempt-failed-logins",
+            "since": "2026-11-02T00:00:00Z",
+            "until": "2026-11-02T23:59:59Z",
+            "limit": 100,
+        },
+    ),
+    (
+        "detect_anomaly",
+        {
+            **common,
+            "trace_id": "trace-detect-anomaly",
+            "logical_tool_call_id": "call-detect-anomaly",
+            "attempt_id": "attempt-detect-anomaly",
+            "since": "2026-11-02T00:00:00Z",
+            "until": "2026-11-02T23:59:59Z",
+            "signals": ["service_failures", "journal_errors"],
+            "max_findings": 20,
+        },
+    ),
+    (
+        "verify_fix",
+        {
+            **common,
+            "trace_id": "trace-verify-fix",
+            "logical_tool_call_id": "call-verify-fix",
+            "attempt_id": "attempt-verify-fix",
+            "unit": "nginx.service",
+            "since": "2026-11-02T00:00:00Z",
+            "check_types": ["service_active", "no_new_failures"],
+            "baseline_evidence_refs": ["evidence-001"],
+        },
+    ),
+    (
+        "restart_service",
+        {
+            **common,
+            "trace_id": "trace-restart-service",
+            "logical_tool_call_id": "call-restart-service",
+            "attempt_id": "attempt-restart-service",
+            "mode": "propose",
+            "unit": "nginx.service",
+            "reason": "Testing mock restart proposal",
+            "evidence_ids": ["evidence-001"],
+        },
+    ),
+]
         for tool_name, arguments in test_cases:
             res = await client.call_tool(tool_name, arguments)
 
@@ -204,21 +228,31 @@ async def main():
 
             response_data = json.loads(res.content[0].text)
 
+            # Kiểm tra thông tin tool và request IDs
             assert response_data["tool"] == tool_name
             assert response_data["trace_id"] == arguments["trace_id"]
+            assert response_data["logical_tool_call_id"] == arguments["logical_tool_call_id"]
+            assert response_data["attempt_id"] == arguments["attempt_id"]
 
+            # Kiểm tra response schema
             validator.validate(response_data)
 
+            # Kiểm tra status theo từng tool
             if tool_name == "restart_service":
                 assert response_data["status"] == "approval_required"
                 assert response_data["error_code"] == "APPROVAL_REQUIRED"
                 assert response_data["data"]["executed"] is False
+
+            elif tool_name == "verify_fix":
+                assert response_data["status"] == "partial"
+
             else:
                 assert response_data["status"] == "ok"
 
             print(f"{tool_name}: PASSED")
 
         print("ALL 12 TOOLS INVOKED AND RESPONSE SCHEMAS VALIDATED")
+
 
         # ==========================================
         # 3. KIỂM TRA TOOL SERVICE_STATUS
@@ -230,6 +264,8 @@ async def main():
                 "schema_version": "1.0.0",
                 "session_id": "session-test",
                 "trace_id": "trace-test",
+                "logical_tool_call_id": "call-service-status-extra",
+                "attempt_id": "attempt-service-status-extra",
                 "unit": "nginx.service"
             }
         )
@@ -282,6 +318,8 @@ async def main():
                 "schema_version": "1.0.0",
                 "session_id": "session-test",
                 "trace_id": "trace-restart-test",
+                "logical_tool_call_id": "call-restart-propose",
+                "attempt_id": "attempt-restart-propose",
                 "mode": "propose",
                 "unit": "nginx.service",
                 "reason": "Testing mock restart proposal",
@@ -336,10 +374,13 @@ async def main():
                 "schema_version": "1.0.0",
                 "session_id": "session-test",
                 "trace_id": "trace-restart-status",
+                "logical_tool_call_id": "call-restart-status",
+                "attempt_id": "attempt-restart-status",
                 "mode": "status",
                 "unit": "nginx.service",
                 "reason": "Check proposal status",
-                "evidence_ids": ["evidence-001"]
+                "evidence_ids": ["evidence-001"],
+                "action_id": "mock-proposal-001"
             }
         )
 
@@ -375,6 +416,8 @@ async def main():
                 "schema_version": "1.0.0",
                 "session_id": "session-test",
                 "trace_id": "trace-restart-invalid",
+                "logical_tool_call_id": "call-restart-invalid",
+                "attempt_id": "attempt-restart-invalid",
                 "mode": "invalid",
                 "unit": "nginx.service",
                 "reason": "Testing invalid mode",
@@ -404,7 +447,6 @@ async def main():
         # ==========================================
 
         print("\nALL MOCK MCP TESTS PASSED")
-
 
 if __name__ == "__main__":
     asyncio.run(main())

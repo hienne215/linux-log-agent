@@ -1,0 +1,36 @@
+
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "failed_logins request",
+  "description": "Request to retrieve failed Linux login events within a time range.",
+  "type": "object",
+  "allOf": [
+    {
+      "$ref": "../common-request.schema.json"
+    }
+  ],
+  "properties": {
+    "since": {
+      "type": "string",
+      "format": "date-time",
+      "description": "Start of the time range in ISO 8601 format."
+    },
+    "until": {
+      "type": "string",
+      "format": "date-time",
+      "description": "End of the time range in ISO 8601 format."
+    },
+    "limit": {
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 200,
+      "default": 100,
+      "description": "Maximum number of failed login events to return."
+    }
+  },
+  "required": [
+    "since",
+    "until"
+  ],
+  "unevaluatedProperties": false
+}

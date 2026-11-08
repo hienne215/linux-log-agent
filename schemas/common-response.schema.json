@@ -1,11 +1,16 @@
+
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "title": "Common MCP Tool Response",
+  "description": "Common response envelope for all Linux Log Agent MCP tools.",
   "type": "object",
   "properties": {
     "schema_version": {
       "type": "string",
       "const": "1.0.0"
+    },
+    "session_id": {
+      "type": ["string", "null"]
     },
     "trace_id": {
       "type": "string",
@@ -40,11 +45,12 @@
       "type": "string",
       "format": "date-time"
     },
-    "unit": {
-      "type": ["string", "null"]
+    "duration_ms": {
+      "type": "integer",
+      "minimum": 0
     },
     "data": {
-      "type": ["object", "array", "null"]
+      "type": "object"
     },
     "evidence": {
       "type": "array",
@@ -52,14 +58,16 @@
         "type": "object",
         "properties": {
           "evidence_id": {
-            "type": "string"
+            "type": "string",
+            "minLength": 1
           },
           "observed_at": {
             "type": "string",
             "format": "date-time"
           },
           "source": {
-            "type": "string"
+            "type": "string",
+            "minLength": 1
           },
           "unit": {
             "type": ["string", "null"]
@@ -85,9 +93,6 @@
         "additionalProperties": false
       }
     },
-    "command_source": {
-      "type": ["string", "null"]
-    },
     "error_code": {
       "type": ["string", "null"],
       "enum": [
@@ -111,14 +116,11 @@
     },
     "next_cursor": {
       "type": ["string", "null"]
-    },
-    "duration_ms": {
-      "type": "integer",
-      "minimum": 0
     }
   },
   "required": [
     "schema_version",
+    "session_id",
     "trace_id",
     "logical_tool_call_id",
     "attempt_id",
@@ -126,14 +128,12 @@
     "status",
     "started_at",
     "completed_at",
-    "unit",
+    "duration_ms",
     "data",
     "evidence",
-    "command_source",
     "error_code",
     "truncated",
-    "next_cursor",
-    "duration_ms"
+    "next_cursor"
   ],
   "additionalProperties": false
 }

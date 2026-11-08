@@ -1,0 +1,112 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "detect_anomaly Response Data",
+  "type": "object",
+  "properties": {
+    "anomalies": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "minLength": 1
+          },
+          "type": {
+            "type": "string",
+            "enum": [
+              "service_failures",
+              "journal_errors",
+              "oom_events",
+              "failed_logins"
+            ]
+          },
+          "severity": {
+            "type": "string",
+            "enum": ["low", "medium", "high", "critical"]
+          },
+          "summary": {
+            "type": "string"
+          },
+          "observed_count": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "window": {
+            "type": "object",
+            "properties": {
+              "since": {
+                "type": "string",
+                "format": "date-time",
+                "pattern": "Z$"
+              },
+              "until": {
+                "type": "string",
+                "format": "date-time",
+                "pattern": "Z$"
+              }
+            },
+            "required": ["since", "until"],
+            "additionalProperties": false
+          },
+          "evidence_refs": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "minLength": 1
+            }
+          },
+          "detection_method": {
+            "type": "string",
+            "enum": ["rule_based"]
+          }
+        },
+        "required": [
+          "id",
+          "type",
+          "severity",
+          "summary",
+          "observed_count",
+          "window",
+          "evidence_refs",
+          "detection_method"
+        ],
+        "additionalProperties": false
+      }
+    },
+    "analyzed_signals": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "enum": [
+          "service_failures",
+          "journal_errors",
+          "oom_events",
+          "failed_logins"
+        ]
+      }
+    },
+    "insufficient_signals": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "findings_truncated": {
+      "type": "boolean"
+    },
+    "confidence": {
+      "type": ["number", "null"],
+      "minimum": 0,
+      "maximum": 1
+    }
+  },
+  "required": [
+    "anomalies",
+    "analyzed_signals",
+    "insufficient_signals",
+    "findings_truncated",
+    "confidence"
+  ],
+  "additionalProperties": false
+}

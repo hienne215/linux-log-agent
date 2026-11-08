@@ -1,0 +1,67 @@
+
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "verify_fix Response Data",
+  "type": "object",
+  "properties": {
+    "overall_result": {
+      "type": "string",
+      "enum": ["pass", "fail", "unknown"]
+    },
+    "checks": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "check_type": {
+            "type": "string",
+            "enum": [
+              "service_active",
+              "restart_stability",
+              "error_rate_reduced",
+              "port_available",
+              "resource_recovered"
+            ]
+          },
+          "result": {
+            "type": "string",
+            "enum": ["pass", "fail", "unknown"]
+          },
+          "observed_value": {},
+          "expected_value": {},
+          "evidence_refs": {
+            "type": "array",
+            "items": { "type": "string" }
+          }
+        },
+        "required": [
+          "check_type",
+          "result",
+          "observed_value",
+          "expected_value",
+          "evidence_refs"
+        ],
+        "additionalProperties": false
+      }
+    },
+    "action_id": {
+      "type": ["string", "null"]
+    },
+    "baseline_evidence_refs": {
+      "type": "array",
+      "items": { "type": "string" }
+    },
+    "verified_at": {
+      "type": "string",
+      "format": "date-time"
+    }
+  },
+  "required": [
+    "overall_result",
+    "checks",
+    "action_id",
+    "baseline_evidence_refs",
+    "verified_at"
+  ],
+  "additionalProperties": false
+}

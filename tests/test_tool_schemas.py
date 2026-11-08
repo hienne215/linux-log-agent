@@ -1,3 +1,4 @@
+
 import json
 from pathlib import Path
 
@@ -10,7 +11,9 @@ SCHEMA_DIR = ROOT / "schemas" / "tools"
 COMMON_REQUEST = {
     "schema_version": "1.0.0",
     "session_id": "session-001",
-    "trace_id": "trace-001"
+    "trace_id": "trace-001",
+    "logical_tool_call_id": "call-001",
+    "attempt_id": "attempt-001"
 }
 
 TEST_CASES = [
@@ -18,6 +21,8 @@ TEST_CASES = [
         "query_journal",
         {
             **COMMON_REQUEST,
+            "logical_tool_call_id": "call-001",
+            "attempt_id": "attempt-001",
             "unit": "nginx.service",
             "since": "2026-11-01T00:00:00Z",
             "until": "2026-11-02T00:00:00Z",
@@ -56,26 +61,72 @@ TEST_CASES = [
             **COMMON_REQUEST,
             "filesystem": "/",
             "include_inodes": True
-        },
+        }
     ),
-        (
+    (
         "listening_ports",
         {
             **COMMON_REQUEST,
             "protocol": "tcp",
-            "port": 8080,
-        },
+            "port": 8080
+        }
     ),
     (
         "check_config",
         {
             **COMMON_REQUEST,
-            "profile": "ssh",
-        },
+            "profile": "ssh"
+        }
     ),
+    (
+        "memory_oom_events",
+        {
+            **COMMON_REQUEST,
+            "since": "2026-11-01T00:00:00Z",
+            "until": "2026-11-02T00:00:00Z",
+            "limit": 100
+        }
+    ),
+    (
+        "failed_logins",
+        {
+            **COMMON_REQUEST,
+            "since": "2026-11-01T00:00:00Z",
+            "until": "2026-11-02T00:00:00Z",
+            "limit": 100
+        }
+    ),
+        (
+        "detect_anomaly",
+        {
+            **COMMON_REQUEST,
+            "since": "2026-11-01T00:00:00Z",
+            "until": "2026-11-02T00:00:00Z",
+            "unit": "nginx.service",
+            "signals": ["service_failures", "journal_errors"],
+            "max_findings": 20
+        }
+    ),
+    (
+        "verify_fix",
+        {
+            **COMMON_REQUEST,
+            "unit": "nginx.service",
+            "since": "2026-11-01T00:00:00Z",
+            "until": "2026-11-02T00:00:00Z",
+            "check_types": ["service_active", "no_new_failures"]
+        }
+    ),
+    (
+        "restart_service",
+        {
+            **COMMON_REQUEST,
+            "unit": "nginx.service",
+            "mode": "propose",
+            "reason": "Verify restart proposal"
+        }
+    )
 ]
-
-
 def load_validator(tool_name):
     schema_path = SCHEMA_DIR / f"{tool_name}.schema.json"
     common_path = ROOT / "schemas" / "common-request.schema.json"
@@ -111,8 +162,6 @@ def test_valid_request(tool_name, payload):
     ]
 
 
-
-
 @pytest.mark.parametrize("tool_name, payload", TEST_CASES)
 def test_missing_session_id_is_rejected(tool_name, payload):
     validator = load_validator(tool_name)
@@ -140,6 +189,8 @@ def test_query_journal_rejects_invalid_priority():
 
     invalid_request = {
         **COMMON_REQUEST,
+        "logical_tool_call_id": "call-001",
+"attempt_id": "attempt-001",
         "unit": "nginx.service",
         "since": "2026-11-01T00:00:00Z",
         "until": "2026-11-02T00:00:00Z",
@@ -154,16 +205,22 @@ def test_service_status_rejects_invalid_unit():
 
     invalid_request = {
         **COMMON_REQUEST,
+        "logical_tool_call_id": "call-001",
+"attempt_id": "attempt-001",
         "unit": "nginx"
     }
 
     assert not validator.is_valid(invalid_request)
+
+
 def test_listening_ports_rejects_invalid_port():
     validator = load_validator("listening_ports")
 
     request = {
         **COMMON_REQUEST,
-        "port": 70000,
+        "logical_tool_call_id": "call-001",
+"attempt_id": "attempt-001",
+        "port": 70000
     }
 
     assert not validator.is_valid(request)
@@ -173,7 +230,61 @@ def test_check_config_requires_profile():
     validator = load_validator("check_config")
 
     request = {
+        **COMMON_REQUEST
+    }
+
+    assert not validator.is_valid(request)
+
+
+@pytest.mark.parametrize(
+    "tool_name",
+    ["memory_oom_events", "failed_logins"]
+)
+def test_event_tools_require_since(tool_name):
+    validator = load_validator(tool_name)
+
+    request = {
         **COMMON_REQUEST,
+        "logical_tool_call_id": "call-001",
+"attempt_id": "attempt-001",
+        "until": "2026-11-02T00:00:00Z",
+        "limit": 100
+    }
+
+    assert not validator.is_valid(request)
+
+
+@pytest.mark.parametrize(
+    "tool_name",
+    ["memory_oom_events", "failed_logins"]
+)
+def test_event_tools_require_until(tool_name):
+    validator = load_validator(tool_name)
+
+    request = {
+        **COMMON_REQUEST,
+        "logical_tool_call_id": "call-001",
+"attempt_id": "attempt-001",
+        "since": "2026-11-01T00:00:00Z",
+        "limit": 100
+    }
+
+    assert not validator.is_valid(request)
+
+@pytest.mark.parametrize(
+    "tool_name",
+    ["memory_oom_events", "failed_logins"]
+)
+def test_event_tools_reject_invalid_limit(tool_name):
+    validator = load_validator(tool_name)
+
+    request = {
+        **COMMON_REQUEST,
+        "logical_tool_call_id": "call-001",
+"attempt_id": "attempt-001",
+        "since": "2026-11-01T00:00:00Z",
+        "until": "2026-11-02T00:00:00Z",
+        "limit": 201
     }
 
     assert not validator.is_valid(request)

@@ -1,0 +1,56 @@
+
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://linux-log-agent.local/schemas/tools/restart_service.schema.json",
+  "title": "restart_service Request",
+  "description": "Request to propose a service restart. This tool does not execute the restart directly and requires approval.",
+  "type": "object",
+  "properties": {
+    "schema_version": {
+      "type": "string",
+      "const": "1.0.0"
+    },
+    "session_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "trace_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "logical_tool_call_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "attempt_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "unit": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Target systemd service unit."
+    },
+    "mode": {
+      "type": "string",
+      "const": "propose",
+      "description": "Only proposal mode is supported. No real restart is executed."
+    },
+    "reason": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Reason for proposing the service restart."
+    }
+  },
+  "required": [
+    "schema_version",
+    "session_id",
+    "trace_id",
+    "logical_tool_call_id",
+    "attempt_id",
+    "unit",
+    "mode",
+    "reason"
+  ],
+  "additionalProperties": false
+}

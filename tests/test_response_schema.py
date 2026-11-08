@@ -20,28 +20,33 @@ validator = Draft202012Validator(
 
 VALID_RESPONSE = {
     "schema_version": "1.0.0",
+    "session_id": "session-001",
     "trace_id": "trace-001",
     "logical_tool_call_id": "call-001",
     "attempt_id": "attempt-001",
-    "tool": "service_status",
+    "tool": "query_journal",
     "status": "ok",
-    "started_at": "2026-11-02T10:00:00Z",
-    "completed_at": "2026-11-02T10:00:01Z",
-    "unit": "nginx.service",
+    "started_at": "2026-11-05T09:00:00Z",
+    "completed_at": "2026-11-05T09:00:01Z",
+    "duration_ms": 1000,
     "data": {
-        "active_state": "active"
+        "entries": [],
+        "count": 0
     },
     "evidence": [],
-    "command_source": "systemd_collector",
     "error_code": None,
     "truncated": False,
-    "next_cursor": None,
-    "duration_ms": 1000
+    "next_cursor": None
 }
 
-
 def test_valid_response():
-    assert validator.is_valid(VALID_RESPONSE)
+    errors = list(validator.iter_errors(VALID_RESPONSE))
+
+    for error in errors:
+        print(f"Field: {list(error.absolute_path)}")
+        print(f"Error: {error.message}")
+
+    assert not errors
 
 
 def test_missing_trace_id_is_rejected():
