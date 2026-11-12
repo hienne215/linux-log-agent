@@ -1,22 +1,22 @@
-
-import asyncio
+﻿import asyncio
 import json
 import sys
 from pathlib import Path
 
+from jsonschema import Draft202012Validator, FormatChecker
 from mcp import Client, StdioServerParameters
 
 
-SERVER = Path(__file__).resolve().parents[2] / "mock_mcp_server.py"
+ROOT = Path(__file__).resolve().parents[2]
+SERVER = ROOT / "mock_mcp_server.py"
+SCHEMAS_DIR = ROOT / "schemas" / "tools"
+COMMON_SCHEMA_PATH = ROOT / "schemas" / "common-response.schema.json"
 
 
 # Client creates these IDs.
 COMMON = {
     "schema_version": "1.0.0",
     "session_id": "test-session",
-    "trace_id": "test-trace",
-    "logical_tool_call_id": "client-call-001",
-    "attempt_id": "client-attempt-001",
 }
 
 
@@ -50,7 +50,7 @@ REQUESTS = {
     },
     "check_config": {
         **COMMON,
-        "profile": "default",
+        "profile": "ssh",
     },
     "memory_oom_events": {
         **COMMON,
@@ -67,13 +67,13 @@ REQUESTS = {
         "since": "2026-11-01T00:00:00Z",
         "until": "2026-11-05T00:00:00Z",
     },
-"verify_fix": {
-    **COMMON,
-    "unit": "nginx.service",
-    "check_types": ["service_active"],
-    "baseline_evidence_refs": ["baseline-001"],
-    "since": "2026-11-01T00:00:00Z",
-    "until": "2026-11-05T00:00:00Z",
+    "verify_fix": {
+        **COMMON,
+        "unit": "nginx.service",
+        "check_types": ["service_active"],
+        "baseline_evidence_refs": ["baseline-001"],
+        "since": "2026-11-01T00:00:00Z",
+        "until": "2026-11-05T00:00:00Z",
     },
     "restart_service": {
         **COMMON,
@@ -84,30 +84,40 @@ REQUESTS = {
 }
 
 
-# CommonResponse v1.0 required fields.
-REQUIRED_RESPONSE_FIELDS = {
-    "schema_version",
-    "session_id",
-    "trace_id",
-    "logical_tool_call_id",
-    "attempt_id",
-    "tool",
-    "status",
-    "started_at",
-    "completed_at",
-    "duration_ms",
-    "data",
-    "evidence",
-    "error_code",
-    "truncated",
-    "next_cursor",
-}
-
-
 async def main():
     if not SERVER.exists():
         raise FileNotFoundError(
-            f"Không tìm thấy MCP server: {SERVER}"
+            f"Khong tim thay MCP server: {SERVER}"
+        )
+
+    with COMMON_SCHEMA_PATH.open(encoding="utf-8") as file:
+        common_schema = json.load(file)
+
+    common_validator = Draft202012Validator(
+        common_schema,
+        format_checker=FormatChecker()
+    )
+
+    tool_validators = {}
+
+    for tool_name in REQUESTS:
+        schema_path = (
+            SCHEMAS_DIR / f"{tool_name}.response.schema.json"
+        )
+
+        if not schema_path.exists():
+            raise FileNotFoundError(
+                f"Missing output schema: {schema_path}"
+            )
+
+        with schema_path.open(encoding="utf-8") as file:
+            schema = json.load(file)
+
+        Draft202012Validator.check_schema(schema)
+
+        tool_validators[tool_name] = Draft202012Validator(
+            schema,
+            format_checker=FormatChecker()
         )
 
     params = StdioServerParameters(
@@ -121,18 +131,27 @@ async def main():
         result = await client.list_tools()
         available = {tool.name for tool in result.tools}
 
-        print(f"Server có {len(available)} tools")
+        print(f"Server co {len(available)} tools")
 
         assert len(available) == 12, (
             f"Expected 12 tools, found {len(available)}"
         )
 
-        # 2. Call and validate all tools.
-        for tool_name, arguments in REQUESTS.items():
+        assert set(REQUESTS) == available, (
+            f"Tool mismatch. Expected: {set(REQUESTS)}, "
+            f"Available: {available}"
+        )
 
-            assert tool_name in available, (
-                f"Thiếu tool: {tool_name}"
-            )
+        # 2. Call and validate all tools.
+        for tool_name, request_arguments in REQUESTS.items():
+
+            # Create unique IDs for each logical tool call.
+            arguments = {
+                **request_arguments,
+                "trace_id": f"trace-{tool_name}",
+                "logical_tool_call_id": f"call-{tool_name}",
+                "attempt_id": f"attempt-{tool_name}-001",
+            }
 
             response = await client.call_tool(
                 tool_name,
@@ -156,7 +175,7 @@ async def main():
 
                 if not text_blocks:
                     raise RuntimeError(
-                        f"{tool_name}: không có dữ liệu response"
+                        f"{tool_name}: response has no data"
                     )
 
                 data = json.loads(text_blocks[0])
@@ -170,71 +189,77 @@ async def main():
                 data = data["structuredContent"]
 
             assert isinstance(data, dict), (
-                f"{tool_name}: response phải là dict"
+                f"{tool_name}: response must be a dict"
             )
 
-            # 3. Validate CommonResponse envelope.
-            missing = [
-                field
-                for field in REQUIRED_RESPONSE_FIELDS
-                if field not in data
-            ]
+            # 3. Validate the complete CommonResponse envelope.
+            common_errors = list(
+                common_validator.iter_errors(data)
+            )
 
-            assert not missing, (
-                f"{tool_name}: thiếu fields {missing}"
+            assert not common_errors, (
+                f"{tool_name}: CommonResponse validation failed: "
+                + "; ".join(
+                    f"{list(error.absolute_path)}: {error.message}"
+                    for error in common_errors
+                )
             )
 
             # 4. Validate Client-created IDs.
             assert data["schema_version"] == COMMON["schema_version"]
             assert data["session_id"] == COMMON["session_id"]
-            assert data["trace_id"] == COMMON["trace_id"]
+            assert data["trace_id"] == arguments["trace_id"]
 
             assert (
                 data["logical_tool_call_id"]
-                == COMMON["logical_tool_call_id"]
+                == arguments["logical_tool_call_id"]
             )
 
-            assert data["attempt_id"] == COMMON["attempt_id"]
+            assert data["attempt_id"] == arguments["attempt_id"]
             assert data["tool"] == tool_name
 
-            # 5. Validate status.
-            assert data["status"] in {
+            # 5. Validate tool-specific response data.
+            # Error responses may contain generic error data,
+            # so only validate normal result statuses here.
+            if data["status"] in {
                 "ok",
                 "partial",
-                "error",
                 "approval_required",
-            }, (
-                f"{tool_name}: status không hợp lệ: "
-                f"{data['status']}"
+            }:
+                tool_errors = list(
+                    tool_validators[tool_name].iter_errors(
+                        data["data"]
+                    )
+                )
+
+                assert not tool_errors, (
+                    f"{tool_name}: output data validation failed: "
+                    + "; ".join(
+                        f"{list(error.absolute_path)}: {error.message}"
+                        for error in tool_errors
+                    )
+                )
+
+            # 6. Validate expected status.
+            expected_status = {
+                "verify_fix": "partial",
+                "restart_service": "approval_required",
+            }.get(tool_name, "ok")
+
+            assert data["status"] == expected_status, (
+                f"{tool_name}: expected status {expected_status}, "
+                f"got {data['status']}"
             )
 
-            # 6. Validate field types.
-            assert isinstance(data["schema_version"], str)
-            assert isinstance(data["started_at"], str)
-            assert isinstance(data["completed_at"], str)
-
-            assert isinstance(data["duration_ms"], (int, float))
-            assert not isinstance(data["duration_ms"], bool)
-            assert data["duration_ms"] >= 0
-
-            assert isinstance(data["data"], dict)
-            assert isinstance(data["evidence"], list)
-
-            assert (
-                data["error_code"] is None
-                or isinstance(data["error_code"], str)
-            )
-
-            assert isinstance(data["truncated"], bool)
-
-            assert (
-                data["next_cursor"] is None
-                or isinstance(data["next_cursor"], str)
-            )
+            # restart_service must never execute a real restart.
+            if tool_name == "restart_service":
+                assert data["error_code"] == "APPROVAL_REQUIRED"
+                assert data["data"]["executed"] is False
 
             print(
                 f"PASS: {tool_name} "
-                f"- status={data['status']}"
+                f"- status={data['status']} "
+                f"- output schema valid"
             )
 
         print("\nALL 12 TOOLS PASSED")

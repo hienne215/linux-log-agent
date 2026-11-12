@@ -32,10 +32,23 @@
       "description": "Target systemd service unit."
     },
     "mode": {
-      "type": "string",
-      "const": "propose",
-      "description": "Only proposal mode is supported. No real restart is executed."
-    },
+  "type": "string",
+  "enum": ["propose", "status"],
+  "description": "propose creates a restart proposal; status reads its status. Neither mode executes a restart."
+},
+"evidence_ids": {
+  "type": "array",
+  "items": {
+    "type": "string",
+    "minLength": 1
+  },
+  "description": "Evidence references supporting the restart proposal."
+},
+"action_id": {
+  "type": "string",
+  "minLength": 1,
+  "description": "Proposal identifier required when mode is status."
+},
     "reason": {
       "type": "string",
       "minLength": 1,

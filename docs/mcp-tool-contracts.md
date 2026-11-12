@@ -21,43 +21,57 @@ All tools must use the Official MCP Python SDK.
 The MCP Server must not execute arbitrary shell commands,
 use sudo, or perform privileged operations.
 
+
 ## 2. Common Request Envelope
 
-Each tool request contains:
+Each tool request contains the following common metadata fields:
 
 | Field | Type | Required | Description |
 |---|---|---|---|
-| schema_version | string | Yes | Contract version |
+| schema_version | string | Yes | Contract version, currently 1.0.0 |
 | session_id | string | Yes | Client session identifier |
 | trace_id | string | Yes | Request tracing identifier |
-| arguments | object | Yes | Tool-specific input arguments |
+| logical_tool_call_id | string | Yes | Client-generated identifier for one logical tool call |
+| attempt_id | string | Yes | Client-generated identifier for one execution attempt |
 
-The MCP Client creates one logical tool call ID for the whole request.
-Each retry uses a distinct attempt ID linked to the same logical call ID.
-The SDK manages JSON-RPC request IDs.
+Tool-specific input arguments are passed as additional arguments defined by each tool's input schema.
+
+ID ownership:
+
+- The MCP Client generates `logical_tool_call_id` once for a logical tool call.
+- The MCP Client generates a new `attempt_id` for every retry attempt.
+- Retries of the same logical call reuse the same `logical_tool_call_id`.
+- The JSON-RPC request ID is managed by the MCP SDK and must not be replaced by either application ID.
+- The MCP Server validates and echoes the application IDs in the common response.
+
 
 ## 3. Common Response Envelope
+
 
 Every tool returns a normalized result with these fields:
 
 | Field | Type | Description |
 |---|---|---|
 | schema_version | string | Contract version |
+| session_id | string/null | Client session identifier |
 | trace_id | string | Request tracing identifier |
 | logical_tool_call_id | string | Logical call identifier from Client |
-| attempt_id | string | Identifier for this attempt |
+| attempt_id | string | Execution attempt identifier from Client |
 | tool | string | Tool name |
 | status | string | Execution status |
-| started_at | string | RFC3339 UTC start time |
-| completed_at | string | RFC3339 UTC completion time |
-| unit | string/null | Affected service unit, if applicable |
+| started_at | string | RFC3339 UTC execution start time |
+| completed_at | string | RFC3339 UTC execution completion time |
+| duration_ms | integer | Execution duration in milliseconds |
 | data | object | Tool-specific result |
 | evidence | array | Supporting evidence |
-| command_source | object/null | Collector provenance |
 | error_code | string/null | Normalized error code |
 | truncated | boolean | Whether output was truncated |
 | next_cursor | string/null | Pagination cursor |
-| duration_ms | integer | Execution duration in milliseconds |
+
+Tool-specific fields such as `unit` belong inside `data`, not in the common response envelope.
+
+The JSON-RPC request ID is managed by the MCP SDK and is not part of this application-level response envelope.
+
 
 ### 3.1 Status values
 
@@ -90,6 +104,7 @@ All timestamps use RFC3339 UTC format.
 
 Time-range queries use the half-open interval `[since, until)`.
 
+
 ## 5. Evidence Object
 
 Each evidence item contains:
@@ -97,15 +112,19 @@ Each evidence item contains:
 | Field | Type | Description |
 |---|---|---|
 | evidence_id | string | Unique evidence identifier |
-| observed_at | string | Event observation time |
-| source | object | Source identifier and location |
-| unit | string/null | Related service unit |
+| observed_at | string | Event observation time in RFC3339 UTC |
+| source | string | Approved source identifier or location |
+| unit | string/null | Related service unit, when applicable |
 | excerpt | string | Filtered evidence excerpt |
 | redacted | boolean | Whether sensitive data was redacted |
 | truncated | boolean | Whether the excerpt was shortened |
 
 Evidence must identify its source.
+
 Sensitive information must be redacted before returning results.
+
+Evidence references in tool-specific data must refer to evidence identifiers returned by the relevant tool or an explicitly supplied baseline.
+
 
 ## 6. Error Codes
 

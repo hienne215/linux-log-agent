@@ -1,0 +1,36 @@
+
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "check_config Response Data",
+  "description": "Response data schema for the check_config MCP tool.",
+  "type": "object",
+  "properties": {
+    "profile": {
+      "type": "string",
+      "minLength": 1
+    },
+    "unit": {
+      "type": ["string", "null"]
+    },
+    "valid": {
+      "type": "boolean"
+    },
+    "issues": {
+      "type": "array",
+      "items": {
+        "type": "object"
+      }
+    },
+    "message": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "profile",
+    "unit",
+    "valid",
+    "issues",
+    "message"
+  ],
+  "additionalProperties": false
+}

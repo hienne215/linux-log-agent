@@ -9,21 +9,26 @@
       "type": "string",
       "const": "1.0.0"
     },
-    "session_id": {
-      "type": ["string", "null"]
-    },
-    "trace_id": {
-      "type": "string",
-      "minLength": 1
-    },
-    "logical_tool_call_id": {
-      "type": "string",
-      "minLength": 1
-    },
-    "attempt_id": {
-      "type": "string",
-      "minLength": 1
-    },
+  "session_id": {
+    "type": ["string", "null"],
+    "minLength": 1,
+    "maxLength": 128
+  },
+  "trace_id": {
+    "type": "string",
+    "minLength": 1,
+    "maxLength": 128
+  },
+  "logical_tool_call_id": {
+    "type": "string",
+    "minLength": 1,
+    "maxLength": 128
+  },
+  "attempt_id": {
+    "type": "string",
+    "minLength": 1,
+    "maxLength": 128
+  },
     "tool": {
       "type": "string",
       "minLength": 1
@@ -85,6 +90,7 @@
         "required": [
           "evidence_id",
           "observed_at",
+          "unit",
           "source",
           "excerpt",
           "redacted",
@@ -134,6 +140,74 @@
     "error_code",
     "truncated",
     "next_cursor"
+  ],
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "status": {
+            "const": "error"
+          }
+        },
+        "required": ["status"]
+      },
+      "then": {
+        "properties": {
+          "error_code": {
+            "type": "string",
+            "minLength": 1
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "status": {
+            "const": "approval_required"
+          }
+        },
+        "required": ["status"]
+      },
+      "then": {
+        "properties": {
+          "error_code": {
+            "const": "APPROVAL_REQUIRED"
+          }
+        }
+      }
+    },
+{
+  "if": {
+    "properties": {
+      "status": {
+        "const": "ok"
+      }
+    },
+    "required": ["status"]
+  },
+  "then": {
+    "properties": {
+      "error_code": {
+        "type": "null"
+      }
+    }
+  }
+},
+{
+  "if": {
+    "properties": {
+      "status": {
+        "const": "partial"
+      },
+      "error_code": {
+        "enum": [null, "OUTPUT_LIMIT"]
+      }
+    },
+    "required": ["status", "error_code"]
+  },
+  "then": {}
+}
   ],
   "additionalProperties": false
 }

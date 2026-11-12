@@ -1,3 +1,4 @@
+
 import asyncio
 import json
 import sys
@@ -73,165 +74,178 @@ async def main():
         }
 
         test_cases = [
-    (
-        "query_journal",
-        {
-            **common,
-            "trace_id": "trace-query-journal",
-            "logical_tool_call_id": "call-query-journal",
-            "attempt_id": "attempt-query-journal",
-            "unit": "nginx.service",
-            "since": "2026-11-02T00:00:00Z",
-            "until": "2026-11-02T23:59:59Z",
-            "priority": 3,
-            "limit": 100,
-        },
-    ),
-    (
-        "search_log",
-        {
-            **common,
-            "trace_id": "trace-search-log",
-            "logical_tool_call_id": "call-search-log",
-            "attempt_id": "attempt-search-log",
-            "source_id": "system-journal",
-            "query": "error",
-            "since": "2026-11-02T00:00:00Z",
-            "until": "2026-11-02T23:59:59Z",
-            "limit": 100,
-        },
-    ),
-    (
-        "service_status",
-        {
-            **common,
-            "trace_id": "trace-service-status",
-            "logical_tool_call_id": "call-service-status",
-            "attempt_id": "attempt-service-status",
-            "unit": "nginx.service",
-        },
-    ),
-    (
-        "list_failed_units",
-        {
-            **common,
-            "trace_id": "trace-list-failed",
-            "logical_tool_call_id": "call-list-failed",
-            "attempt_id": "attempt-list-failed",
-            "limit": 100,
-        },
-    ),
-    (
-        "disk_usage",
-        {
-            **common,
-            "trace_id": "trace-disk-usage",
-            "logical_tool_call_id": "call-disk-usage",
-            "attempt_id": "attempt-disk-usage",
-            "filesystem": "/dev/mock",
-            "include_inodes": True,
-        },
-    ),
-    (
-        "listening_ports",
-        {
-            **common,
-            "trace_id": "trace-listening-ports",
-            "logical_tool_call_id": "call-listening-ports",
-            "attempt_id": "attempt-listening-ports",
-            "protocol": "tcp",
-            "port": 8080,
-            "unit": "nginx.service",
-        },
-    ),
-    (
-        "check_config",
-        {
-            **common,
-            "trace_id": "trace-check-config",
-            "logical_tool_call_id": "call-check-config",
-            "attempt_id": "attempt-check-config",
-            "profile": "ssh",
-            "unit": "sshd.service",
-        },
-    ),
-    (
-        "memory_oom_events",
-        {
-            **common,
-            "trace_id": "trace-memory-oom",
-            "logical_tool_call_id": "call-memory-oom",
-            "attempt_id": "attempt-memory-oom",
-            "since": "2026-11-02T00:00:00Z",
-            "until": "2026-11-02T23:59:59Z",
-            "limit": 100,
-        },
-    ),
-    (
-        "failed_logins",
-        {
-            **common,
-            "trace_id": "trace-failed-logins",
-            "logical_tool_call_id": "call-failed-logins",
-            "attempt_id": "attempt-failed-logins",
-            "since": "2026-11-02T00:00:00Z",
-            "until": "2026-11-02T23:59:59Z",
-            "limit": 100,
-        },
-    ),
-    (
-        "detect_anomaly",
-        {
-            **common,
-            "trace_id": "trace-detect-anomaly",
-            "logical_tool_call_id": "call-detect-anomaly",
-            "attempt_id": "attempt-detect-anomaly",
-            "since": "2026-11-02T00:00:00Z",
-            "until": "2026-11-02T23:59:59Z",
-            "signals": ["service_failures", "journal_errors"],
-            "max_findings": 20,
-        },
-    ),
-    (
-        "verify_fix",
-        {
-            **common,
-            "trace_id": "trace-verify-fix",
-            "logical_tool_call_id": "call-verify-fix",
-            "attempt_id": "attempt-verify-fix",
-            "unit": "nginx.service",
-            "since": "2026-11-02T00:00:00Z",
-            "check_types": ["service_active", "no_new_failures"],
-            "baseline_evidence_refs": ["evidence-001"],
-        },
-    ),
-    (
-        "restart_service",
-        {
-            **common,
-            "trace_id": "trace-restart-service",
-            "logical_tool_call_id": "call-restart-service",
-            "attempt_id": "attempt-restart-service",
-            "mode": "propose",
-            "unit": "nginx.service",
-            "reason": "Testing mock restart proposal",
-            "evidence_ids": ["evidence-001"],
-        },
-    ),
-]
+            (
+                "query_journal",
+                {
+                    **common,
+                    "trace_id": "trace-query-journal",
+                    "logical_tool_call_id": "call-query-journal",
+                    "attempt_id": "attempt-query-journal",
+                    "unit": "nginx.service",
+                    "since": "2026-11-02T00:00:00Z",
+                    "until": "2026-11-02T23:59:59Z",
+                    "priority": 3,
+                    "limit": 100,
+                },
+            ),
+            (
+                "search_log",
+                {
+                    **common,
+                    "trace_id": "trace-search-log",
+                    "logical_tool_call_id": "call-search-log",
+                    "attempt_id": "attempt-search-log",
+                    "source_id": "system-journal",
+                    "query": "error",
+                    "since": "2026-11-02T00:00:00Z",
+                    "until": "2026-11-02T23:59:59Z",
+                    "limit": 100,
+                },
+            ),
+            (
+                "service_status",
+                {
+                    **common,
+                    "trace_id": "trace-service-status",
+                    "logical_tool_call_id": "call-service-status",
+                    "attempt_id": "attempt-service-status",
+                    "unit": "nginx.service",
+                },
+            ),
+            (
+                "list_failed_units",
+                {
+                    **common,
+                    "trace_id": "trace-list-failed",
+                    "logical_tool_call_id": "call-list-failed",
+                    "attempt_id": "attempt-list-failed",
+                    "limit": 100,
+                },
+            ),
+            (
+                "disk_usage",
+                {
+                    **common,
+                    "trace_id": "trace-disk-usage",
+                    "logical_tool_call_id": "call-disk-usage",
+                    "attempt_id": "attempt-disk-usage",
+                    "filesystem": "/dev/mock",
+                    "include_inodes": True,
+                },
+            ),
+            (
+                "listening_ports",
+                {
+                    **common,
+                    "trace_id": "trace-listening-ports",
+                    "logical_tool_call_id": "call-listening-ports",
+                    "attempt_id": "attempt-listening-ports",
+                    "protocol": "tcp",
+                    "port": 8080,
+                    "unit": "nginx.service",
+                },
+            ),
+            (
+                "check_config",
+                {
+                    **common,
+                    "trace_id": "trace-check-config",
+                    "logical_tool_call_id": "call-check-config",
+                    "attempt_id": "attempt-check-config",
+                    "profile": "ssh",
+                    "unit": "sshd.service",
+                },
+            ),
+            (
+                "memory_oom_events",
+                {
+                    **common,
+                    "trace_id": "trace-memory-oom",
+                    "logical_tool_call_id": "call-memory-oom",
+                    "attempt_id": "attempt-memory-oom",
+                    "since": "2026-11-02T00:00:00Z",
+                    "until": "2026-11-02T23:59:59Z",
+                    "limit": 100,
+                },
+            ),
+            (
+                "failed_logins",
+                {
+                    **common,
+                    "trace_id": "trace-failed-logins",
+                    "logical_tool_call_id": "call-failed-logins",
+                    "attempt_id": "attempt-failed-logins",
+                    "since": "2026-11-02T00:00:00Z",
+                    "until": "2026-11-02T23:59:59Z",
+                    "limit": 100,
+                },
+            ),
+            (
+                "detect_anomaly",
+                {
+                    **common,
+                    "trace_id": "trace-detect-anomaly",
+                    "logical_tool_call_id": "call-detect-anomaly",
+                    "attempt_id": "attempt-detect-anomaly",
+                    "since": "2026-11-02T00:00:00Z",
+                    "until": "2026-11-02T23:59:59Z",
+                    "signals": ["service_failures", "journal_errors"],
+                    "max_findings": 20,
+                },
+            ),
+            (
+                "verify_fix",
+                {
+                    **common,
+                    "trace_id": "trace-verify-fix",
+                    "logical_tool_call_id": "call-verify-fix",
+                    "attempt_id": "attempt-verify-fix",
+                    "unit": "nginx.service",
+                    "since": "2026-11-02T00:00:00Z",
+                    "check_types": ["service_active", "no_new_failures"],
+                    "baseline_evidence_refs": ["evidence-001"],
+                },
+            ),
+            (
+                "restart_service",
+                {
+                    **common,
+                    "trace_id": "trace-restart-service",
+                    "logical_tool_call_id": "call-restart-service",
+                    "attempt_id": "attempt-restart-service",
+                    "mode": "propose",
+                    "unit": "nginx.service",
+                    "reason": "Testing mock restart proposal",
+                    "evidence_ids": ["evidence-001"],
+                },
+            ),
+        ]
+
         for tool_name, arguments in test_cases:
             res = await client.call_tool(tool_name, arguments)
 
-            assert getattr(res, "is_error", getattr(res, "isError", False)) is not True, (
+            print(f"\nDEBUG TOOL: {tool_name}")
+            print("IS ERROR:", res.is_error)
+            print("STRUCTURED CONTENT:", res.structured_content)
+            print("CONTENT:", res.content)
+
+            assert res.is_error is False, (
                 f"{tool_name} returned an MCP error"
             )
 
-            response_data = json.loads(res.content[0].text)
+            assert res.structured_content is not None, (
+                f"{tool_name} missing structured_content"
+            )
+
+            response_data = res.structured_content
 
             # Kiểm tra thông tin tool và request IDs
             assert response_data["tool"] == tool_name
             assert response_data["trace_id"] == arguments["trace_id"]
-            assert response_data["logical_tool_call_id"] == arguments["logical_tool_call_id"]
+            assert (
+                response_data["logical_tool_call_id"]
+                == arguments["logical_tool_call_id"]
+            )
             assert response_data["attempt_id"] == arguments["attempt_id"]
 
             # Kiểm tra response schema
@@ -253,7 +267,6 @@ async def main():
 
         print("ALL 12 TOOLS INVOKED AND RESPONSE SCHEMAS VALIDATED")
 
-
         # ==========================================
         # 3. KIỂM TRA TOOL SERVICE_STATUS
         # ==========================================
@@ -270,25 +283,10 @@ async def main():
             }
         )
 
-        print("IS ERROR:", response.is_error)
-        print("STRUCTURED CONTENT:", getattr(response, "structured_content", None))
-        print("CONTENT:", response.content)
-
         assert response.is_error is False
+        assert response.structured_content is not None
 
-        # Đọc dữ liệu trả về từ MCP
-        if getattr(response, "structured_content", None) is not None:
-            data = response.structured_content
-        else:
-            text_content = [
-                item.text
-                for item in response.content
-                if hasattr(item, "text")
-            ]
-
-            assert text_content, "MCP response không có nội dung text."
-
-            data = json.loads(text_content[0])
+        data = response.structured_content
 
         assert data["status"] == "ok"
         assert data["tool"] == "service_status"
@@ -306,7 +304,7 @@ async def main():
         )
 
         print("SERVICE STATUS TEST PASSED")
-        print("RESPONSE SCHEMA VALIDATED")
+        print("STRUCTURED CONTENT AND RESPONSE SCHEMA VALIDATED")
 
         # ==========================================
         # 4. KIỂM TRA RESTART_SERVICE - MODE: PROPOSE
@@ -328,24 +326,18 @@ async def main():
         )
 
         assert restart_response.is_error is False
+        assert restart_response.structured_content is not None
 
-        restart_text = [
-            item.text
-            for item in restart_response.content
-            if hasattr(item, "text")
-        ]
+        restart_data = restart_response.structured_content
 
-        assert restart_text, "Restart response không có nội dung text."
-
-        restart_data = json.loads(restart_text[0])
-
-        # Kiểm tra kết quả proposal
         assert restart_data["status"] == "approval_required"
         assert restart_data["error_code"] == "APPROVAL_REQUIRED"
         assert restart_data["data"]["executed"] is False
-        assert restart_data["data"]["proposal_status"] == "pending_approval"
+        assert (
+            restart_data["data"]["proposal_status"]
+            == "pending_approval"
+        )
 
-        # Kiểm tra response schema
         restart_errors = list(
             validator.iter_errors(restart_data)
         )
@@ -385,21 +377,18 @@ async def main():
         )
 
         assert status_response.is_error is False
+        assert status_response.structured_content is not None
 
-        status_text = [
-            item.text
-            for item in status_response.content
-            if hasattr(item, "text")
-        ]
-
-        assert status_text, "Status response không có nội dung text."
-
-        status_data = json.loads(status_text[0])
+        status_data = status_response.structured_content
 
         assert status_data["data"]["executed"] is False
-        assert status_data["data"]["proposal_status"] == "pending_approval"
+        assert (
+            status_data["data"]["proposal_status"]
+            == "pending_approval"
+        )
 
         status_errors = list(validator.iter_errors(status_data))
+
         assert not status_errors, [
             error.message for error in status_errors
         ]
@@ -425,7 +414,10 @@ async def main():
             },
         )
 
-        invalid_data = json.loads(invalid_result.content[0].text)
+        assert invalid_result.is_error is True
+        assert invalid_result.structured_content is not None
+
+        invalid_data = invalid_result.structured_content
 
         print("INVALID MODE RESPONSE:")
         print(json.dumps(invalid_data, indent=2, ensure_ascii=False))
@@ -443,10 +435,43 @@ async def main():
         print("REAL RESTART EXECUTED: False")
 
         # ==========================================
-        # 7. TỔNG KẾT
+        # 7. KIỂM TRA JSON SCHEMA VALIDATION
+        # ==========================================
+
+        schema_invalid_result = await client.call_tool(
+            "detect_anomaly",
+            {
+                "schema_version": "9.9.9",
+                "session_id": "session-test",
+                "trace_id": "trace-schema-invalid",
+                "logical_tool_call_id": "call-schema-invalid",
+                "attempt_id": "attempt-schema-invalid",
+                "since": "2026-11-02T00:00:00Z",
+                "until": "2026-11-02T23:59:59Z",
+                "signals": ["service_failures"],
+                "max_findings": 20,
+            },
+        )
+
+        assert schema_invalid_result.is_error is True
+        assert schema_invalid_result.structured_content is not None
+
+        schema_invalid_data = schema_invalid_result.structured_content
+
+        assert schema_invalid_data["status"] == "error"
+        assert schema_invalid_data["error_code"] == "INVALID_INPUT"
+        assert schema_invalid_data["data"]["field"] == "schema_version"
+
+        validator.validate(schema_invalid_data)
+
+        print("JSON SCHEMA VALIDATION TEST PASSED")
+
+        # ==========================================
+        # 8. TỔNG KẾT
         # ==========================================
 
         print("\nALL MOCK MCP TESTS PASSED")
+
 
 if __name__ == "__main__":
     asyncio.run(main())

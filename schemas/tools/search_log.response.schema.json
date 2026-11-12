@@ -1,0 +1,26 @@
+
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "search_log Response Data",
+  "type": "object",
+  "properties": {
+    "source_id": {"type": "string", "minLength": 1},
+    "query": {"type": "string", "minLength": 1},
+    "matches": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "timestamp": {"type": "string", "format": "date-time"},
+          "message": {"type": "string"}
+        },
+        "required": ["timestamp", "message"],
+        "additionalProperties": false
+      }
+    },
+    "count": {"type": "integer", "minimum": 0},
+    "limit": {"type": "integer", "minimum": 1, "maximum": 200}
+  },
+  "required": ["source_id", "query", "matches", "count", "limit"],
+  "additionalProperties": false
+}

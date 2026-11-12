@@ -1,0 +1,46 @@
+
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "restart_service Response Data",
+  "description": "Response data schema for restart_service. This tool only creates or inspects restart proposals and never executes a real restart.",
+  "oneOf": [
+    {
+      "title": "Proposal created",
+      "type": "object",
+      "properties": {
+        "proposal_id": {"type": "string", "minLength": 1},
+        "proposal_status": {"const": "pending_approval"},
+        "reason": {"type": "string"},
+        "evidence_ids": {
+          "type": "array",
+          "items": {"type": "string", "minLength": 1}
+        },
+        "executed": {"const": false},
+        "message": {"type": "string"}
+      },
+      "required": ["proposal_id", "proposal_status", "reason", "evidence_ids", "executed", "message"],
+      "additionalProperties": false
+    },
+    {
+      "title": "Proposal status",
+      "type": "object",
+      "properties": {
+        "action_id": {"type": "string", "minLength": 1},
+        "proposal_status": {"const": "pending_approval"},
+        "executed": {"const": false},
+        "message": {"type": "string"}
+      },
+      "required": ["action_id", "proposal_status", "executed", "message"],
+      "additionalProperties": false
+    },
+    {
+      "title": "Error response",
+      "type": "object",
+      "properties": {
+        "message": {"type": "string"}
+      },
+      "required": ["message"],
+      "additionalProperties": false
+    }
+  ]
+}

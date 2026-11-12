@@ -2,8 +2,17 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "title": "verify_fix Response Data",
+  "description": "Response data schema for the verify_fix MCP tool, contract version 1.0.0.",
   "type": "object",
   "properties": {
+    "action_id": {
+      "type": ["string", "null"],
+      "minLength": 1
+    },
+    "unit": {
+      "type": "string",
+      "minLength": 1
+    },
     "overall_result": {
       "type": "string",
       "enum": ["pass", "fail", "unknown"]
@@ -17,39 +26,40 @@
             "type": "string",
             "enum": [
               "service_active",
-              "restart_stability",
-              "error_rate_reduced",
-              "port_available",
-              "resource_recovered"
+              "no_new_failures",
+              "port_listening"
             ]
           },
           "result": {
             "type": "string",
             "enum": ["pass", "fail", "unknown"]
           },
-          "observed_value": {},
-          "expected_value": {},
+          "summary": {
+            "type": "string"
+          },
           "evidence_refs": {
             "type": "array",
-            "items": { "type": "string" }
+            "items": {
+              "type": "string",
+              "minLength": 1
+            }
           }
         },
         "required": [
           "check_type",
           "result",
-          "observed_value",
-          "expected_value",
+          "summary",
           "evidence_refs"
         ],
         "additionalProperties": false
       }
     },
-    "action_id": {
-      "type": ["string", "null"]
-    },
     "baseline_evidence_refs": {
       "type": "array",
-      "items": { "type": "string" }
+      "items": {
+        "type": "string",
+        "minLength": 1
+      }
     },
     "verified_at": {
       "type": "string",
@@ -57,9 +67,10 @@
     }
   },
   "required": [
+    "action_id",
+    "unit",
     "overall_result",
     "checks",
-    "action_id",
     "baseline_evidence_refs",
     "verified_at"
   ],
