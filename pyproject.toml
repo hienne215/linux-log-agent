@@ -16,3 +16,6 @@ mcp = ["mcp==2.3.0"]
 where = ["src"]
 include = ["agent*"]
 namespaces = false
+
+[project.scripts]
+lla-demo = "agent.cli.__main__:main"
