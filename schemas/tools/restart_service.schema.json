@@ -1,4 +1,3 @@
-
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://linux-log-agent.local/schemas/tools/restart_service.schema.json",
@@ -12,43 +11,52 @@
     },
     "session_id": {
       "type": "string",
-      "minLength": 1
+      "minLength": 1,
+      "maxLength": 128
     },
     "trace_id": {
       "type": "string",
-      "minLength": 1
+      "minLength": 1,
+      "maxLength": 128
     },
     "logical_tool_call_id": {
       "type": "string",
-      "minLength": 1
+      "minLength": 1,
+      "maxLength": 128
     },
     "attempt_id": {
       "type": "string",
-      "minLength": 1
+      "minLength": 1,
+      "maxLength": 128
     },
     "unit": {
       "type": "string",
       "minLength": 1,
-      "description": "Target systemd service unit."
+      "description": "Target systemd service unit.",
+      "pattern": "^[a-zA-Z0-9][a-zA-Z0-9_.-]*\\.service$",
+      "maxLength": 128
     },
     "mode": {
-  "type": "string",
-  "enum": ["propose", "status"],
-  "description": "propose creates a restart proposal; status reads its status. Neither mode executes a restart."
-},
-"evidence_ids": {
-  "type": "array",
-  "items": {
-    "type": "string",
-    "minLength": 1
-  },
-  "description": "Evidence references supporting the restart proposal."
-},
-"action_id": {
-  "type": "string",
-  "minLength": 1,
-  "description": "Proposal identifier required when mode is status."
-},
+      "type": "string",
+      "enum": [
+        "propose",
+        "status"
+      ],
+      "description": "propose creates a restart proposal; status reads its status. Neither mode executes a restart."
+    },
+    "evidence_ids": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1
+      },
+      "description": "Evidence references supporting the restart proposal."
+    },
+    "action_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Proposal identifier required when mode is status."
+    },
     "reason": {
       "type": "string",
       "minLength": 1,
@@ -65,5 +73,24 @@
     "mode",
     "reason"
   ],
-  "additionalProperties": false
+  "additionalProperties": false,
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "mode": {
+            "const": "status"
+          }
+        },
+        "required": [
+          "mode"
+        ]
+      },
+      "then": {
+        "required": [
+          "action_id"
+        ]
+      }
+    }
+  ]
 }

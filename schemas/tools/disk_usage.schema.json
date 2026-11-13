@@ -1,24 +1,48 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "title": "disk_usage Request",
-  "allOf": [
-    {
-      "$ref": "../common-request.schema.json"
+  "type": "object",
+  "properties": {
+    "schema_version": {
+      "type": "string",
+      "const": "1.0.0"
     },
-    {
-      "type": "object",
-      "properties": {
-        "filesystem": {
-          "type": "string",
-          "minLength": 1,
-          "maxLength": 255
-        },
-        "include_inodes": {
-          "type": "boolean",
-          "default": true
-        }
-      }
+    "session_id": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 128
+    },
+    "trace_id": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 128
+    },
+    "logical_tool_call_id": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 128
+    },
+    "attempt_id": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 128
+    },
+    "filesystem": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 255
+    },
+    "include_inodes": {
+      "type": "boolean",
+      "default": true
     }
+  },
+  "required": [
+    "schema_version",
+    "session_id",
+    "trace_id",
+    "logical_tool_call_id",
+    "attempt_id"
   ],
-  "unevaluatedProperties": false
+  "additionalProperties": false
 }

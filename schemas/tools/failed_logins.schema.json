@@ -1,14 +1,8 @@
-
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "title": "failed_logins request",
   "description": "Request to retrieve failed Linux login events within a time range.",
   "type": "object",
-  "allOf": [
-    {
-      "$ref": "../common-request.schema.json"
-    }
-  ],
   "properties": {
     "since": {
       "type": "string",
@@ -26,11 +20,40 @@
       "maximum": 200,
       "default": 100,
       "description": "Maximum number of failed login events to return."
+    },
+    "schema_version": {
+      "type": "string",
+      "const": "1.0.0"
+    },
+    "session_id": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 128
+    },
+    "trace_id": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 128
+    },
+    "logical_tool_call_id": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 128
+    },
+    "attempt_id": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 128
     }
   },
   "required": [
     "since",
-    "until"
+    "until",
+    "schema_version",
+    "session_id",
+    "trace_id",
+    "logical_tool_call_id",
+    "attempt_id"
   ],
-  "unevaluatedProperties": false
+  "additionalProperties": false
 }

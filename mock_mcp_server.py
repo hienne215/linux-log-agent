@@ -1,42 +1,30 @@
 from datetime import datetime, timezone, timedelta
-from mcp.server import MCPServer
+from mcp.server.lowlevel import Server
+from mcp.server.stdio import stdio_server
+import asyncio
+import copy
+import time
+from mcp.types import Tool, ListToolsResult, JSONRPCResponse
+from mcp.shared.exceptions import MCPError
 from mcp.types import CallToolResult, TextContent
-from functools import wraps
 from typing import Literal
 from pathlib import Path
 from jsonschema import Draft202012Validator, FormatChecker
-from referencing import Registry, Resource
-import inspect
 import json
 import secrets
 
 
-mcp = MCPServer("linux-log-agent-mock")
+TOOLS = {}
 
 MAX_RESPONSE_BYTES = 64 * 1024
 SCHEMA_DIR = Path(__file__).resolve().parent / "schemas"
 
 
-def load_schema_registry() -> Registry:
-    """Load local JSON schemas for resolving relative references."""
-    registry = Registry()
-
-    for schema_path in SCHEMA_DIR.rglob("*.schema.json"):
-        schema = json.loads(schema_path.read_text(encoding="utf-8"))
-        schema_uri = schema_path.resolve().as_uri()
-        schema.setdefault("$id", schema_uri)
-
-        registry = registry.with_resource(
-            schema_uri,
-            Resource.from_contents(schema),
-        )
-
-    return registry
-
-
-SCHEMA_REGISTRY = load_schema_registry()
 # Cursor configuration for mock pagination.
 CURSOR_TTL_SECONDS = 300
+MAX_CURSOR_STATES = 256
+MAX_PAGE_OFFSET = 200
+ANOMALY_EVENT_AT = "2026-11-02T00:00:00Z"
 
 # Store cursor state in memory.
 CURSOR_STORE: dict[str, dict] = {}
@@ -47,6 +35,15 @@ def current_time() -> str:
     return datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
 
 
+def normalized_filters(filters):
+    normalized = dict(filters)
+    for field in ("since", "until"):
+        if isinstance(normalized.get(field), str):
+            normalized[field] = datetime.fromisoformat(normalized[field].replace(
+                "Z", "+00:00")).astimezone(timezone.utc).isoformat().replace("+00:00", "Z")
+    return normalized
+
+
 def create_cursor(
     tool: str,
     session_id: str,
@@ -54,12 +51,18 @@ def create_cursor(
     offset: int,
 ) -> str:
     """Create a session-bound, filter-bound pagination cursor."""
+    now = datetime.now(timezone.utc)
+    for old in list(CURSOR_STORE):
+        if CURSOR_STORE[old]["expires_at"] <= now:
+            CURSOR_STORE.pop(old)
+    if len(CURSOR_STORE) >= MAX_CURSOR_STATES or not 0 < offset <= MAX_PAGE_OFFSET:
+        raise ValueError("Cursor budget exhausted")
     token = secrets.token_urlsafe(32)
 
     CURSOR_STORE[token] = {
         "tool": tool,
         "session_id": session_id,
-        "filters": filters,
+        "filters": normalized_filters(filters),
         "offset": offset,
         "expires_at": datetime.now(timezone.utc)
         + timedelta(seconds=CURSOR_TTL_SECONDS),
@@ -90,10 +93,19 @@ def validate_cursor(
     if state["session_id"] != session_id:
         return False, "INVALID_INPUT"
 
-    if state["filters"] != filters:
+    if state["filters"] != normalized_filters(filters):
         return False, "INVALID_INPUT"
 
+    if not 0 < state["offset"] <= MAX_PAGE_OFFSET:
+        return False, "OUTPUT_LIMIT"
     return True, state["offset"]
+
+
+def within_window(records, since, until):
+    start = datetime.fromisoformat(since.replace("Z", "+00:00"))
+    end = datetime.fromisoformat(until.replace("Z", "+00:00"))
+    return [record for record in records if start <= datetime.fromisoformat(
+        record["timestamp"].replace("Z", "+00:00")) < end]
 
 
 def aggregate_verify_results(checks: list[dict]) -> str:
@@ -150,109 +162,131 @@ def make_response(
         "next_cursor": next_cursor,
     }
 
-    def serialized_size() -> int:
-        return len(
-            json.dumps(response, ensure_ascii=False).encode("utf-8")
-        )
+    return bound_response(response)
 
-    response["completed_at"] = current_time()
 
-    if serialized_size() > MAX_RESPONSE_BYTES:
-        response["status"] = "partial"
-        response["error_code"] = "OUTPUT_LIMIT"
-        response["truncated"] = True
-        response["data"] = {
-            "message": "Response exceeded the maximum size limit.",
-            "max_response_bytes": MAX_RESPONSE_BYTES,
-        }
-        response["evidence"] = []
-        response["next_cursor"] = None
-        response["completed_at"] = current_time()
-
-    # Preserve all client-generated IDs when compacting the response.
-    if serialized_size() > MAX_RESPONSE_BYTES:
-        response["data"] = {"message": "OUTPUT_LIMIT"}
-        response["evidence"] = []
-        response["next_cursor"] = None
-        response["completed_at"] = current_time()
-
-    if serialized_size() > MAX_RESPONSE_BYTES:
-        raise ValueError("Unable to construct a response within 64 KiB.")
-
+def bound_response(response, request_id=0):
+    """Keep whole records when useful data fits; otherwise return an atomic error."""
+    if wire_size(native_result(response), request_id) <= MAX_RESPONSE_BYTES:
+        return response
+    candidate = copy.deepcopy(response)
+    for key in ("entries", "matches", "failed_units", "events", "ports"):
+        records = candidate["data"].get(key)
+        if response["status"] not in {"ok", "partial"} or not isinstance(records, list):
+            continue
+        while len(records) > 1:
+            records.pop()
+            candidate["data"]["count"] = len(records)
+            candidate.update(status="partial", error_code="OUTPUT_LIMIT",
+                             truncated=True, next_cursor=None)
+            if wire_size(native_result(candidate), request_id) <= MAX_RESPONSE_BYTES:
+                return candidate
+    # Do not split evidence, individual records, JSON strings, or UTF-8 bytes.
+    response.update(status="error", error_code="OUTPUT_LIMIT", truncated=True,
+                    data={"message": "Response exceeded the maximum size limit.",
+                          "max_response_bytes": MAX_RESPONSE_BYTES},
+                    evidence=[], next_cursor=None)
     return response
+
+
+def native_result(response):
+    return CallToolResult(
+        _meta={"io.modelcontextprotocol/serverInfo": mcp.server_info_stamp},
+        result_type="complete",
+        content=[TextContent(type="text", text=json.dumps(response, ensure_ascii=False))],
+        structured_content=response, is_error=response["status"] == "error")
+
+
+def wire_size(result, request_id=0):
+    # Same model serialization as SDK runner and stdio stdout_writer; include newline.
+    frame = JSONRPCResponse(jsonrpc="2.0", id=request_id,
+        result=result.model_dump(by_alias=True, mode="json", exclude_none=True))
+    return len(frame.model_dump_json(by_alias=True, exclude_unset=True).encode("utf-8")) + 1
+
+
 def register_tool():
-    """Register a tool with JSON Schema validation and structured results."""
-
+    """Record the raw callable; the SDK never derives a second signature schema."""
     def decorator(fn):
-        schema_path = (
-            Path(__file__).resolve().parent
-            / "schemas"
-            / "tools"
-            / f"{fn.__name__}.schema.json"
-        )
-
-        with schema_path.open("r", encoding="utf-8") as file:
-            schema = json.load(file)
-
-        schema_uri = schema_path.resolve().as_uri()
-        schema.setdefault("$id", schema_uri)
-
-        Draft202012Validator.check_schema(schema)
-
-        validator = Draft202012Validator(
-            schema,
-            registry=SCHEMA_REGISTRY,
-            format_checker=FormatChecker(),
-        )
-
-        @wraps(fn)
-        def wrapper(*args, **kwargs):
-            bound = inspect.signature(fn).bind(*args, **kwargs)
-            arguments = bound.arguments
-
-            errors = sorted(
-                validator.iter_errors(arguments),
-                key=lambda error: list(map(str, error.absolute_path)),
-            )
-
-            if errors:
-                error = errors[0]
-                field = ".".join(map(str, error.absolute_path))
-
-                response = make_response(
-                    tool=fn.__name__,
-                    trace_id=arguments.get("trace_id", "invalid-input"),
-                    logical_tool_call_id=arguments.get(
-                        "logical_tool_call_id", "invalid-input"
-                    ),
-                    attempt_id=arguments.get("attempt_id", "invalid-input"),
-                    session_id=arguments.get("session_id"),
-                    data={
-                        "message": "Input does not match tool schema.",
-                        "field": field,
-                        "details": error.message,
-                    },
-                    status="error",
-                    error_code="INVALID_INPUT",
-                )
-            else:
-                response = fn(*args, **kwargs)
-
-            return CallToolResult(
-                content=[
-                    TextContent(
-                        type="text",
-                        text=json.dumps(response, ensure_ascii=False),
-                    )
-                ],
-                structured_content=response,
-                is_error=response.get("status") == "error",
-            )
-
-        mcp.tool()(wrapper)
+        name = fn.__name__
+        schemas = [json.loads((SCHEMA_DIR / "tools" / f"{name}{suffix}").read_text(encoding="utf-8"))
+                   for suffix in (".schema.json", ".result.schema.json")]
+        for schema in schemas:
+            Draft202012Validator.check_schema(schema)
+        TOOLS[name] = (fn, *schemas, *[Draft202012Validator(schema,
+            format_checker=FormatChecker()) for schema in schemas])
         return fn
-
     return decorator
+
+
+def safe_error(name, arguments, code="INVALID_INPUT", field="", rule="validation"):
+    # Never reflect invalid input (including attacker-chosen property names or IDs).
+    # Valid metadata is echoed only after the complete request passes validation.
+    return make_response(name, "invalid-input", "invalid-input", "invalid-input",
+        {"message": "Request rejected.", "field": field, "rule": rule},
+        None, status="error", error_code=code)
+
+
+async def list_tools(ctx, params):
+    if params is not None and params.cursor is not None:
+        raise MCPError(code=-32602, message="Invalid discovery cursor")
+    return ListToolsResult(tools=[Tool(name=name, description=fn.__doc__,
+        input_schema=input_schema, output_schema=output_schema)
+        for name, (fn, input_schema, output_schema, _, _) in TOOLS.items()])
+
+
+async def call_tool(ctx, params):
+    if params.name not in TOOLS:
+        raise MCPError(code=-32602, message="Unknown tool")
+    fn, input_schema, _, input_validator, output_validator = TOOLS[params.name]
+    arguments = params.arguments if params.arguments is not None else {}
+    error = next(input_validator.iter_errors(arguments), None)
+    if error is not None:
+        # A path segment is safe only if it is a schema-declared top-level identifier.
+        field = next(iter(error.absolute_path), "")
+        if field not in input_schema["properties"]:
+            field = ""
+        response = safe_error(params.name, arguments, field=field,
+                              rule=str(error.validator))
+    else:
+        started = current_time()
+        tick = time.monotonic()
+        try:
+            response = fn(**arguments)
+        except PermissionError:
+            response = safe_error(params.name, {}, "PERMISSION_DENIED", rule="permission")
+        except Exception:
+            # No exception text, input repr, or traceback crosses the trust boundary.
+            response = safe_error(params.name, {}, "EXECUTION_UNKNOWN", rule="execution")
+        response["started_at"] = started
+        response["completed_at"] = current_time()
+        response["duration_ms"] = int((time.monotonic() - tick) * 1000)
+    if not output_validator.is_valid(response):
+        response = safe_error(params.name, {}, "EXECUTION_UNKNOWN", rule="output_validation")
+    response = bound_response(response, ctx.request_id)
+    result = native_result(response)
+    if not output_validator.is_valid(response):
+        raise RuntimeError("Internal result contract failure")
+    return result
+
+
+async def protocol_guard(ctx, call_next):
+    # Reject malformed tools/call parameters before SDK model errors can quote them.
+    if ctx.method == "tools/call":
+        params = ctx.params
+        if (not isinstance(params, dict) or not isinstance(params.get("name"), str)
+                or (params.get("arguments") is not None
+                    and not isinstance(params.get("arguments"), dict))):
+            raise MCPError(code=-32602, message="Invalid tool call parameters")
+    return await call_next(ctx)
+
+
+mcp = Server("linux-log-agent-mock", on_list_tools=list_tools, on_call_tool=call_tool)
+mcp.middleware.append(protocol_guard)
+
+
+async def run():
+    async with stdio_server() as (read, write):
+        await mcp.run(read, write, mcp.create_initialization_options())
 
 @register_tool()
 def query_journal(
@@ -295,6 +329,7 @@ def query_journal(
         },
     ]
 
+    all_entries = within_window(all_entries, since, until)
     if priority is not None:
         all_entries = [
             entry for entry in all_entries
@@ -415,6 +450,7 @@ def search_log(
 
         offset = result
 
+    all_matches = within_window(all_matches, since, until)
     page_matches = all_matches[offset:offset + limit]
     next_offset = offset + len(page_matches)
     next_cursor = None
@@ -461,6 +497,13 @@ def service_status(
         logical_tool_call_id=logical_tool_call_id,
         attempt_id=attempt_id,
         session_id=session_id,
+        evidence=[{
+            "evidence_id": "mock-status-" + secrets.token_hex(12),
+            "observed_at": current_time(),
+            "source": "synthetic.mock.service_status", "unit": unit,
+            "excerpt": "Synthetic mock: ActiveState=active; SubState=running; LoadState=loaded",
+            "redacted": False, "truncated": False,
+        }],
         data={
             "unit": unit,
             "active_state": "active",
@@ -666,8 +709,8 @@ def memory_oom_events(
                     "process": "mock-worker",
                     "message": "Mock process was terminated by OOM killer.",
                 }
-            ],
-            "count": 1,
+            ] if within_window([{"timestamp": "2026-11-02T09:20:00Z"}], since, until) else [],
+            "count": int(bool(within_window([{"timestamp": "2026-11-02T09:20:00Z"}], since, until))),
             "limit": limit,
         },
     )
@@ -699,8 +742,8 @@ def failed_logins(
                     "source_ip": "192.0.2.10",
                     "message": "Mock authentication failure.",
                 }
-            ],
-            "count": 1,
+            ] if within_window([{"timestamp": "2026-11-02T09:25:00Z"}], since, until) else [],
+            "count": int(bool(within_window([{"timestamp": "2026-11-02T09:25:00Z"}], since, until))),
             "limit": limit,
         },
     )
@@ -788,7 +831,6 @@ def detect_anomaly(
                 session_id=session_id,
                 data={
                     "message": "Unsupported signal type.",
-                    "invalid_signals": invalid_signals,
                 },
                 status="error",
                 error_code="INVALID_INPUT",
@@ -835,8 +877,12 @@ def detect_anomaly(
     findings = []
     evidence_items = []
 
+    event_dt = (datetime.fromisoformat(ANOMALY_EVENT_AT.replace("Z", "+00:00"))
+                if ANOMALY_EVENT_AT is not None else None)
     for signal in selected_signals:
-        evidence_id = f"mock-evidence-{signal}"
+        if event_dt is None or not since_dt <= event_dt < until_dt:
+            continue
+        evidence_id = f"mock-evidence-{secrets.token_hex(12)}"
 
         finding = mock_findings[signal].copy()
         finding["window"] = {"since": since, "until": until}
@@ -845,8 +891,8 @@ def detect_anomaly(
 
         evidence_items.append({
             "evidence_id": evidence_id,
-            "observed_at": current_time(),
-            "source": f"mock_{signal}",
+            "observed_at": ANOMALY_EVENT_AT,
+            "source": f"synthetic.mock.{signal}",
             "unit": unit,
             "excerpt": finding["summary"],
             "redacted": False,
@@ -875,11 +921,11 @@ def detect_anomaly(
         data={
             "anomalies": findings,
             "analyzed_signals": selected_signals,
-            "insufficient_signals": [],
+            "insufficient_signals": selected_signals if event_dt is None else [],
             "findings_truncated": findings_truncated,
             "confidence": None,
         },
-        status="partial" if findings_truncated else "ok",
+        status="partial" if findings_truncated or event_dt is None else "ok",
         truncated=findings_truncated,
         next_cursor=None,
     )
@@ -942,7 +988,6 @@ def verify_fix(
             session_id=session_id,
             data={
                 "message": "Unsupported verification check.",
-                "invalid_checks": invalid_checks,
             },
             status="error",
             error_code="INVALID_INPUT",
@@ -1110,4 +1155,4 @@ def restart_service(
 
 
 if __name__ == "__main__":
-    mcp.run()
+    asyncio.run(run())

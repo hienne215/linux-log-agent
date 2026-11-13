@@ -3,11 +3,6 @@
   "title": "check_config request",
   "description": "Request to validate a system configuration using a fixed profile.",
   "type": "object",
-  "allOf": [
-    {
-      "$ref": "../common-request.schema.json"
-    }
-  ],
   "properties": {
     "profile": {
       "type": "string",
@@ -20,12 +15,42 @@
     },
     "unit": {
       "type": "string",
-      "pattern": "^[a-zA-Z0-9_.@-]+\\.service$",
-      "description": "Optional service unit to validate."
+      "pattern": "^[a-zA-Z0-9][a-zA-Z0-9_.-]*\\.service$",
+      "description": "Optional service unit to validate.",
+      "maxLength": 128
+    },
+    "schema_version": {
+      "type": "string",
+      "const": "1.0.0"
+    },
+    "session_id": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 128
+    },
+    "trace_id": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 128
+    },
+    "logical_tool_call_id": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 128
+    },
+    "attempt_id": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 128
     }
   },
   "required": [
-    "profile"
+    "profile",
+    "schema_version",
+    "session_id",
+    "trace_id",
+    "logical_tool_call_id",
+    "attempt_id"
   ],
-  "unevaluatedProperties": false
+  "additionalProperties": false
 }

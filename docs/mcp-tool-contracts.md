@@ -7,7 +7,7 @@
 **Python:** 3.12  
 **Transport:** stdio  
 **Contract version:** 1.0.0  
-**Status:** Draft
+**Status:** Implementation ready for team review; NOT finalized or approved
 
 ---
 
@@ -157,7 +157,7 @@ These are initial limits and must be validated during implementation:
 | Maximum events per call | 200 |
 | Default query window | 24 hours |
 
-The 64 KiB limit applies to the serialized contract response.
+The 64 KiB limit applies to each serialized tools/call JSON-RPC response line, including native content, structuredContent, SDK metadata, the request ID, and the newline. Discovery is a separate registry response, not a tool result.
 Collectors must also bound the amount of data they read.
 
 Pagination cursors must be bound to:
@@ -218,30 +218,89 @@ It must not:
 
 The mock implementation must never perform a real restart.
 
-## 10. Tool-Specific Contracts
+## 10. Authoritative Tool Contracts (1.0.0)
 
-Detailed input schemas, output schemas, success examples,
-and error examples for all 12 tools will be specified
-in the following sections.
+`schemas/manifest.json` is the registry index. For each tool:
 
-Each tool contract must define:
-- Input fields and validation rules.
-- Output data structure.
-- Evidence requirements.
-- Error conditions and error codes.
-- Timeout and output limits.
-- Pagination behavior, where applicable.
+- `schemas/tools/<name>.schema.json`: canonical complete input schema, self-contained Draft 2020-12. Discovery publishes this file verbatim; runtime validates raw `arguments` with the same schema before Python defaults are applied.
+- `schemas/tools/<name>.response.schema.json`: canonical successful/partial/approval **data**, not the complete result.
+- `schemas/tools/<name>.result.schema.json`: canonical discovery `outputSchema`, covering the entire `structuredContent` envelope. Its conditional error branch uses the strict error-data shape; every other status uses the tool data schema. Composition tests verify the embedded common/data/error contracts have not drifted.
+- `schemas/common-request.schema.json`, `schemas/common-response.schema.json`, and `schemas/error-data.schema.json` define common shapes. Input metadata constraints are materialized in the input files for discovery without local filesystem references. Tests verify composition.
+
+`schemas.zip` is a legacy snapshot and is NOT authoritative. `inspect_tool_metadata.py` prints the canonical registered descriptors; it no longer derives schemas from Python signatures.
+
+| Tool | Required business fields | Optional business fields | Normal result / data | Pagination |
+|---|---|---|---|---|
+| query_journal | unit, since, until | priority, limit, cursor | ok; entries/count/limit | yes |
+| search_log | source_id, query, since, until | limit, cursor | ok; source_id/query/matches/count/limit | yes |
+| service_status | unit | none | ok; unit/active_state/sub_state/load_state/description; synthetic evidence | no |
+| list_failed_units | none | limit, cursor | ok; failed_units/count/limit | yes |
+| disk_usage | none | filesystem, include_inodes | ok; filesystem/mount_point/used_percent/available_bytes/inodes_included | no |
+| memory_oom_events | since, until | limit | ok; events/count/limit | no |
+| failed_logins | since, until | limit | ok; events/count/limit | no |
+| listening_ports | none | protocol, port, unit | ok; ports/count | no |
+| check_config | profile | unit | ok; profile/unit/valid/issues/message | no |
+| detect_anomaly | since, until | unit, signals, max_findings | ok/partial; anomalies/analyzed_signals/insufficient_signals/findings_truncated/confidence | no |
+| verify_fix | unit, since, check_types | until, action_id, baseline_evidence_refs | partial; checks and overall_result=unknown for synthetic mock | no |
+| restart_service | mode, unit, reason; action_id additionally for status | evidence_ids, action_id for propose | approval_required for propose; ok for status; executed=false | no |
+
+All tools additionally require all five common metadata fields. Canonical schemas specify types, enums, numeric limits, patterns and required fields. Missing optional values remain missing on the wire. Only `verify_fix.until`, `action_id`, and `baseline_evidence_refs` explicitly accept null; all other optional fields reject null. Function defaults are internal implementation details. Units reject paths, options and template instances; OS deployment allowlists remain a separate production gate.
+
+### 10.1 Dispatch, errors and metadata ownership
+
+The official `mcp.server.lowlevel.Server` receives `tools/call`; the application validates raw arguments before calling the original Python function. No high-level Pydantic signature model owns tool arguments. Unknown tools and malformed tools/call parameters return generic SDK protocol errors (-32602); malformed JSON and protocol negotiation remain owned by the SDK. An application schema violation returns native `CallToolResult(isError=true)` with status=error and INVALID_INPUT. No business function runs for invalid input.
+
+Valid request IDs are client-owned and echoed. For rejected input, all application correlation IDs use the fixed `invalid-input` marker and session_id=null: even otherwise valid metadata could contain a submitted secret. JSON-RPC correlation remains intact. Error fields are fixed message, a schema-declared top-level field (or empty), and a validator rule name. Never return ValidationError.message, invalid values, attacker property names, exception text, or tracebacks. PermissionError maps to PERMISSION_DENIED; unexpected execution/output-contract failures map to EXECUTION_UNKNOWN. Output validation independently covers normal, partial, approval and error envelopes before serialization.
+
+Native structuredContent is the complete envelope; text content is its JSON representation. status=error alone maps to isError=true. partial and approval_required remain false; approval is never execution. Production redaction is not implemented by this synthetic mock; valid free-text requests are not real-secret fixtures and must not be used as a secret store.
+
+### 10.2 Output limits
+
+`wire_size` uses the SDK JSONRPCResponse model and SDK serialization settings. Native results explicitly carry SDK serverInfo metadata and resultType so modern SDK additions are included in the size calculation. The final dispatch check includes the actual request ID. Regression tests observe actual stdout response lines before SDK client parsing and check their UTF-8 byte lengths, including multibyte Unicode and a near-cap case.
+
+On overflow, keep complete records from supported record arrays when at least one complete record fits, update count, and return partial/OUTPUT_LIMIT/truncated=true. No bytes or JSON strings are sliced. This bounded partial has next_cursor=null: the omitted tail cannot be resumed, and the client must report incomplete data. If useful atomic data with its evidence cannot fit, return error/OUTPUT_LIMIT, empty evidence and no cursor, using the error-data schema. Oversized evidence is not silently converted into an evidence-free success. Metadata is bounded by input constraints. Arbitrarily huge transport-level JSON-RPC IDs are outside the application-input contract; clients must bound transport identifiers. Discovery/schema payloads are outside the 64 KiB per-tool-call cap.
+
+### 10.3 Timestamp and evidence policy
+
+All emitted timestamps use RFC3339 UTC with `Z`. `started_at` and `completed_at` are collection/execution times, not event times. `event_at` is a semantic concept, represented by an event record's `timestamp`; the common evidence contract retains `observed_at` as that underlying event timestamp. No new common-envelope field is introduced. For a synthetic service-status snapshot, the observation is made at snapshot creation, so observed_at may match collection time. Its source is explicitly `synthetic.mock.service_status`, and its excerpt matches the returned active/sub/load states.
+
+Anomaly findings use a fixed synthetic historical fixture marker, `2026-11-02T00:00:00Z`, only when it lies within `[since, until)`. This is an aggregate fixture marker, not a claim of real Linux events. Sources start with `synthetic.mock.`; evidence IDs are generated uniquely. Missing event timestamps produce no invented evidence, insufficient_signals, and a partial result. Evidence references resolve to returned evidence; supplied verification baselines remain external references. Other dated mock event records are filtered by their actual timestamps. Input schemas that allow timezone offsets accept them and compare instants; anomaly/verify inputs explicitly require Z and reject offsets.
+
+### 10.4 Cursors and resource boundaries
+
+Business cursors are opaque random tokens, bound to tool, application session_id, normalized UTC time filters, other filters/defaults, offset and a 300-second TTL. Cursors are in-memory and process-local; another stdio server process cannot use them. Expired, modified, cross-tool, cross-session and changed-filter cursors reject, never reset. Business cursors are distinct from tools/list discovery cursors (this fixed registry has no discovery pages).
+
+The synthetic datasets contain three pageable records; pages terminate. Offset budget is 200 and live cursor-state budget 256; expired states are pruned on creation. Cursors are bearer-like application correlation tokens, not user authentication; production session ownership and cumulative Agent budgets still require binder/deployment policy. Read timeouts/cancellation/disconnect cleanup are exercised with SDK child processes. The synchronous deterministic mock has no real collector process, no production collector deadline enforcement, and no Linux permissions/health checks.
+
+### 10.5 Reproducible examples and handoff
+
+`tests/mcp_smoke/test_all_tools_stdio.py::REQUESTS` supplies all 12 valid wire examples and asserts discovery equality, native structuredContent, status, IDs, data and envelope schemas. `tests/test_contract_audit.py` adds required-only/null/wrong-type/missing/unknown-field examples, output corruption, cursor, timestamps, secrets, actual wire cap and SDK lifecycle faults. The fault launcher is test-only and is never used by the production entrypoint.
+
+Dependencies: Python 3.12; mcp==2.3.0; jsonschema==4.26.0; referencing==0.37.0; pytest==9.2.0. Exact direct pins are in requirements.txt; this is not a full transitive dependency lock. No SDK baseline was changed.
+
+Handoff to Hiền (SCRUM-22): bind from manifest, validate the complete structured envelope, use native isError, preserve client metadata and partial/unknown states, resolve evidence refs, keep LLM away from entrypoint/config and approval control. Please review anomaly/window semantics, unknown verification results and non-resumable output-limit partials.
+
+Handoff to Trang: please confirm production unit/source/profile allowlists, authentication/session ownership, permission-denied handling, and external coordinator/helper contracts. The mock proposal/status response remains deterministic and does not persist or execute actions; no real approval, root/sudo, restart or write retry exists.
+
+These are prepared review requests, not evidence that messages were sent or reviewers approved. No PR metadata, Jira, commit, push or merge is performed by this change.
 
 ## 11. Validation Checklist
 
-- [ ] All 12 tools have input schemas.
-- [ ] All 12 tools have output schemas.
-- [ ] Success examples validate against their schemas.
-- [ ] Error examples validate against their schemas.
-- [ ] Unknown input fields are rejected.
-- [ ] Output size limit is tested.
-- [ ] Pagination cursor binding is tested.
-- [ ] `detect_anomaly` and `verify_fix` are confirmed by Hiền.
-- [ ] Linux tool contracts are confirmed by Trang.
-- [ ] `restart_service` mock never performs a real restart.
-- [ ] MCP stdio discovery and tool calls pass integration tests.
+- [x] All 12 canonical input/data/full-output schemas exist and pass Draft 2020-12 syntax checks.
+- [x] Discovery publishes the canonical inputSchema and complete-envelope outputSchema.
+- [x] Required-only examples for all 12 tools pass the real SDK stdio path.
+- [x] Missing fields, unknown fields, approved=true, wrong versions, wrong types and disallowed null reject.
+- [x] Runtime validates input and output independently; deliberate output corruption fails closed.
+- [x] Normal, error, partial and approval envelopes validate; native content/isError agree.
+- [x] Service-status synthetic provenance and historical anomaly windows are tested.
+- [x] UTF-8 wire cap, whole-record partial and bounded error are tested on actual SDK stdio frames.
+- [x] Positive pagination, binding, expiry, modification, budgets and cross-process rejection are tested.
+- [x] Synthetic secret sentinels do not appear in captured application error content/stdout/stderr.
+- [x] SDK timeout, cancellation, disconnect and child-process cleanup are tested.
+- [x] restart_service remains a mock facade with executed=false.
+- [ ] Hiền confirms anomaly/verify/binder semantics.
+- [ ] Trang confirms Linux/approval/security deployment contracts.
+- [ ] Independent audit suite from Hiền is rerun and confirmed (not available locally).
+- [ ] Team review confirms finalization and merge readiness.
+
+Status remains review pending. Passing local tests does not constitute independent approval or production security verification.

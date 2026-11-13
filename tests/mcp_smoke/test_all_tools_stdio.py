@@ -130,6 +130,12 @@ async def main():
         # 1. Discover tools.
         result = await client.list_tools()
         available = {tool.name for tool in result.tools}
+        for descriptor in result.tools:
+            for suffix, actual in [(".schema.json", descriptor.input_schema),
+                                   (".result.schema.json", descriptor.output_schema)]:
+                canonical = json.loads((SCHEMAS_DIR / (descriptor.name + suffix)).read_text(encoding="utf-8"))
+                assert actual == canonical, f"{descriptor.name}: discovery schema mismatch"
+
 
         print(f"Server co {len(available)} tools")
 
@@ -165,28 +171,8 @@ async def main():
             # Read structured response.
             data = response.structured_content
 
-            # Fallback: read text content if structured_content is absent.
-            if data is None:
-                text_blocks = [
-                    item.text
-                    for item in response.content
-                    if getattr(item, "type", None) == "text"
-                ]
-
-                if not text_blocks:
-                    raise RuntimeError(
-                        f"{tool_name}: response has no data"
-                    )
-
-                data = json.loads(text_blocks[0])
-
-            # Some SDK versions may wrap structured content.
-            if (
-                isinstance(data, dict)
-                and "structuredContent" in data
-                and "status" not in data
-            ):
-                data = data["structuredContent"]
+            assert data is not None, f"{tool_name}: missing native structuredContent"
+            assert json.loads(response.content[0].text) == data
 
             assert isinstance(data, dict), (
                 f"{tool_name}: response must be a dict"

@@ -29,7 +29,9 @@
     },
     "unit": {
       "type": "string",
-      "minLength": 1
+      "minLength": 1,
+      "pattern": "^[a-zA-Z0-9][a-zA-Z0-9_.-]*\\.service$",
+      "maxLength": 128
     },
     "since": {
       "type": "string",

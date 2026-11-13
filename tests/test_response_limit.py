@@ -58,7 +58,7 @@ def test_response_over_64_kib_returns_output_limit():
 
     response = create_response(data)
 
-    assert response["status"] == "partial"
+    assert response["status"] == "error"
     assert response["error_code"] == "OUTPUT_LIMIT"
     assert response["truncated"] is True
     assert response["data"]["max_response_bytes"] == 64 * 1024
@@ -80,7 +80,7 @@ def test_response_limit_counts_utf8_bytes():
 
     response = create_response(data)
 
-    assert response["status"] == "partial"
+    assert response["status"] == "error"
     assert response["error_code"] == "OUTPUT_LIMIT"
     assert response["truncated"] is True
 

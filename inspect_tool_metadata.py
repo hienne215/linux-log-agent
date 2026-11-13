@@ -1,27 +1,7 @@
-﻿import inspect
-import mock_mcp_server as s
-from mcp.server.mcpserver.utilities.func_metadata import func_metadata
+"""Inspect authoritative contracts without deriving schemas from Python signatures."""
+import json
+import mock_mcp_server as server
 
-names = [
-    "query_journal",
-    "search_log",
-    "service_status",
-    "list_failed_units",
-    "disk_usage",
-    "listening_ports",
-    "check_config",
-    "memory_oom_events",
-    "failed_logins",
-    "detect_anomaly",
-    "verify_fix",
-    "restart_service",
-]
-
-for name in names:
-    fn = getattr(s, name)
-    meta = func_metadata(fn)
-
-    print(f"\n=== {name} ===")
-    print("SIGNATURE:", inspect.signature(fn))
-    print("OUTPUT_SCHEMA:", meta.output_schema)
-    print("INPUT_SCHEMA:", meta.arg_model.model_json_schema())
+for name, (_, input_schema, output_schema, _, _) in server.TOOLS.items():
+    print(json.dumps({"name": name, "inputSchema": input_schema,
+                      "outputSchema": output_schema}, ensure_ascii=False, indent=2))

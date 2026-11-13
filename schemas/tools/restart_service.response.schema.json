@@ -1,4 +1,3 @@
-
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "title": "restart_service Response Data",
@@ -8,38 +7,64 @@
       "title": "Proposal created",
       "type": "object",
       "properties": {
-        "proposal_id": {"type": "string", "minLength": 1},
-        "proposal_status": {"const": "pending_approval"},
-        "reason": {"type": "string"},
+        "proposal_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "proposal_status": {
+          "const": "pending_approval"
+        },
+        "reason": {
+          "type": "string"
+        },
         "evidence_ids": {
           "type": "array",
-          "items": {"type": "string", "minLength": 1}
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
         },
-        "executed": {"const": false},
-        "message": {"type": "string"}
+        "executed": {
+          "const": false
+        },
+        "message": {
+          "type": "string"
+        }
       },
-      "required": ["proposal_id", "proposal_status", "reason", "evidence_ids", "executed", "message"],
+      "required": [
+        "proposal_id",
+        "proposal_status",
+        "reason",
+        "evidence_ids",
+        "executed",
+        "message"
+      ],
       "additionalProperties": false
     },
     {
       "title": "Proposal status",
       "type": "object",
       "properties": {
-        "action_id": {"type": "string", "minLength": 1},
-        "proposal_status": {"const": "pending_approval"},
-        "executed": {"const": false},
-        "message": {"type": "string"}
+        "action_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "proposal_status": {
+          "const": "pending_approval"
+        },
+        "executed": {
+          "const": false
+        },
+        "message": {
+          "type": "string"
+        }
       },
-      "required": ["action_id", "proposal_status", "executed", "message"],
-      "additionalProperties": false
-    },
-    {
-      "title": "Error response",
-      "type": "object",
-      "properties": {
-        "message": {"type": "string"}
-      },
-      "required": ["message"],
+      "required": [
+        "action_id",
+        "proposal_status",
+        "executed",
+        "message"
+      ],
       "additionalProperties": false
     }
   ]
