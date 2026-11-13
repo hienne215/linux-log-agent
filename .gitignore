@@ -1,0 +1,8 @@
+# Local synthetic reports and Python runtime artifacts (never commit).
+/reports/
+/.venv*/
+__pycache__/
+*.py[cod]
+*.egg-info/
+/build/
+/dist/
