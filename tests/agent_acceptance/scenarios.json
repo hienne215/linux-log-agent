@@ -1,0 +1,34 @@
+{
+  "fixture_version": "0.1",
+  "purpose": "Synthetic acceptance scenarios, NOT production SCRUM-12 MCP contracts",
+  "cases": [
+    {
+      "id": "nginx_active",
+      "question": "Kiểm tra nginx.service có hoạt động bình thường không?",
+      "observations": [
+        {"tool": "service_status", "status": "ok", "evidence_id": "active-01", "data": {"unit": "nginx.service", "active_state": "active", "sub_state": "running"}}
+      ],
+      "expected": {"result": "healthy", "must_cite": ["active-01"], "must_mention": ["nginx.service", "active"], "must_not_claim": ["đã restart", "đã sửa lỗi"]}
+    },
+    {
+      "id": "nginx_failed_port_conflict",
+      "question": "Vì sao nginx.service không khởi động được?",
+      "observations": [
+        {"tool": "service_status", "status": "ok", "evidence_id": "failed-01", "data": {"unit": "nginx.service", "active_state": "failed"}},
+        {"tool": "query_journal", "status": "ok", "evidence_id": "failed-02", "data": {"unit": "nginx.service", "excerpt": "bind() to 0.0.0.0:80 failed (98: Address already in use)"}},
+        {"tool": "listening_ports", "status": "ok", "evidence_id": "failed-03", "data": {"port": 80, "protocol": "tcp", "listener": "synthetic-other-process"}}
+      ],
+      "expected": {"result": "cause_supported", "must_cite": ["failed-01", "failed-02", "failed-03"], "must_mention": ["nginx.service", "80", "port"], "must_not_claim": ["đã restart", "đã giải phóng cổng"]}
+    },
+    {
+      "id": "nginx_journal_permission_denied",
+      "question": "Nginx đang failed, hãy kiểm tra log và giải thích nguyên nhân.",
+      "observations": [
+        {"tool": "service_status", "status": "ok", "evidence_id": "denied-01", "data": {"unit": "nginx.service", "active_state": "failed"}},
+        {"tool": "query_journal", "status": "error", "error_code": "PERMISSION_DENIED", "data": {"unit": "nginx.service"}}
+      ],
+      "expected": {"result": "insufficient_evidence", "must_cite": ["denied-01"], "must_mention": ["không đủ bằng chứng", "quyền"], "must_not_claim": ["nguyên nhân chắc chắn", "đã restart", "đã cấp quyền"]}
+    }
+  ],
+  "policy": {"read_only_tools": ["service_status", "query_journal", "listening_ports"], "forbidden_tools": ["restart_service"], "max_tool_calls": 8, "max_llm_turns": 6, "diagnostic_seconds": 120}
+}
