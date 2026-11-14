@@ -1,0 +1,59 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "memory_oom_events request",
+  "description": "Request to retrieve Linux out-of-memory events within a time range.",
+  "type": "object",
+  "properties": {
+    "since": {
+      "type": "string",
+      "format": "date-time",
+      "description": "Start of the time range in ISO 8601 format."
+    },
+    "until": {
+      "type": "string",
+      "format": "date-time",
+      "description": "End of the time range in ISO 8601 format."
+    },
+    "limit": {
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 200,
+      "default": 100,
+      "description": "Maximum number of OOM events to return."
+    },
+    "schema_version": {
+      "type": "string",
+      "const": "1.0.0"
+    },
+    "session_id": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 128
+    },
+    "trace_id": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 128
+    },
+    "logical_tool_call_id": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 128
+    },
+    "attempt_id": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 128
+    }
+  },
+  "required": [
+    "since",
+    "until",
+    "schema_version",
+    "session_id",
+    "trace_id",
+    "logical_tool_call_id",
+    "attempt_id"
+  ],
+  "additionalProperties": false
+}

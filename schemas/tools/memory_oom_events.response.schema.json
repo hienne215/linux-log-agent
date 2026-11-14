@@ -1,0 +1,25 @@
+
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "memory_oom_events Response Data",
+  "type": "object",
+  "properties": {
+    "events": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "timestamp": {"type": "string", "format": "date-time"},
+          "process": {"type": "string", "minLength": 1},
+          "message": {"type": "string"}
+        },
+        "required": ["timestamp", "process", "message"],
+        "additionalProperties": false
+      }
+    },
+    "count": {"type": "integer", "minimum": 0},
+    "limit": {"type": "integer", "minimum": 1, "maximum": 200}
+  },
+  "required": ["events", "count", "limit"],
+  "additionalProperties": false
+}

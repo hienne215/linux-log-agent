@@ -1,0 +1,22 @@
+{
+  "type": "object",
+  "properties": {
+    "message": {
+      "type": "string"
+    },
+    "field": {
+      "type": "string"
+    },
+    "rule": {
+      "type": "string"
+    },
+    "max_response_bytes": {
+      "const": 65536
+    }
+  },
+  "required": [
+    "message"
+  ],
+  "additionalProperties": false,
+  "$schema": "https://json-schema.org/draft/2020-12/schema"
+}

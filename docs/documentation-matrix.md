@@ -24,7 +24,8 @@ It also tracks the status of project features, so planned work is never presente
 | Documentation matrix | `docs/documentation-matrix.md` | A | Proposed |
 | Pull Request template | `.github/pull_request_template.md` | A | Proposed |
 | Project outline (agreed scope) | `docs/proposal-v2.md` | Team | Planned |
-| MCP tool contracts (schemas) | `docs/mcp-tool-contracts.md` | A and B | Planned |
+| MCP tool contracts (schemas) | `docs/mcp-tool-contracts.md` | Thủy; Hiền/Trang review | Proposed |
+| SCRUM-12 final contract review and collector handoff | `docs/SCRUM-12-contract-review-2026-11-14.md` | Thủy | Proposed |
 | System architecture | `docs/architecture.md` | Team | Planned |
 | Security design | `docs/security-design.md` | C | Planned |
 | Evaluation scenarios and answer keys | `docs/evaluation-scenarios.md` | C | Planned |
@@ -39,6 +40,8 @@ Scope follows the agreed outline: 12 core tools, 5 required scenarios.
 "Optional" items are built only if time remains.
 
 ### MCP tools
+
+The tool statuses below refer to real Linux collection/execution, not the existing 12-tool mock/fixtures. PR #6 provides official SDK stdio contracts and a mock server; final contract signoff is pending. In particular, the read-only Linux `service_status` collector has not been implemented in PR #6.
 
 | Feature | Type | Owner | Status |
 |---|---|---|---|
@@ -62,7 +65,8 @@ Scope follows the agreed outline: 12 core tools, 5 required scenarios.
 
 | Feature | Type | Owner | Status |
 |---|---|---|---|
-| MCP server | Core | A | Planned |
+| MCP server (real Linux collectors) | Core | A | Planned |
+| MCP mock server and 12-tool contracts (PR #6) | Core | Thủy | Proposed |
 | MCP client and agent loop | Core | B | Planned |
 | CLI | Core | B | Planned |
 | Markdown incident report | Core | B | Planned |

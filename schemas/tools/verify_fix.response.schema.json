@@ -1,0 +1,78 @@
+
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "verify_fix Response Data",
+  "description": "Response data schema for the verify_fix MCP tool, contract version 1.0.0.",
+  "type": "object",
+  "properties": {
+    "action_id": {
+      "type": ["string", "null"],
+      "minLength": 1
+    },
+    "unit": {
+      "type": "string",
+      "minLength": 1
+    },
+    "overall_result": {
+      "type": "string",
+      "enum": ["pass", "fail", "unknown"]
+    },
+    "checks": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "check_type": {
+            "type": "string",
+            "enum": [
+              "service_active",
+              "no_new_failures",
+              "port_listening"
+            ]
+          },
+          "result": {
+            "type": "string",
+            "enum": ["pass", "fail", "unknown"]
+          },
+          "summary": {
+            "type": "string"
+          },
+          "evidence_refs": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "minLength": 1
+            }
+          }
+        },
+        "required": [
+          "check_type",
+          "result",
+          "summary",
+          "evidence_refs"
+        ],
+        "additionalProperties": false
+      }
+    },
+    "baseline_evidence_refs": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1
+      }
+    },
+    "verified_at": {
+      "type": "string",
+      "format": "date-time"
+    }
+  },
+  "required": [
+    "action_id",
+    "unit",
+    "overall_result",
+    "checks",
+    "baseline_evidence_refs",
+    "verified_at"
+  ],
+  "additionalProperties": false
+}

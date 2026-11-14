@@ -1,0 +1,15 @@
+
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "disk_usage Response Data",
+  "type": "object",
+  "properties": {
+    "filesystem": {"type": "string", "minLength": 1},
+    "mount_point": {"type": "string", "minLength": 1},
+    "used_percent": {"type": "number", "minimum": 0, "maximum": 100},
+    "available_bytes": {"type": "integer", "minimum": 0},
+    "inodes_included": {"type": "boolean"}
+  },
+  "required": ["filesystem", "mount_point", "used_percent", "available_bytes", "inodes_included"],
+  "additionalProperties": false
+}
