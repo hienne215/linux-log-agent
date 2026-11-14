@@ -2,6 +2,8 @@ from datetime import datetime, timezone, timedelta
 from mcp.server.lowlevel import Server
 from mcp.server.stdio import stdio_server
 import asyncio
+import os
+from anyio.abc import ObjectReceiveStream
 import copy
 import time
 from mcp.types import Tool, ListToolsResult, JSONRPCResponse
@@ -17,6 +19,7 @@ import secrets
 TOOLS = {}
 
 MAX_RESPONSE_BYTES = 64 * 1024
+MAX_JSONRPC_ID_BYTES = 128
 SCHEMA_DIR = Path(__file__).resolve().parent / "schemas"
 
 
@@ -257,6 +260,11 @@ async def call_tool(ctx, params):
         except Exception:
             # No exception text, input repr, or traceback crosses the trust boundary.
             response = safe_error(params.name, {}, "EXECUTION_UNKNOWN", rule="execution")
+        # Schema-valid input can still fail semantic checks (window/cursor).
+        # All rejected input crosses the same privacy boundary before serialization.
+        if (response.get("status") == "error"
+                and response.get("error_code") in {"INVALID_INPUT", "EXPIRED"}):
+            response = safe_error(params.name, {}, response["error_code"], rule="semantic")
         response["started_at"] = started
         response["completed_at"] = current_time()
         response["duration_ms"] = int((time.monotonic() - tick) * 1000)
@@ -284,9 +292,36 @@ mcp = Server("linux-log-agent-mock", on_list_tools=list_tools, on_call_tool=call
 mcp.middleware.append(protocol_guard)
 
 
+class IDBoundedReadStream(ObjectReceiveStream):
+    """Admission guard around SDK-decoded messages; SDK still owns JSON-RPC/stdio."""
+    def __init__(self, stream):
+        self.stream = stream
+
+    @property
+    def last_context(self):
+        return getattr(self.stream, "last_context", None)
+
+    async def receive(self):
+        item = await self.stream.receive()
+        if not isinstance(item, Exception):
+            request_id = getattr(item.message, "id", None)
+            if (request_id is not None and len(json.dumps(request_id,
+                    ensure_ascii=False).encode("utf-8")) > MAX_JSONRPC_ID_BYTES):
+                # An error reply would echo the forbidden ID and may exceed the cap.
+                # Fail closed for this mock process; do not truncate, log or dispatch it.
+                try:
+                    os.write(2, b"Transport policy: JSON-RPC ID exceeds 128 UTF-8 bytes; closing stdio.\n")
+                finally:
+                    os._exit(2)
+        return item
+
+    async def aclose(self):
+        await self.stream.aclose()
+
+
 async def run():
     async with stdio_server() as (read, write):
-        await mcp.run(read, write, mcp.create_initialization_options())
+        await mcp.run(IDBoundedReadStream(read), write, mcp.create_initialization_options())
 
 @register_tool()
 def query_journal(

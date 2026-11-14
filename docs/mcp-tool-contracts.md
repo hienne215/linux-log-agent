@@ -7,7 +7,7 @@
 **Python:** 3.12  
 **Transport:** stdio  
 **Contract version:** 1.0.0  
-**Status:** Implementation ready for team review; NOT finalized or approved
+**Status:** Contracts 1.0.0 finalization candidate — revision 2026-11-14; Hiền/Trang signoff pending
 
 ---
 
@@ -248,9 +248,9 @@ All tools additionally require all five common metadata fields. Canonical schema
 
 ### 10.1 Dispatch, errors and metadata ownership
 
-The official `mcp.server.lowlevel.Server` receives `tools/call`; the application validates raw arguments before calling the original Python function. No high-level Pydantic signature model owns tool arguments. Unknown tools and malformed tools/call parameters return generic SDK protocol errors (-32602); malformed JSON and protocol negotiation remain owned by the SDK. An application schema violation returns native `CallToolResult(isError=true)` with status=error and INVALID_INPUT. No business function runs for invalid input.
+The official `mcp.server.lowlevel.Server` receives `tools/call`; the application validates raw arguments before calling the original Python function. No high-level Pydantic signature model owns tool arguments. Unknown tools and malformed tools/call parameters return generic SDK protocol errors (-32602); malformed JSON and protocol negotiation remain owned by the SDK. An application schema violation returns native `CallToolResult(isError=true)` with status=error and INVALID_INPUT. No business function runs for schema-invalid input. Schema-valid arguments may still be rejected semantically (for example a reversed time window or invalid/expired cursor). Before output validation or serialization, INVALID_INPUT and EXPIRED semantic results are rebuilt through the same safe-error boundary with rule=semantic. No rejected application metadata or business message is copied into that result.
 
-Valid request IDs are client-owned and echoed. For rejected input, all application correlation IDs use the fixed `invalid-input` marker and session_id=null: even otherwise valid metadata could contain a submitted secret. JSON-RPC correlation remains intact. Error fields are fixed message, a schema-declared top-level field (or empty), and a validator rule name. Never return ValidationError.message, invalid values, attacker property names, exception text, or tracebacks. PermissionError maps to PERMISSION_DENIED; unexpected execution/output-contract failures map to EXECUTION_UNKNOWN. Output validation independently covers normal, partial, approval and error envelopes before serialization.
+Valid request IDs are client-owned and echoed. For both schema-rejected and semantically rejected input, all application correlation IDs use the fixed `invalid-input` marker and session_id=null: even otherwise valid metadata could contain a submitted secret. JSON-RPC correlation remains intact. Error fields are fixed message, a schema-declared top-level field (or empty), and a validator rule name. Never return ValidationError.message, invalid values, attacker property names, exception text, or tracebacks. PermissionError maps to PERMISSION_DENIED; unexpected execution/output-contract failures map to EXECUTION_UNKNOWN. Output validation independently covers normal, partial, approval and error envelopes before serialization.
 
 Native structuredContent is the complete envelope; text content is its JSON representation. status=error alone maps to isError=true. partial and approval_required remain false; approval is never execution. Production redaction is not implemented by this synthetic mock; valid free-text requests are not real-secret fixtures and must not be used as a secret store.
 
@@ -258,7 +258,19 @@ Native structuredContent is the complete envelope; text content is its JSON repr
 
 `wire_size` uses the SDK JSONRPCResponse model and SDK serialization settings. Native results explicitly carry SDK serverInfo metadata and resultType so modern SDK additions are included in the size calculation. The final dispatch check includes the actual request ID. Regression tests observe actual stdout response lines before SDK client parsing and check their UTF-8 byte lengths, including multibyte Unicode and a near-cap case.
 
-On overflow, keep complete records from supported record arrays when at least one complete record fits, update count, and return partial/OUTPUT_LIMIT/truncated=true. No bytes or JSON strings are sliced. This bounded partial has next_cursor=null: the omitted tail cannot be resumed, and the client must report incomplete data. If useful atomic data with its evidence cannot fit, return error/OUTPUT_LIMIT, empty evidence and no cursor, using the error-data schema. Oversized evidence is not silently converted into an evidence-free success. Metadata is bounded by input constraints. Arbitrarily huge transport-level JSON-RPC IDs are outside the application-input contract; clients must bound transport identifiers. Discovery/schema payloads are outside the 64 KiB per-tool-call cap.
+On overflow, keep complete records from supported record arrays when at least one complete record fits, update count, and return partial/OUTPUT_LIMIT/truncated=true. No bytes or JSON strings are sliced. This bounded partial has next_cursor=null: the omitted tail cannot be resumed, and the client must report incomplete data. If useful atomic data with its evidence cannot fit, return error/OUTPUT_LIMIT, empty evidence and no cursor, using the error-data schema. Oversized evidence is not silently converted into an evidence-free success. Metadata is bounded by input constraints. The transport admission policy below bounds JSON-RPC IDs; they are never truncated, substituted, or echoed in an oversized error reply. Discovery/schema payloads are outside the 64 KiB per-tool-call cap.
+
+### 10.2.1 Mandatory stdio JSON-RPC ID admission policy
+
+- Maximum ID size: **128 UTF-8 bytes of the serialized JSON scalar**, including string quotes/escapes. The exact calculation is `len(json.dumps(id, ensure_ascii=False).encode("utf-8"))`; numeric IDs are subject to the same byte limit. Examples: 126 ASCII characters fit; 127 do not. Thirty-one four-byte emoji plus two ASCII characters fit; 32 emoji do not. Escaped characters count their serialized escape bytes.
+- Enforcement: `IDBoundedReadStream` wraps the official SDK's decoded receive stream in the stdio entrypoint, **before any request dispatch**, including initialize and protocol errors. It does not implement JSON-RPC parsing, framing, negotiation or dispatch; the official SDK still owns those.
+- Accepted IDs roundtrip exactly. An ID over the limit causes the dedicated mock server process to write one constant diagnostic to stderr and terminate with exit code 2. It emits **no response** for that request, so neither a huge echoed ID nor an invented/truncated ID can defeat the 64 KiB output policy. There is no submitted value in the diagnostic.
+- This intentionally aborts the stdio session and any outstanding read calls; in-memory cursors are lost. A protocol-error reply would have to echo the forbidden ID and is therefore not used. Immediate process termination also avoids waiting indefinitely for a blocked stdin worker during malicious-session shutdown. The process is the mock child itself; no external PID, helper, service or write operation is touched.
+- Binder responsibility: generate small numeric IDs, or enforce the same 128-byte check **before sending**; treat EOF/exit 2 as a transport-policy failure rather than a tool result, and fail outstanding calls explicitly. Never retry a write automatically, mutate the ID to make it fit, or interpret absence of a response as success. A new connection starts a fresh mock session.
+- For admitted IDs, each tools/call response frame remains bounded by 65,536 UTF-8 bytes, including SDK metadata, native content/structuredContent, exact ID and newline. Discovery schemas are a separate payload and remain outside this per-tool-result cap.
+- Scope: this is an **ID admission/output-frame policy**, not a claim of a pre-parse raw-input byte/memory limit. The SDK has already parsed the inbound message when the guard runs; raw input allocation/whitespace floods remain SDK/deployment concerns. HTTP/in-process adapters do not inherit the stdio guard automatically and are outside this mock entrypoint contract.
+
+Regression evidence: official SDK stdio tests cover accepted/rejected ASCII, multibyte Unicode, JSON escape and integer boundaries, a 70,000-character ID, exact ID roundtrips, EOF/no response for rejected IDs, constant stderr, and near-cap output with the maximum admitted ID. The existing 12-tool schemas and SDK discovery are unchanged.
 
 ### 10.3 Timestamp and evidence policy
 
@@ -282,7 +294,7 @@ Handoff to Hiền (SCRUM-22): bind from manifest, validate the complete structur
 
 Handoff to Trang: please confirm production unit/source/profile allowlists, authentication/session ownership, permission-denied handling, and external coordinator/helper contracts. The mock proposal/status response remains deterministic and does not persist or execute actions; no real approval, root/sudo, restart or write retry exists.
 
-These are prepared review requests, not evidence that messages were sent or reviewers approved. No PR metadata, Jira, commit, push or merge is performed by this change.
+Review requests for this revision are tracked in `SCRUM-12-followup-2026-11-14.md`. Technical finalization is a candidate until Hiền and Trang explicitly sign off on this revision; neither a previous audit nor an automated PASS is an APPROVED review. The 13/11 handoff is historical. No merge or Jira change is authorized by this follow-up.
 
 ## 11. Validation Checklist
 
@@ -295,12 +307,15 @@ These are prepared review requests, not evidence that messages were sent or revi
 - [x] Service-status synthetic provenance and historical anomaly windows are tested.
 - [x] UTF-8 wire cap, whole-record partial and bounded error are tested on actual SDK stdio frames.
 - [x] Positive pagination, binding, expiry, modification, budgets and cross-process rejection are tested.
-- [x] Synthetic secret sentinels do not appear in captured application error content/stdout/stderr.
+- [x] Synthetic secret sentinels do not appear in captured application error content/stdout/stderr, including reversed-window and invalid-cursor semantic rejections.
+- [x] Stdio JSON-RPC IDs have an enforced 128-byte serialized-UTF-8 admission limit; rejected IDs close the session without echo/truncation.
+- [x] Maximum admitted IDs and near-cap results are verified through the official SDK stdio transport.
 - [x] SDK timeout, cancellation, disconnect and child-process cleanup are tested.
 - [x] restart_service remains a mock facade with executed=false.
 - [ ] Hiền confirms anomaly/verify/binder semantics.
 - [ ] Trang confirms Linux/approval/security deployment contracts.
-- [ ] Independent audit suite from Hiền is rerun and confirmed (not available locally).
+- [x] Hiền reported an independent audit of 6d581f2 with 140 pytest PASS and service_status ToolBridge compatibility; three follow-up items remained (user-provided review, 14/11).
+- [ ] Hiền independently rechecks this follow-up revision; the external 140-test suite is not checked in locally.
 - [ ] Team review confirms finalization and merge readiness.
 
-Status remains review pending. Passing local tests does not constitute independent approval or production security verification.
+Finalization candidate status remains review pending. Valid free-text metadata/reason/query may be echoed on successful calls; this mock has no general-purpose production secret redactor. The safe-error guarantee covers rejected input, not arbitrary secrets placed in otherwise accepted requests. Passing local tests does not constitute independent approval or production security verification.
