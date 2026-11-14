@@ -1,6 +1,8 @@
 # CLI → Async LLM → synthetic MCP demo
 
-**SYNTHETIC DEMO, không Linux diagnostics thật.** Entry point mới độc lập;
+**SYNTHETIC DEMO, không Linux diagnostics thật.** Default mock được giữ nguyên;
+nhánh trusted backend thêm lựa chọn Ollama giới hạn, xem [TRUSTED_BACKEND.md](TRUSTED_BACKEND.md).
+Các lệnh và kết quả bên dưới là mock. Entry point độc lập;
 `python -m agent.cli` và các scenario cũ giữ nguyên.
 
 ## Dependencies và chạy
@@ -22,7 +24,7 @@ PYTHONPATH=src python -B -m agent.integration_demo --scenario permission-denied 
   --question 'Đọc journal trong fixture' --report integration-permission-denied.md
 ```
 
-Không chạy inference/Ollama, không cần Ollama service/model. Có thể đọc câu hỏi từ
+Ở backend mock mặc định: không chạy inference/Ollama, không cần Ollama service/model. Có thể đọc câu hỏi từ
 một dòng stdin nếu bỏ `--question`. `--timeout` là tổng ngân sách tới120s, gồm
 initialize/discovery; cleanup có budget riêng, **không phải hard wall deadline**.
 
@@ -107,8 +109,8 @@ Bước ngắn nhất sang live LLM: ở một thay đổi được review riên
 MockHTTP worker bằng AsyncOllamaAdapter mặc định, giữ AsyncDecisionSource và
 run_coordinator, SDK synthetic server và interpreter fixture. Tách nhãn rõ **live LLM
 + synthetic MCP/data**, xác minh prompts/native selection/conclusion bằng tests
-mock trước, rồi xin phê duyệt riêng giới hạn inference/RAM. Không thêm tùy chọn chạy
-live trong bản demo này; không đổi nhãn evidence thành Linux thật.
+mock trước, rồi xin phê duyệt riêng giới hạn inference/RAM. Đây là kế hoạch lúc PR#11 được tạo; lựa chọn backend trên nhánh mới được mô tả
+trong TRUSTED_BACKEND.md. Không đổi nhãn evidence thành Linux thật.
 
 Live MCP còn chờ Thủy finalized registry/schema/correlation/envelope/evidence và
 Trang xác nhận VM/UID/permissions/topology. Không SCRUM Done hoặc production-ready.

@@ -22,6 +22,8 @@ class MockHTTP:
         observations = json.loads(request['messages'][-1]['content'].split('\n', 1)[1])
         refs = [e['id'] for o in observations for e in o['evidence']]
         sequence = steps(self.scenario)
+        if self.fault == 'text-only':
+            return self.response(request, {'role': 'assistant', 'content': 'synthetic prose sentinel'})
         if self.fault == 'write':
             name, arguments = 'restart_service', {'unit': 'nginx.service'}
         elif self.fault == 'arguments':
@@ -32,7 +34,8 @@ class MockHTTP:
             name, arguments = sequence[len(observations)], {'unit': 'nginx.service'}
         else:
             message = {'role': 'assistant', 'content': json.dumps(
-                {'conclusion': conclusion(self.scenario), 'citations': refs})}
+                {'conclusion': conclusion(self.scenario),
+                 'citations': ['invented'] if self.fault == 'bad-citation' else refs})}
             return self.response(request, message)
         message = {'role': 'assistant', 'content': '', 'tool_calls': [
             {'function': {'name': name, 'arguments': arguments}}]}
@@ -46,6 +49,7 @@ class MockHTTP:
 
 if __name__ == '__main__':
     if len(sys.argv) != 3 or sys.argv[1] not in SCENARIOS or sys.argv[2] not in {
-            'none', 'timeout', 'late', 'malformed', 'write', 'arguments', 'unknown'}:
+            'none', 'timeout', 'late', 'malformed', 'write', 'arguments', 'unknown',
+            'text-only', 'bad-citation'}:
         raise SystemExit(2)
     raise SystemExit(serve(MockHTTP(sys.argv[1], sys.argv[2])))
