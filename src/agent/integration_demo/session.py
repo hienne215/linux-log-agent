@@ -8,12 +8,12 @@ import time
 
 from agent.coordinator import Coordinator, Evidence, Observation, Report
 from agent.integration_boundary import ToolBridge, TrustedTool, BridgeBudget
-from agent.llm.async_adapter import AsyncOllamaAdapter
 from agent.llm.decision_source import AsyncDecisionSource, run_coordinator
 from agent.llm.interface import ToolDefinition
 from agent.llm.redaction import _clean
 from agent.mcp_client import StdioMCPClient, StdioConfig
 from .fixtures import SCENARIOS, TOOLS, PARAMETERS, steps, observation
+from .backends import Backend, BackendError, select_backend, create_adapter
 
 
 class DemoError(Exception):
@@ -34,20 +34,24 @@ def interpret(message, scenario):
 
 
 class DemoSession:
-    """Retain every owner through pending cleanup. No inference/network backend choice.
+    """Retain every owner through pending cleanup; backend choice is trusted configuration.
 
     Underscore fault controls are trusted test seams, never CLI/model arguments.
     """
-    def __init__(self, scenario, *, seconds=120, _model_fault='none', _server_fault='none',
+    def __init__(self, scenario, *, seconds=120, backend=Backend.MOCK,
+                 _model_fault='none', _server_fault='none',
                  _request_seconds=10, _max_turns=6):
         if scenario not in SCENARIOS:
             raise DemoError('INVALID_SCENARIO')
+        self.backend = select_backend(backend)
+        if self.backend is Backend.OLLAMA and _server_fault != 'none':
+            raise BackendError('LIVE_SCOPE_DENIED')
         self.deadline = time.monotonic() + seconds
         self.scenario = scenario
         names = frozenset(steps(scenario))
         definitions = tuple(ToolDefinition(n, TOOLS[n], PARAMETERS) for n in steps(scenario))
-        self.adapter = AsyncOllamaAdapter(seconds=seconds, _worker_command=(
-            sys.executable, '-B', '-m', 'agent.integration_demo.mock_worker', scenario, _model_fault))
+        self.adapter = create_adapter(self.backend, scenario=scenario, seconds=seconds,
+                                      _mock_fault=_model_fault)
         self.model = AsyncDecisionSource(self.adapter, definitions, read_only=names)
         self.client = StdioMCPClient(StdioConfig(command=sys.executable,
             args=('-B', str(Path(__file__).with_name('server.py').resolve()), '--scenario', scenario,
@@ -59,7 +63,8 @@ class DemoSession:
         self.coordinator = Coordinator(self.model, self.bridge, read_only=names,
             scope_allows=lambda name,args: name in names and args == {'unit': 'nginx.service'},
             interpret=lambda message: interpret(message, scenario), redact=_clean,
-            seconds=seconds, max_turns=_max_turns)
+            seconds=seconds, max_turns=min(_max_turns, 2) if self.backend is Backend.OLLAMA else _max_turns,
+            max_tools=1 if self.backend is Backend.OLLAMA else 8)
         self._cleanup_owner = None
         self._cleanup_ok = False
         self.cleanup_seconds = 8
