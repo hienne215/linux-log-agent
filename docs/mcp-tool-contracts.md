@@ -7,7 +7,9 @@
 **Python:** 3.12  
 **Transport:** stdio  
 **Contract version:** 1.0.0  
-**Status:** Contracts 1.0.0 finalization candidate — revision 2026-11-14; Hiền/Trang signoff pending
+**Status:** Contracts 1.0.0 ready for Hiền/Trang review — revision 2026-11-14-R1; NOT finalized, signoff pending
+
+**Review entry point:** [Final contract review and collector handoff](SCRUM-12-contract-review-2026-11-14.md). Runtime audited at `917d9f0`; this revision changes documentation only.
 
 ---
 
@@ -294,7 +296,7 @@ Handoff to Hiền (SCRUM-22): bind from manifest, validate the complete structur
 
 Handoff to Trang: please confirm production unit/source/profile allowlists, authentication/session ownership, permission-denied handling, and external coordinator/helper contracts. The mock proposal/status response remains deterministic and does not persist or execute actions; no real approval, root/sudo, restart or write retry exists.
 
-Review requests for this revision are tracked in `SCRUM-12-followup-2026-11-14.md`. Technical finalization is a candidate until Hiền and Trang explicitly sign off on this revision; neither a previous audit nor an automated PASS is an APPROVED review. The 13/11 handoff is historical. No merge or Jira change is authorized by this follow-up.
+Review checklist and signoff for this revision are tracked in `SCRUM-12-contract-review-2026-11-14.md`; `SCRUM-12-followup-2026-11-14.md` remains the historical fix report. Technical finalization is a candidate until Hiền and Trang explicitly sign off on this revision; neither a previous audit nor an automated PASS is an APPROVED review. The 13/11 handoff is historical. No merge or Jira change is authorized by this follow-up.
 
 ## 11. Validation Checklist
 
@@ -315,7 +317,9 @@ Review requests for this revision are tracked in `SCRUM-12-followup-2026-11-14.m
 - [ ] Hiền confirms anomaly/verify/binder semantics.
 - [ ] Trang confirms Linux/approval/security deployment contracts.
 - [x] Hiền reported an independent audit of 6d581f2 with 140 pytest PASS and service_status ToolBridge compatibility; three follow-up items remained (user-provided review, 14/11).
-- [ ] Hiền independently rechecks this follow-up revision; the external 140-test suite is not checked in locally.
+- [x] Hiền reported rechecking runtime commit 917d9f0: 41 follow-up tests PASS, privacy/cap fixed and no regression (user-provided result, 14/11; not rerun locally).
+- [ ] Hiền explicitly confirms the final input/output/error/evidence/correlation mapping in the current review pack.
+- [ ] Trang (@Qtrang2826) explicitly confirms security/privacy/transport and EOF/exit-2 policy in the current review pack.
 - [ ] Team review confirms finalization and merge readiness.
 
 Finalization candidate status remains review pending. Valid free-text metadata/reason/query may be echoed on successful calls; this mock has no general-purpose production secret redactor. The safe-error guarantee covers rejected input, not arbitrary secrets placed in otherwise accepted requests. Passing local tests does not constitute independent approval or production security verification.
