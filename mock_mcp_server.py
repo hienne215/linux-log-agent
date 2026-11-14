@@ -168,9 +168,10 @@ def make_response(
     return bound_response(response)
 
 
-def bound_response(response, request_id=0):
+def bound_response(response, request_id=0, native_builder=None):
     """Keep whole records when useful data fits; otherwise return an atomic error."""
-    if wire_size(native_result(response), request_id) <= MAX_RESPONSE_BYTES:
+    native_builder = native_builder or native_result
+    if wire_size(native_builder(response), request_id) <= MAX_RESPONSE_BYTES:
         return response
     candidate = copy.deepcopy(response)
     for key in ("entries", "matches", "failed_units", "events", "ports"):
@@ -182,7 +183,7 @@ def bound_response(response, request_id=0):
             candidate["data"]["count"] = len(records)
             candidate.update(status="partial", error_code="OUTPUT_LIMIT",
                              truncated=True, next_cursor=None)
-            if wire_size(native_result(candidate), request_id) <= MAX_RESPONSE_BYTES:
+            if wire_size(native_builder(candidate), request_id) <= MAX_RESPONSE_BYTES:
                 return candidate
     # Do not split evidence, individual records, JSON strings, or UTF-8 bytes.
     response.update(status="error", error_code="OUTPUT_LIMIT", truncated=True,
