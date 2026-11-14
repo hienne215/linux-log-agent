@@ -1,0 +1,271 @@
+{
+  "metadata": {
+    "started_at": "2026-11-02T07:41:03.069685+00:00",
+    "model": "qwen3:4b-instruct-2507-q4_K_M",
+    "planned_max_requests": 4,
+    "options": {
+      "num_ctx": 4096,
+      "num_predict": 256,
+      "temperature": 0,
+      "num_thread": 4
+    },
+    "think": "omitted",
+    "stream": false,
+    "timeout_seconds": 45,
+    "script_sha256": "88e95323921143531d1f0f9cdcc3a6342f4aa3cf5ef973b3bb842692dc18e106",
+    "adapter_sha256": "13b9a60dd6ed0b1e3c299bcbcd718c935e501ca0ab6fd82320925c8b7ec5f4ef",
+    "cases": [
+      {
+        "id": "S1",
+        "name": "Normal text",
+        "prompt": "Reply exactly SMOKE_OK. No explanation.",
+        "tools": false,
+        "require_tool": false,
+        "text_expected": "SMOKE_OK"
+      },
+      {
+        "id": "S2",
+        "name": "Native mock call",
+        "prompt": "Use exactly one native tool call to mock_service_status with unit lab.service. Do not write prose or JSON in content. All tools are mocks; do not execute anything.",
+        "tools": true,
+        "require_tool": true,
+        "expected": {
+          "name": "mock_service_status",
+          "arguments": {
+            "unit": "lab.service"
+          }
+        }
+      },
+      {
+        "id": "S3",
+        "name": "Schema-correct arguments",
+        "prompt": "Use exactly one native call to mock_listening_ports for TCP port 80. Use port as integer 80 and protocol as string tcp. No prose. All tools are mocks.",
+        "tools": true,
+        "require_tool": true,
+        "expected": {
+          "name": "mock_listening_ports",
+          "arguments": {
+            "port": 80,
+            "protocol": "tcp"
+          }
+        }
+      },
+      {
+        "id": "S4",
+        "name": "Text-only rejected by require_tool",
+        "prompt": "This is a greeting, unrelated to Linux diagnostics. Do not use any tools. Reply exactly TEXT_ONLY_OK as plain text; do not call a function.",
+        "tools": true,
+        "require_tool": true,
+        "expected_error": "OUTPUT_POLICY"
+      }
+    ],
+    "tool_definitions": [
+      {
+        "name": "mock_service_status",
+        "description": "Mock only: return service status; never execute a command.",
+        "parameters": {
+          "type": "object",
+          "properties": {
+            "unit": {
+              "type": "string",
+              "enum": [
+                "lab.service"
+              ]
+            }
+          },
+          "required": [
+            "unit"
+          ],
+          "additionalProperties": false
+        }
+      },
+      {
+        "name": "mock_listening_ports",
+        "description": "Mock only: inspect a port; never execute anything.",
+        "parameters": {
+          "type": "object",
+          "properties": {
+            "port": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 65535
+            },
+            "protocol": {
+              "type": "string",
+              "enum": [
+                "tcp",
+                "udp"
+              ]
+            }
+          },
+          "required": [
+            "port",
+            "protocol"
+          ],
+          "additionalProperties": false
+        }
+      }
+    ],
+    "ollama_version": "0.40.13",
+    "model_digest": "0edcdef34593eac1aa2be9c7d06c432dcf81945adca5eca2f27662c18f168ba0",
+    "loaded_before": {
+      "models": []
+    },
+    "memory_available_before_mib": 5962.01171875,
+    "finished_at": "2026-11-02T07:41:28.355114+00:00"
+  },
+  "status": "complete",
+  "rows": [
+    {
+      "case_id": "S1",
+      "name": "Normal text",
+      "started_at": "2026-11-02T07:41:03.366554+00:00",
+      "kind": "text",
+      "latency_s": 7.195118096999977,
+      "usage": {
+        "prompt_tokens": 18,
+        "output_tokens": 5,
+        "generation_seconds": 0.346316,
+        "provider_total_seconds": 7.181831189,
+        "tokens_per_second": 14.437681192898971
+      },
+      "tool_calls": [],
+      "schema_valid": null,
+      "exact_arguments": false,
+      "text_matches_expected": true,
+      "pass": true,
+      "observed": {
+        "http_latency_s": 7.194997661999878,
+        "content_chars": 8,
+        "thinking_chars": 0,
+        "native_calls_count": 0,
+        "done": true,
+        "done_reason": "stop",
+        "prompt_eval_count": 18,
+        "eval_count": 5,
+        "eval_duration": 346316000,
+        "total_duration": 7181831189,
+        "load_duration": 6119195585,
+        "tokens_per_second": 14.437681192898971
+      },
+      "inference_requests": 1,
+      "finished_at": "2026-11-02T07:41:10.562046+00:00",
+      "min_available_mib": 2957.33203125,
+      "wall_elapsed_s": 7.444276385000194
+    },
+    {
+      "case_id": "S2",
+      "name": "Native mock call",
+      "started_at": "2026-11-02T07:41:10.793333+00:00",
+      "kind": "tool_calls",
+      "latency_s": 11.280544539000402,
+      "usage": {
+        "prompt_tokens": 278,
+        "output_tokens": 22,
+        "generation_seconds": 1.969618,
+        "provider_total_seconds": 11.269928889,
+        "tokens_per_second": 11.16967858742152
+      },
+      "tool_calls": [
+        {
+          "name": "mock_service_status",
+          "arguments": {
+            "unit": "lab.service"
+          }
+        }
+      ],
+      "schema_valid": true,
+      "exact_arguments": true,
+      "pass": true,
+      "observed": {
+        "http_latency_s": 11.280412115000217,
+        "content_chars": 0,
+        "thinking_chars": 0,
+        "native_calls_count": 1,
+        "done": true,
+        "done_reason": "stop",
+        "prompt_eval_count": 278,
+        "eval_count": 22,
+        "eval_duration": 1969618000,
+        "total_duration": 11269928889,
+        "load_duration": 3733338,
+        "tokens_per_second": 11.16967858742152
+      },
+      "inference_requests": 1,
+      "finished_at": "2026-11-02T07:41:22.077092+00:00",
+      "min_available_mib": 2725.91015625,
+      "wall_elapsed_s": 11.513648310999997
+    },
+    {
+      "case_id": "S3",
+      "name": "Schema-correct arguments",
+      "started_at": "2026-11-02T07:41:22.263193+00:00",
+      "kind": "tool_calls",
+      "latency_s": 4.1780324049996125,
+      "usage": {
+        "prompt_tokens": 282,
+        "output_tokens": 29,
+        "generation_seconds": 2.645033,
+        "provider_total_seconds": 4.167314865,
+        "tokens_per_second": 10.96394638554604
+      },
+      "tool_calls": [
+        {
+          "name": "mock_listening_ports",
+          "arguments": {
+            "port": 80,
+            "protocol": "tcp"
+          }
+        }
+      ],
+      "schema_valid": true,
+      "exact_arguments": true,
+      "pass": true,
+      "observed": {
+        "http_latency_s": 4.177930689999812,
+        "content_chars": 0,
+        "thinking_chars": 0,
+        "native_calls_count": 1,
+        "done": true,
+        "done_reason": "stop",
+        "prompt_eval_count": 282,
+        "eval_count": 29,
+        "eval_duration": 2645033000,
+        "total_duration": 4167314865,
+        "load_duration": 1226148,
+        "tokens_per_second": 10.963946385546041
+      },
+      "inference_requests": 1,
+      "finished_at": "2026-11-02T07:41:26.444369+00:00",
+      "min_available_mib": 2725.91796875,
+      "wall_elapsed_s": 4.365576334000252
+    },
+    {
+      "case_id": "S4",
+      "name": "Text-only rejected by require_tool",
+      "started_at": "2026-11-02T07:41:26.601377+00:00",
+      "adapter_error": "OUTPUT_POLICY",
+      "latency_s": 1.7491399099999398,
+      "pass": true,
+      "observed": {
+        "http_latency_s": 1.746079909999935,
+        "content_chars": 12,
+        "thinking_chars": 0,
+        "native_calls_count": 0,
+        "done": true,
+        "done_reason": "stop",
+        "prompt_eval_count": 275,
+        "eval_count": 4,
+        "eval_duration": 292123000,
+        "total_duration": 1735321603,
+        "load_duration": 1045768,
+        "tokens_per_second": 13.692862253228949
+      },
+      "inference_requests": 1,
+      "finished_at": "2026-11-02T07:41:28.350558+00:00",
+      "min_available_mib": 2746.671875,
+      "wall_elapsed_s": 1.906147136999607
+    }
+  ],
+  "pass": true
+}
