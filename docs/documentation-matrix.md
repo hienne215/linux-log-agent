@@ -26,6 +26,7 @@ It also tracks the status of project features, so planned work is never presente
 | Project outline (agreed scope) | `docs/proposal-v2.md` | Team | Planned |
 | MCP tool contracts (schemas) | `docs/mcp-tool-contracts.md` | Thủy; Hiền/Trang review | Proposed |
 | SCRUM-12 final contract review and collector handoff | `docs/SCRUM-12-contract-review-2026-11-14.md` | Thủy | Proposed |
+| P01-01 draft scaffold design and evidence | `docs/P01-01-server-scaffold.md` | Thủy; Hiền review | In Progress |
 | System architecture | `docs/architecture.md` | Team | Planned |
 | Security design | `docs/security-design.md` | C | Planned |
 | Evaluation scenarios and answer keys | `docs/evaluation-scenarios.md` | C | Planned |
@@ -66,6 +67,7 @@ The tool statuses below refer to real Linux collection/execution, not the existi
 | Feature | Type | Owner | Status |
 |---|---|---|---|
 | MCP server (real Linux collectors) | Core | A | Planned |
+| MCP server scaffold (P01-01 draft; collectors unavailable) | Core | Thủy | In Progress |
 | MCP mock server and 12-tool contracts (PR #6) | Core | Thủy | Proposed |
 | MCP client and agent loop | Core | B | Planned |
 | CLI | Core | B | Planned |
