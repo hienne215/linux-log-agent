@@ -1,6 +1,6 @@
 # P03-02: `memory_oom_events` collector
 
-Status: Proposed (waiting for review) | Owner: Trang | Support/review: Thuy
+Status: Draft (review fixes applied, waiting for re-review) | Owner: Trang | Support/review: Thuy
 Depends on: P03-01 (reader permissions), P01-01 (server scaffold, draft), P00-03 (contracts R3, `fd737fb`)
 Scope: one read-only tool. It does not change the contract, the scaffold or any other tool.
 
@@ -19,25 +19,35 @@ Commands use absolute paths, a fixed argv, no shell and a fixed environment (the
 
 | Status | Meaning |
 |---|---|
-| `ok` | Command ran and the output was read |
+| `ok` | The command exited with status 0 (or was stopped by our own output cap) and the output was read |
 | `permission_denied` | `journalctl` printed its "not seeing messages from other users" hint, or `dmesg` said "Operation not permitted". Also used, as the safe choice, when `journalctl` printed no record at all and the account is in neither `adm` nor `systemd-journal` |
-| `unavailable` | Binary missing, command failed, or the time budget ran out |
+| `unavailable` | Binary missing, **command exited with a non-zero status (even if it printed a valid-looking record)**, or the time budget ran out |
 
-**Response status** (the part that separates "no OOM" from "cannot read"):
+**Response status** (separates "no OOM" from "cannot read"):
 
 | Situation | `status` | `error_code` |
 |---|---|---|
-| Both sources `ok`, history covers the window, nothing cut | `ok` (events may be `[]`) | null |
-| One source not `ok`, or oldest data is newer than `since`, or the result was cut | `partial` | null |
+| Every source `ok` **and each source reaches back to `since`**, nothing cut | `ok` (events may be `[]`) | null |
+| A source is not `ok`, **or any single source starts after `since`**, or the result was cut | `partial` | null |
 | No source `ok`, all `permission_denied` | `error` | `PERMISSION_DENIED` |
 | No source `ok`, any other mix | `error` | `UNSUPPORTED` |
 | Bad window / limit / `cursor` | `error` | `INVALID_INPUT` |
 
-**Events.** One event per kill. The line `Out of memory: Killed process <pid> (<name>) total-vm:..kB, anon-rss:..kB` (also the cgroup form and the old two-line form) gives pid, process and sizes. The `oom-kill:...task=..,pid=..` line is used only when no kill line exists for that pid. "invoked oom-killer" lines are context and are not counted. The same pid within 60 s is one event; the richer record wins, and the journal wins ties. Events are sorted by time; if there are more than `limit`, the most recent are kept and the result is `partial` + `truncated`.
+Coverage is judged **per source** (R3). `dmesg` only reaches back to the last boot, so a 24 h window that starts before the boot is `partial` even when the journal covers it. A window that starts after the oldest `dmesg` line can be `ok`.
 
-**Limits.** 8 s total budget (the server allows 10 s); 4 MiB read per command; the response is trimmed (oldest whole events first) to 28,000 bytes because the server sends the result twice inside one 64 KiB frame. `cursor` is rejected (`INVALID_INPUT`): the tool does not paginate, narrow the window instead.
+**Events.** One event per kill. The line `Out of memory: Killed process <pid> (<name>) total-vm:..kB, anon-rss:..kB` (also the cgroup form and the old two-line form) gives pid, process and sizes. The `oom-kill:...task=..,pid=..` line is used only when no kill line exists for that kill. "invoked oom-killer" lines are context and are not counted. Events are sorted by time; if there are more than `limit`, the most recent are kept and the result is `partial` + `truncated`.
 
-**Privacy.** Only OOM lines are returned; control characters are removed; the message is cut at 2048 characters and the evidence excerpt at 500. There is no secret redactor: `redacted` is always `false`, which is accurate because nothing is rewritten.
+**De-duplication (settled).** Two records are one kill only if they have the **same pid**, a **compatible process name** (equal, or one of them unknown) and are within **60 s** of each other. The richer record wins; the journal wins ties. A reused pid with another name is kept as a separate event. Known limit: after a VM pause the `dmesg` clock can drift by more than 60 s, and then the same kill appears twice.
+
+**Cursor (settled).** The tool is stateless and never returns `next_cursor`. A `cursor` in a request is therefore invalid (`INVALID_INPUT`). When the result is cut, the response is `partial` with `truncated: true`; narrow the window to get the rest.
+
+**Limits.** 8 s total budget (the server allows 10 s); 4 MiB read per command; the response is trimmed (oldest whole events first) to 28,000 bytes because the server sends the result twice inside one 64 KiB frame.
+
+**Privacy (SECURITY.md section 5.2).** A process name is text chosen by the workload, so it is never echoed as it came:
+
+- A name is kept only if it looks like a kernel `comm` name (at most 15 characters from a plain character set) and contains no credential keyword (password, secret, token, api key, bearer, authorization, credential, private). Anything else becomes `[REDACTED]`, and `evidence.redacted` is `true`.
+- `message` and `excerpt` are **rebuilt from the parsed fields** (pid, process, sizes). Raw kernel text, cgroup paths, UIDs and other trailing text are never copied.
+- This is a filter, not a guarantee: a short, plain name that happens to be a secret cannot be recognised.
 
 ## 2. P03-02.2: deliverables
 
@@ -45,7 +55,7 @@ Commands use absolute paths, a fixed argv, no shell and a fixed environment (the
 |---|---|
 | `src/mcp_server/oom_events.py` | Parser and collector (stdlib only, Python 3.8+) |
 | `src/mcp_server/oom_worker.py` | Worker entrypoint: JSON request on stdin, JSON response on stdout |
-| `tests/test_p03_02_oom_events.py` | Parser/collector tests, schema tests, worker and scaffold tests |
+| `tests/test_p03_02_oom_events.py` | Parser, collector, privacy, schema, worker and scaffold tests |
 | `scripts/p03-02/smoke.sh` | Read-only smoke run inside the VM |
 
 Registering it in the scaffold (the argv is code-owned, never taken from MCP arguments):
@@ -55,41 +65,30 @@ argv = (sys.executable, "-I", str(ROOT / "src/mcp_server/oom_worker.py"))
 ServerScaffold(backends={"memory_oom_events": argv})
 ```
 
-Wiring this into `run_mcp_server.py` (a new flag) is not done here; it needs a decision from Thuy.
+**Wiring decision (Thuy):** the real backend is enabled by an operator-owned flag `--linux-oom`, off by default. The flag itself is not implemented in this branch yet.
 
 ## 3. P03-02.3: verification
 
 | Acceptance criterion | Evidence | Status |
 |---|---|---|
 | Returns process, time and evidence when present | `test_oom_found_in_journal_with_evidence`, parser tests | Automated |
-| Tells "no OOM" apart from "no permission" | `test_no_oom_and_readable...`, `test_no_permission_is_not_reported_as_no_oom`, `test_journal_denied_but_dmesg_readable...` | Automated |
-| Fixtures: OOM / no OOM / permission denied | Same tests, kernel line formats listed in the test file | Automated |
-| Smoke, RAM read-only | `scripts/p03-02/smoke.sh` in the VM, stages A and B (see below) | Run in the VM, output saved |
+| Tells "no OOM" apart from "no permission" | `test_no_oom_and_readable...`, `test_no_permission_is_not_reported_as_no_oom`, `test_journal_denied_but_dmesg_readable...`, `test_each_source_is_judged_on_its_own_history` | Automated |
+| Fixtures: OOM / no OOM / permission denied | Same tests; kernel line formats listed in the test file | Automated |
+| No secret-like process name reaches the response | `test_process_name_with_secret_like_text_never_appears_anywhere`, `test_message_is_rebuilt_from_parsed_fields_only` | Automated |
+| A failed command is never a successful read | `test_failing_journalctl_is_unavailable_even_with_a_valid_record` | Automated |
+| Smoke, RAM read-only | `scripts/p03-02/smoke.sh` in the VM (section 6) | Run in the VM, output saved |
 
 Kernel message formats in the fixtures follow the Linux kernel source; they were **not captured** from a real OOM on the lab VM. The P03-01 fixture line is a simulated kernel-log line, not a real OOM.
 
 Run the tests: `python -m pytest -q tests/test_p03_02_oom_events.py`
 
-Smoke (in the VM; `reader-user.sh` is from P03-01):
+## 4. Decisions taken in review
 
-```
-scp src/mcp_server/oom_events.py src/mcp_server/oom_worker.py scripts/p03-02/smoke.sh <lab-user>@192.168.56.101:~/p03-02/
-cd ~/p03-02 && sed -i 's/\r$//' smoke.sh
-bash ~/p03-01/fixtures.sh up
-bash ~/p03-01/reader-user.sh groups-none;    bash smoke.sh A-no-groups .
-bash ~/p03-01/reader-user.sh groups-journal; bash smoke.sh B-journal .
-bash ~/p03-01/reader-user.sh groups-none
-```
-
-Expected: stage A is `partial` (`journal.kernel` = `permission_denied`, `dmesg` = `ok`); stage B finds the simulated event (pid 4242) with both sources `ok`.
-
-## 4. Open points for Thuy
-
-1. **Error details are dropped.** `server.py` replaces every worker error by `safe_error(code)`, so `coverage` (which source was denied) is lost for `PERMISSION_DENIED` / `UNSUPPORTED`. The error code survives, which is enough for the acceptance criterion. If the Agent needs the per-source detail, the scaffold could keep a validated `coverage` block (enum values only, no free text).
-2. **RAM status.** The task text says "RAM status", but the R3 data schema has no RAM field (`additionalProperties: false`). The smoke only shows `/proc/meminfo` as evidence. Adding RAM to the contract would be a contract change.
-3. **Wiring.** Which flag or config enables the real backend in `run_mcp_server.py`.
-4. **Partial rule.** "Oldest data newer than `since` is `partial`" is applied to the union of the readable sources. Confirm this matches the contract's intent.
-5. **Local test state.** Merging the scaffold with R3 gives 8 failing tests in `tests/test_p01_scaffold.py` (already reported); they are unrelated to this tool.
+1. **RAM status** stays out of the OOM schema (contract unchanged). The smoke only shows `/proc/meminfo` as evidence.
+2. **Wiring:** operator-owned `--linux-oom` flag, default off (not implemented here).
+3. **Coverage:** judged per source.
+4. **Cursor** and **de-duplication:** settled as described in section 1.
+5. Still open: the scaffold replaces every worker error by `safe_error(code)`, so per-source `coverage` is lost for `PERMISSION_DENIED` / `UNSUPPORTED`. The code survives, which meets the acceptance criterion.
 
 ## 5. Known limits
 
@@ -98,16 +97,16 @@ Expected: stage A is `partial` (`journal.kernel` = `permission_denied`, `dmesg` 
 - Only kernel OOM kills are reported, not user-space killers such as `systemd-oomd`.
 - Not tested on a real OOM; not tested with other kernel versions.
 
-## 6. Smoke results (lab VM `linux-log-lab`, 2026-11-16)
+## 6. Smoke results (lab VM `linux-log-lab`, 2026-11-16, after the review fixes)
 
 | Stage | Reader groups | Response | `journal.kernel` | `dmesg` | Events |
 |---|---|---|---|---|---|
-| A | none | `partial` | `permission_denied` | `ok` | 1 (pid 4242, from `dmesg`) |
-| B | `systemd-journal` | `ok` | `ok` (oldest 2026-11-01) | `ok` | 1 (pid 4242, journal and dmesg merged) |
+| A | none | `partial` | `permission_denied` | `ok` (oldest 2026-11-15T17:24Z) | 1 (pid 4242, from `dmesg`) |
+| B | `systemd-journal` | `partial` | `ok` (oldest 2026-11-01) | `ok` (oldest 2026-11-15T17:24Z) | 1 (pid 4242, journal and dmesg merged) |
 
-- The simulated event shows once in stage B: the journal and dmesg records were merged.
-- Its time differs by 1 s between A (`dmesg`) and B (journal): the `dmesg` clock drift described in section 5. The journal time wins when both sources report the event.
+- Stage B is `partial` because each source is judged on its own: `dmesg` only reaches back to the last boot, which is after `since`. The first run on the same day, made before the review fixes, reported `ok` under the old union rule.
+- The simulated event appears once in each stage. Its time differs by 1 s between A (`dmesg`) and B (journal): the clock drift described in section 5. The journal time wins when both report it.
 - The reader can read `MemTotal` and `MemAvailable` from `/proc/meminfo` in both stages.
-- The case where both sources are denied (`PERMISSION_DENIED`) is covered by unit tests only: `dmesg` is readable in this VM.
+- The case where both sources are denied (`PERMISSION_DENIED`) and the `ok` path are covered by unit tests only.
 - The event is the simulated kernel line from P03-01, not a real OOM.
 - Raw output: `docs/evidence/p03-02-A-no-groups.txt`, `docs/evidence/p03-02-B-journal.txt`.

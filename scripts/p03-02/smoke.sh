@@ -1,9 +1,9 @@
 #!/bin/bash
 # P03-02 smoke test (read-only). Run INSIDE the lab VM as a user with sudo.
-# usage: bash smoke.sh <label> <dir containing oom_events.py and oom_worker.py>
-# Runs the worker as mcp-log-reader for the last 24 h and prints a summary plus RAM facts.
+# usage: bash smoke.sh <label> <dir containing oom_events.py and oom_worker.py> [hours, default 24, max 24]
+# Runs the worker as mcp-log-reader for the last N hours and prints a summary plus RAM facts.
 set -u
-LABEL="${1:?usage: smoke.sh <label> <dir>}"; SRC="${2:?usage: smoke.sh <label> <dir>}"
+LABEL="${1:?usage: smoke.sh <label> <dir> [hours]}"; SRC="${2:?usage: smoke.sh <label> <dir> [hours]}"; HOURS="${3:-24}"
 U=mcp-log-reader
 if [ "$(hostname)" != "linux-log-lab" ] && [ "${LAB_ALLOW_ANY_HOST:-}" != 1 ]; then
   echo "Refusing: this is not the lab VM"; exit 1
@@ -11,7 +11,7 @@ fi
 D=/tmp/p03-02
 sudo rm -rf "$D"; sudo mkdir -p "$D"
 sudo cp "$SRC/oom_events.py" "$SRC/oom_worker.py" "$D/" && sudo chmod -R a+rX "$D" || exit 1
-SINCE=$(date -u -d '24 hours ago' +%Y-%m-%dT%H:%M:%SZ); UNTIL=$(date -u +%Y-%m-%dT%H:%M:%SZ)
+SINCE=$(date -u -d "$HOURS hours ago" +%Y-%m-%dT%H:%M:%SZ); UNTIL=$(date -u +%Y-%m-%dT%H:%M:%SZ)
 REQ=$(printf '{"schema_version":"1.0.0","session_id":"smoke","trace_id":"smoke-%s","logical_tool_call_id":"smoke-1","attempt_id":"smoke-1","since":"%s","until":"%s"}' "$LABEL" "$SINCE" "$UNTIL")
 OUT="$HOME/p03-02-$LABEL.txt"
 {

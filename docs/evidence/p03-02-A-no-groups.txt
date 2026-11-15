@@ -1,6 +1,6 @@
-##### P03-02 smoke A-no-groups - 2026-11-16T00:33:52+07:00 - linux-log-lab
+##### P03-02 smoke A-no-groups - 2026-11-16T01:35:33+07:00 - linux-log-lab
 uid=129(mcp-log-reader) gid=135(mcp-log-reader) groups=135(mcp-log-reader)
-=== worker (window 2026-11-14T17:33:52Z .. 2026-11-15T17:33:52Z)
+=== worker (window 2026-11-14T18:35:33Z .. 2026-11-15T18:35:33Z)
 worker exit code: 0
 status=partial error_code=None truncated=False
 coverage: journal.kernel  permission_denied  oldest=None
@@ -10,6 +10,6 @@ event: 2026-11-15T17:32:26Z pid=4242 process=lab-oom total_vm_kb=409600
 events=1 evidence=1
 === RAM facts readable by mcp-log-reader (read-only)
 MemTotal:        2010972 kB
-MemAvailable:    1663348 kB
+MemAvailable:    1663948 kB
 SwapTotal:       1190340 kB
 SwapFree:        1190340 kB

@@ -57,7 +57,7 @@ def go(req=None, journal=None, oldest=None, dmesg=None, found=True, lacks=False)
 
 
 QUIET_OLDEST = ok(jline("2026-11-02T02:12:54Z", NOISE))
-QUIET_DMESG = ok(dline("2026-11-14T22:00:00Z", NOISE))
+QUIET_DMESG = ok(dline("2026-11-13T22:00:00Z", NOISE))   # ring buffer reaches back before "since"
 QUIET_JOURNAL = ok(jline("2026-11-14T10:00:00Z", NOISE))
 
 
@@ -94,7 +94,9 @@ def test_oom_found_in_journal_with_evidence():
     assert r["data"]["count"] == 1 and (event["pid"], event["process"], event["total_vm_kb"]) == (2231, "java", 3145728)
     assert event["timestamp"] == "2026-11-14T09:00:01Z"
     assert [e["evidence_id"] for e in r["evidence"]] == [event["evidence_id"]]
-    assert r["evidence"][0]["source"] == "journal.kernel" and KILL_MODERN.startswith(r["evidence"][0]["excerpt"][:20])
+    assert r["evidence"][0]["source"] == "journal.kernel" and r["evidence"][0]["redacted"] is False
+    assert r["evidence"][0]["excerpt"] == ("Out of memory: Killed process 2231 (java) "
+                                           "total-vm:3145728kB, anon-rss:1048576kB")
     assert [c["status"] for c in r["data"]["coverage"]] == ["ok", "ok"]
 
 
@@ -180,6 +182,7 @@ def test_hostile_text_is_neutralised_and_json_noise_ignored():
     r = go(journal=ok("\n".join(lines)), oldest=QUIET_OLDEST, dmesg=QUIET_DMESG)
     event = r["data"]["events"][0]
     assert "\x1b" not in json.dumps(r) and "\n" not in event["message"] and event["pid"] == 9
+    assert event["process"] == oom.REDACTED and r["evidence"][0]["redacted"] is True
 
 
 def test_huge_result_is_trimmed_to_fit_budget():
@@ -218,6 +221,78 @@ def test_no_shell_and_fixed_absolute_commands():
     assert "shell=True" not in source and "os.system" not in source
     assert all(os.path.isabs(p) for p in oom.JOURNALCTL + oom.DMESG)
 
+
+
+# ---------------------------------------------------------------- review findings (PR #21)
+MARKER = "SYNTHETIC_CHILD_SECRET"
+
+
+@pytest.mark.parametrize("name", [MARKER, "token=SYNTHETIC1", "password", "x" * 40, "a/b\x1b[0mc", "api_key9"])
+def test_process_name_with_secret_like_text_never_appears_anywhere(name):
+    kill = "Out of memory: Killed process 31 (%s) total-vm:5kB, anon-rss:4kB" % name
+    oomkill = ("oom-kill:constraint=CONSTRAINT_NONE,cpuset=/,task_memcg=/system.slice/%s.service,"
+               "task=%s,pid=32,uid=0") % (name, name)
+    r = go(journal=ok("\n".join([jline("2026-11-14T09:00:00Z", kill), jline("2026-11-14T09:01:00Z", oomkill)])),
+           oldest=QUIET_OLDEST, dmesg=ok(dline("2026-11-14T09:00:00Z", kill)))
+    text = json.dumps(r)
+    assert name not in text and MARKER not in text and "system.slice" not in text
+    assert r["data"]["count"] == 2
+    assert all(e["process"] == oom.REDACTED for e in r["data"]["events"])
+    assert all(ev["redacted"] is True and name not in ev["excerpt"] for ev in r["evidence"])
+
+
+@pytest.mark.parametrize("name", ["java", "lab-oom", "Web Content", "kworker/u2:1", "python3.8"])
+def test_ordinary_process_names_are_kept(name):
+    line = "Out of memory: Killed process 31 (%s) total-vm:5kB" % name
+    r = go(journal=ok(jline("2026-11-14T09:00:00Z", line)), oldest=QUIET_OLDEST, dmesg=QUIET_DMESG)
+    assert r["data"]["events"][0]["process"] == name and r["evidence"][0]["redacted"] is False
+
+
+def test_message_is_rebuilt_from_parsed_fields_only():
+    line = KILL_CGROUP + " extra-text-that-must-not-be-echoed"
+    r = go(journal=ok(jline("2026-11-14T09:00:00Z", line)), oldest=QUIET_OLDEST, dmesg=QUIET_DMESG)
+    message = r["data"]["events"][0]["message"]
+    assert message == "Memory cgroup out of memory: Killed process 3300 (python3) total-vm:204800kB, anon-rss:102400kB"
+    assert "extra-text" not in json.dumps(r) and "UID" not in message
+
+
+def test_each_source_is_judged_on_its_own_history():
+    """Journal reaches back before 'since' but dmesg does not: the result must not be 'ok'."""
+    r = go(journal=QUIET_JOURNAL, oldest=QUIET_OLDEST, dmesg=ok(dline("2026-11-14T17:24:38Z", NOISE)))
+    assert [c["status"] for c in r["data"]["coverage"]] == ["ok", "ok"]
+    assert r["status"] == "partial" and r["error_code"] is None and r["data"]["events"] == []
+    full = go(journal=QUIET_JOURNAL, oldest=QUIET_OLDEST, dmesg=QUIET_DMESG)
+    assert full["status"] == "ok"
+
+
+def test_failing_journalctl_is_unavailable_even_with_a_valid_record():
+    r = go(journal=(1, jline("2026-11-14T09:00:00Z", KILL_MODERN).encode(), b"boom", False, False),
+           oldest=QUIET_OLDEST, dmesg=QUIET_DMESG)
+    assert [c["status"] for c in r["data"]["coverage"]] == ["unavailable", "ok"]
+    assert r["status"] == "partial" and r["data"]["events"] == []
+    both = go(journal=(1, jline("2026-11-14T09:00:00Z", KILL_MODERN).encode(), b"", False, False),
+              oldest=QUIET_OLDEST, dmesg=(2, dline("2026-11-14T09:00:00Z", KILL_MODERN).encode(), b"", False, False))
+    assert both["status"] == "error" and both["error_code"] == "UNSUPPORTED"
+
+
+def test_output_cut_by_our_own_cap_is_partial_not_a_failed_command():
+    cut = (-9, jline("2026-11-14T09:00:00Z", KILL_MODERN).encode() + b"\n{partial", b"", True, False)
+    r = go(journal=cut, oldest=QUIET_OLDEST, dmesg=QUIET_DMESG)
+    assert r["status"] == "partial" and r["truncated"] and r["data"]["count"] == 1
+
+
+def test_dedupe_requires_compatible_process_names():
+    a = "Out of memory: Killed process 500 (alpha) total-vm:1kB"
+    b = "Out of memory: Killed process 500 (beta) total-vm:1kB"      # pid reuse inside 60 s
+    r = go(journal=ok("\n".join([jline("2026-11-14T09:00:00Z", a), jline("2026-11-14T09:00:30Z", b)])),
+           oldest=QUIET_OLDEST, dmesg=QUIET_DMESG)
+    assert [e["process"] for e in r["data"]["events"]] == ["alpha", "beta"]
+    same = go(journal=ok(jline("2026-11-14T09:00:00Z", a)), oldest=QUIET_OLDEST,
+              dmesg=ok(dline("2026-11-14T09:00:40Z", a)))
+    assert same["data"]["count"] == 1
+    far = go(journal=ok(jline("2026-11-14T09:00:00Z", a)), oldest=QUIET_OLDEST,
+             dmesg=ok(dline("2026-11-14T09:05:00Z", a)))
+    assert far["data"]["count"] == 2             # outside 60 s: kept (documented limit)
 
 # ---------------------------------------------------------------- contract (needs P00-03 code)
 def test_responses_match_the_published_schema():

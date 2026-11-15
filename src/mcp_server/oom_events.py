@@ -21,7 +21,6 @@ MAX_WINDOW = timedelta(hours=24)
 DEFAULT_LIMIT = 100
 MAX_BYTES = 4 * 1024 * 1024      # stdout read per command
 MAX_MESSAGE = 2048
-MAX_EXCERPT = 500
 DEDUPE_SECONDS = 60
 BUDGET_SECONDS = 8.0             # whole call; the server allows 10 s
 # The server sends the result twice (text + structuredContent) inside one 64 KiB frame.
@@ -42,6 +41,12 @@ _OOMKILL = re.compile(r"\boom-kill:.*?,task=([^,]{1,64}),pid=(\d+)")
 _VM = re.compile(r"total-vm:(\d+)kB")
 _ANON = re.compile(r"anon-rss:(\d+)kB")
 _CTRL = re.compile(r"[\x00-\x1f\x7f-\x9f]")
+# A process name is workload-controlled free text, so it is never echoed as it came: only the
+# shape of a kernel comm name (<= 15 characters, plain characters) and nothing that looks like a
+# credential keyword survives. Anything else becomes "[REDACTED]" and the evidence says so.
+_NAME_OK = re.compile(r"^[A-Za-z0-9._+\-/: ()@]{1,15}$")
+_SECRET_WORDS = re.compile(r"pass(wo?r?d)?|secret|token|api[-_ ]?key|bearer|authoriz|credential|private", re.I)
+REDACTED = "[REDACTED]"
 
 
 # ---------------------------------------------------------------- helpers
@@ -65,6 +70,16 @@ def fmt_ts(dt):
 
 def clean(text, limit):
     return _CTRL.sub(" ", text).strip()[:limit]
+
+
+def safe_name(raw):
+    """Return (name, redacted). Never returns text that failed the comm-name shape check."""
+    name = clean(raw, 128)
+    if not name:
+        return None, False
+    if _NAME_OK.match(name) and not _SECRET_WORDS.search(name):
+        return name, False
+    return REDACTED, True
 
 
 def find_exe(candidates):
@@ -139,13 +154,30 @@ def run_cmd(argv, timeout, max_bytes=MAX_BYTES, first_lines=None):
 
 
 # ---------------------------------------------------------------- parser
-def _fields(pid, name, msg, sizes=True):
+def _fields(pid, name, msg, kind, sizes=True):
     pid = int(pid)
     vm = _VM.search(msg) if sizes else None
     anon = _ANON.search(msg) if sizes else None
-    return {"pid": pid if pid >= 1 else None, "process": clean(name, 128) or None,
+    process, redacted = safe_name(name)
+    return {"pid": pid if pid >= 1 else None, "process": process, "redacted": redacted, "kind": kind,
             "total_vm_kb": int(vm.group(1)) if vm else None,
             "anon_rss_kb": int(anon.group(1)) if anon else None}
+
+
+def render(fields):
+    """Rebuild the message from parsed fields; no raw kernel text, cgroup path or UID is echoed."""
+    name = fields["process"] if fields["process"] is not None else "?"
+    pid = fields["pid"] if fields["pid"] is not None else "?"
+    if fields["kind"] == "oom-kill":
+        return "oom-kill: task=%s pid=%s" % (name, pid)
+    prefix = "Memory cgroup out of memory" if fields["kind"] == "cgroup" else "Out of memory"
+    text = "%s: Killed process %s (%s)" % (prefix, pid, name)
+    sizes = []
+    if fields["total_vm_kb"] is not None:
+        sizes.append("total-vm:%dkB" % fields["total_vm_kb"])
+    if fields["anon_rss_kb"] is not None:
+        sizes.append("anon-rss:%dkB" % fields["anon_rss_kb"])
+    return text + (" " + ", ".join(sizes) if sizes else "")
 
 
 def parse_oom_message(message):
@@ -158,22 +190,23 @@ def parse_oom_message(message):
     if m:
         prefixed = msg.startswith(("Out of memory", "Memory cgroup out of memory"))
         if prefixed or "total-vm:" in msg:
-            return _fields(m.group(1), m.group(2), msg)
+            kind = "cgroup" if msg.startswith("Memory cgroup out of memory") else "global"
+            return _fields(m.group(1), m.group(2), msg, kind)
         return None
     m = _OOMKILL.search(msg)
     if m:
-        return _fields(m.group(2), m.group(1), msg, sizes=False)
+        return _fields(m.group(2), m.group(1), msg, "oom-kill", sizes=False)
     return None
 
 
-def _event(source, dt, message, fields, key):
-    text = clean(message, MAX_MESSAGE)
+def _event(source, dt, fields, key):
+    text = render(fields)
     digest = hashlib.sha1("|".join((source, str(key), fmt_ts(dt), str(fields["pid"]), text))
                           .encode("utf-8", "replace")).hexdigest()[:16]
     score = ((fields["total_vm_kb"] is not None) * 4 + (fields["anon_rss_kb"] is not None) * 2
              + (fields["process"] is not None) + (0.5 if source == SOURCES[0] else 0))
-    return {"_dt": dt, "_src": source, "_score": score, "_full": len(message) > MAX_EXCERPT,
-            "message": text, "evidence_id": "oom-" + digest, **fields}
+    return {"_dt": dt, "_src": source, "_score": score, "message": text,
+            "evidence_id": "oom-" + digest, **fields}
 
 
 def parse_journal(text, since, until, truncated=False):
@@ -197,7 +230,7 @@ def parse_journal(text, since, until, truncated=False):
         dt = EPOCH + timedelta(microseconds=us)
         fields = parse_oom_message(msg)
         if fields and since <= dt < until:
-            events.append(_event(SOURCES[0], dt, msg, fields, rec.get("__CURSOR", us)))
+            events.append(_event(SOURCES[0], dt, fields, rec.get("__CURSOR", us)))
     return events, records
 
 
@@ -222,19 +255,23 @@ def parse_dmesg(text, since, until, truncated=False):
         oldest = oldest or dt
         fields = parse_oom_message(m.group(11))
         if fields and since <= dt < until:
-            events.append(_event(SOURCES[1], dt, m.group(11), fields, number))
+            events.append(_event(SOURCES[1], dt, fields, number))
     return events, oldest
 
 
+def _same_kill(a, b):
+    """Same pid, same process name (or one is unknown) and within DEDUPE_SECONDS."""
+    return (a["pid"] is not None and a["pid"] == b["pid"]
+            and (a["process"] == b["process"] or a["process"] is None or b["process"] is None)
+            and abs((a["_dt"] - b["_dt"]).total_seconds()) <= DEDUPE_SECONDS)
+
+
 def dedupe(events):
-    """Same pid within DEDUPE_SECONDS is one kill; keep the most informative record."""
+    """One kill can appear in several lines and in both sources; keep the most informative."""
     kept = []
     for e in sorted(events, key=lambda x: (-x["_score"], x["_dt"])):
-        if e["pid"] is not None and any(
-                k["pid"] == e["pid"] and abs((k["_dt"] - e["_dt"]).total_seconds()) <= DEDUPE_SECONDS
-                for k in kept):
-            continue
-        kept.append(e)
+        if not any(_same_kill(k, e) for k in kept):
+            kept.append(e)
     return kept
 
 
@@ -262,9 +299,9 @@ def read_journal(run, find, lacks_access, since, until, remaining):
         return _source(SOURCES[0], "unavailable")
     if _denied(err, out):
         return _source(SOURCES[0], "permission_denied")
+    if rc != 0 and not truncated:
+        return _source(SOURCES[0], "unavailable")      # even if some valid-looking record came out
     events, records = parse_journal(out.decode("utf-8", "replace"), since, until, truncated)
-    if rc not in (0, None) and not truncated and records == 0:
-        return _source(SOURCES[0], "unavailable")
     if records == 0 and lacks_access():
         # journalctl may print nothing when the group is missing: never read that as "no OOM".
         return _source(SOURCES[0], "permission_denied")
@@ -292,9 +329,9 @@ def read_dmesg(run, find, since, until, remaining):
         return _source(SOURCES[1], "unavailable")
     if _denied(err, out):
         return _source(SOURCES[1], "permission_denied")
-    events, oldest = parse_dmesg(out.decode("utf-8", "replace"), since, until, truncated)
-    if rc not in (0, None) and not truncated and oldest is None:
+    if rc != 0 and not truncated:
         return _source(SOURCES[1], "unavailable")
+    events, oldest = parse_dmesg(out.decode("utf-8", "replace"), since, until, truncated)
     return _source(SOURCES[1], "ok", oldest, events, truncated)
 
 
@@ -361,8 +398,9 @@ def collect(req, run=run_cmd, find=find_exe, lacks_access=lacks_journal_access, 
     events = sorted(dedupe(journal["events"] + dmesg["events"]), key=lambda e: e["_dt"])
     truncated = any(s["truncated"] for s in readable) or len(events) > limit
     events = events[-limit:]                       # keep the most recent events
-    oldest = min([s["oldest"] for s in readable if s["oldest"]] or [None], key=lambda d: d or EPOCH)
-    gap = len(readable) < len(sources) or oldest is None or oldest > since
+    # R3: judge every source on its own. A source that starts after "since" (dmesg only reaches
+    # back to the last boot) leaves a history gap even when the other source covers the window.
+    gap = any(s["status"] != "ok" or s["oldest"] is None or s["oldest"] > since for s in sources)
 
     def build(items, trunc):
         data = {"events": [{"timestamp": fmt_ts(e["_dt"]), "process": e["process"],
@@ -371,8 +409,8 @@ def collect(req, run=run_cmd, find=find_exe, lacks_access=lacks_journal_access, 
                             "evidence_id": e["evidence_id"]} for e in items],
                 "count": len(items), "limit": limit, "coverage": coverage}
         evidence = [{"evidence_id": e["evidence_id"], "observed_at": fmt_ts(e["_dt"]),
-                     "source": e["_src"], "unit": None, "excerpt": e["message"][:MAX_EXCERPT],
-                     "redacted": False, "truncated": e["_full"]} for e in items]
+                     "source": e["_src"], "unit": None, "excerpt": e["message"],
+                     "redacted": e["redacted"], "truncated": False} for e in items]
         status = "partial" if (gap or trunc) else "ok"
         return _envelope(req, status, data, evidence, None, trunc)
 
