@@ -740,36 +740,58 @@ def check_config(
     )
 
 
+LOG_SOURCES = {'memory_oom_events': ('journal.kernel', 'dmesg'),
+               'failed_logins': ('journal.auth', 'auth.log')}
+
+
 def log_coverage(name):
     """Code-owned synthetic coverage; real collectors must probe effective access."""
-    sources = ['journal.kernel', 'dmesg'] if name == 'memory_oom_events' else ['journal.auth']
+    sources = LOG_SOURCES[name]
     return [{'source': source, 'status': 'ok',
              'oldest_available_at': '2026-11-02T00:00:00Z'} for source in sources]
 
 
 def event_page(name, metadata, since, until, limit, cursor, events):
-    coverage = log_coverage(name)
-    states = [source['status'] for source in coverage]
-    if all(state != 'ok' for state in states):
-        code = 'PERMISSION_DENIED' if all(state == 'permission_denied' for state in states) else 'UNSUPPORTED'
-        response = safe_error(name, {}, code, rule='coverage')
-        response['data']['coverage'] = coverage
-        return response
     filters = dict(since=since, until=until, limit=limit)
     offset = 0
     if cursor is not None:
         valid, offset = validate_cursor(cursor, name, metadata['session_id'], filters)
         if not valid:
             return safe_error(name, {}, offset, rule='cursor')
+    coverage = log_coverage(name)
+    states = [source['status'] for source in coverage]
+    if all(state != 'ok' for state in states):
+        code = 'PERMISSION_DENIED' if all(state == 'permission_denied' for state in states) else 'UNSUPPORTED'
+        descriptions = [source['source'] + (': permission denied' if source['status'] == 'permission_denied'
+                         else ': source unavailable') for source in coverage]
+        return make_response(tool=name, **metadata, status='error', error_code=code,
+                             data=dict(message='; '.join(descriptions), coverage=coverage))
     # Fixed synthetic events belong to the journal source, never to unreadable sources.
     available = within_window(events, since, until) if coverage[0]['status'] == 'ok' else []
+    if coverage[0]['oldest_available_at'] is not None:
+        oldest = datetime.fromisoformat(coverage[0]['oldest_available_at'].replace('Z', '+00:00'))
+        available = [event for event in available if datetime.fromisoformat(event['timestamp'].replace('Z', '+00:00')) >= oldest]
     page = available[offset:offset + limit]
     more = offset + len(page) < len(available)
     token = create_cursor(name, metadata['session_id'], filters, offset + len(page)) if more else None
-    partial = any(state != 'ok' for state in states) or more
+    start = datetime.fromisoformat(since.replace('Z', '+00:00'))
+    retention_gap = any(source['status'] == 'ok' and (
+        source['oldest_available_at'] is None or
+        datetime.fromisoformat(source['oldest_available_at'].replace('Z', '+00:00')) > start)
+        for source in coverage)
+    partial = any(state != 'ok' for state in states) or more or retention_gap
+    evidence = []
+    for index, event in enumerate(page):
+        event = event.copy()
+        event['evidence_id'] = 'ev-' + secrets.token_urlsafe(18)
+        evidence.append(dict(evidence_id=event['evidence_id'], source=coverage[0]['source'],
+                             unit=None, observed_at=event['timestamp'], excerpt=event['message'],
+                             redacted=True, truncated=False))
+        page[index] = event
     return make_response(tool=name, **metadata,
         data=dict(events=page, count=len(page), limit=limit, coverage=coverage),
-        status='partial' if partial else 'ok', truncated=more, next_cursor=token)
+        status='partial' if partial else 'ok', truncated=more, next_cursor=token,
+        evidence=evidence)
 
 
 @register_tool()
@@ -794,9 +816,9 @@ def failed_logins(schema_version: str, session_id: str, trace_id: str,
     metadata = dict(session_id=session_id, trace_id=trace_id,
                     logical_tool_call_id=logical_tool_call_id, attempt_id=attempt_id)
     events = [dict(timestamp='2026-11-02T09:25:00Z', user='[REDACTED]',
-                   source_ip='ip:synthetic-peer-1', service='sshd', message='Synthetic authentication failure.'),
+                   user_class='root', source_ip='ip:synthetic-peer-1', service='sshd', message='Synthetic authentication failure.'),
               dict(timestamp='2026-11-02T09:26:00Z', user='[REDACTED]',
-                   source_ip=None, service='login', message='Synthetic console authentication failure.')]
+                   user_class='unknown', source_ip=None, service='login', message='Synthetic console authentication failure.')]
     return event_page('failed_logins', metadata, since, until, limit, cursor, events)
 
 
@@ -1121,6 +1143,7 @@ def verify_fix(
 
 # Proposal ownership is session-bound and bounded; there is no approve/execute API.
 PROPOSALS = {}
+PROPOSAL_TTL_SECONDS = 60
 RESTART_STATES = ('pending_approval', 'denied', 'expired', 'approved', 'executing',
                   'succeeded', 'failed', 'execution_unknown')
 
@@ -1142,11 +1165,11 @@ def restart_service(schema_version: str, session_id: str, trace_id: str,
         if len(PROPOSALS) >= 256:
             return safe_error('restart_service', {}, 'POLICY_DENIED', rule='proposal_budget')
         action_id = 'mock-action-' + secrets.token_urlsafe(24)
-        expires_at = (now + timedelta(seconds=300)).isoformat().replace('+00:00', 'Z')
-        PROPOSALS[(session_id, action_id)] = dict(expires_at=expires_at)
+        expires_at = (now + timedelta(seconds=PROPOSAL_TTL_SECONDS)).isoformat().replace('+00:00', 'Z')
+        PROPOSALS[(session_id, action_id)] = dict(expires_at=expires_at, unit=unit)
         data = dict(action_id=action_id, proposal_status='pending_approval',
                     executed=False, reason='[REDACTED]', evidence_ids=evidence_ids,
-                    expires_at=expires_at, message='Synthetic proposal; human approval required.')
+                    unit=unit, expires_at=expires_at, message='Synthetic proposal; human approval required.')
         return make_response('restart_service', **metadata, data=data,
                              status='approval_required', error_code='APPROVAL_REQUIRED')
     record = PROPOSALS.get((session_id, action_id))
@@ -1155,8 +1178,9 @@ def restart_service(schema_version: str, session_id: str, trace_id: str,
     if record is None and state is None:
         return safe_error('restart_service', {}, 'NOT_FOUND', rule='action')
     data = dict(action_id=action_id, proposal_status=state or 'pending_approval',
-                executed=state in {'succeeded', 'failed'},
-                expires_at=record['expires_at'] if record else '2026-11-02T10:00:00Z',
+                executed=None if state == 'execution_unknown' else state in {'succeeded', 'failed'},
+                unit=record['unit'] if record else 'nginx.service',
+                expires_at=record['expires_at'] if record else (now + timedelta(seconds=-60 if state == 'expired' else PROPOSAL_TTL_SECONDS)).isoformat().replace('+00:00', 'Z'),
                 message='Synthetic status only; no command was executed.')
     return make_response('restart_service', **metadata, data=data)
 

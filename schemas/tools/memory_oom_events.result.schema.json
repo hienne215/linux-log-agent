@@ -250,6 +250,26 @@
       }
     },
     {
+      "properties": {
+        "data": {
+          "properties": {
+            "coverage": {
+              "items": {
+                "properties": {
+                  "source": {
+                    "enum": [
+                      "journal.kernel",
+                      "dmesg"
+                    ]
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    {
       "if": {
         "properties": {
           "status": {
@@ -370,13 +390,19 @@
                         "null"
                       ],
                       "minimum": 0
+                    },
+                    "evidence_id": {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 128
                     }
                   },
                   "required": [
                     "timestamp",
                     "process",
                     "message",
-                    "pid"
+                    "pid",
+                    "evidence_id"
                   ],
                   "additionalProperties": false
                 }
@@ -398,9 +424,10 @@
                   "type": "object",
                   "properties": {
                     "source": {
-                      "type": "string",
-                      "minLength": 1,
-                      "maxLength": 128
+                      "enum": [
+                        "journal.kernel",
+                        "dmesg"
+                      ]
                     },
                     "status": {
                       "enum": [

@@ -1,5 +1,7 @@
 # PR #6 — Trang review response R2
 
+> Historical R2. [R3](SCRUM-12-review-R3-2026-11-15.md) supersedes accepted-error correlation, boolean-only executed, 300-second proposal TTL, missing event evidence/unit and fixed fixture deadlines below. R2 is not finalized.
+
 Revision **2026-11-15-R2**, schema_version **1.0.0** (pre-finalization revision).
 **Pending independent Hiền/Trang review; NOT finalized; do not merge.**
 

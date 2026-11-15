@@ -250,6 +250,26 @@
       }
     },
     {
+      "properties": {
+        "data": {
+          "properties": {
+            "coverage": {
+              "items": {
+                "properties": {
+                  "source": {
+                    "enum": [
+                      "journal.auth",
+                      "auth.log"
+                    ]
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    {
       "if": {
         "properties": {
           "status": {
@@ -362,6 +382,18 @@
                         "login",
                         "su"
                       ]
+                    },
+                    "evidence_id": {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 128
+                    },
+                    "user_class": {
+                      "enum": [
+                        "root",
+                        "existing",
+                        "unknown"
+                      ]
                     }
                   },
                   "required": [
@@ -369,7 +401,9 @@
                     "user",
                     "source_ip",
                     "message",
-                    "service"
+                    "service",
+                    "evidence_id",
+                    "user_class"
                   ],
                   "additionalProperties": false
                 }
@@ -391,9 +425,10 @@
                   "type": "object",
                   "properties": {
                     "source": {
-                      "type": "string",
-                      "minLength": 1,
-                      "maxLength": 128
+                      "enum": [
+                        "journal.auth",
+                        "auth.log"
+                      ]
                     },
                     "status": {
                       "enum": [

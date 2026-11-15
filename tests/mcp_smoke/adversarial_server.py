@@ -12,7 +12,7 @@ if mode in {'coverage-denied', 'coverage-partial', 'coverage-unavailable'}:
         states = {'coverage-denied':['permission_denied'],
                   'coverage-unavailable':['unavailable'],
                   'coverage-partial':['ok','permission_denied']}[mode]
-        return [dict(source='synthetic.source.'+str(i), status=state,
+        return [dict(source=server.LOG_SOURCES[name][i], status=state,
                      oldest_available_at=None) for i,state in enumerate(states)]
     server.log_coverage=fixture_coverage
 async def injected(ctx,params):

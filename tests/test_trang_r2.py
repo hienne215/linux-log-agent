@@ -20,11 +20,11 @@ def test_coverage_distinguishes_empty_and_denied(name, monkeypatch):
     args = {**arguments(name), 'since': '2026-11-03T00:00:00Z', 'until': '2026-11-04T00:00:00Z'}
     value = check(name, local(name, args))
     assert value['status'] == 'ok' and value['data']['events'] == []
-    monkeypatch.setattr(server, 'log_coverage', lambda _: [dict(source='journal', status='permission_denied', oldest_available_at=None)])
+    monkeypatch.setattr(server, 'log_coverage', lambda _: [dict(source=server.LOG_SOURCES[name][0], status='permission_denied', oldest_available_at=None)])
     value = check(name, local(name, args))
     assert value['status'] == 'error' and value['error_code'] == 'PERMISSION_DENIED'
     assert value['data']['coverage'][0]['status'] == 'permission_denied'
-    monkeypatch.setattr(server, 'log_coverage', lambda _: [dict(source='journal', status='ok', oldest_available_at=None), dict(source='dmesg', status='unavailable', oldest_available_at=None)])
+    monkeypatch.setattr(server, 'log_coverage', lambda _: [dict(source=server.LOG_SOURCES[name][0], status='ok', oldest_available_at=None), dict(source=server.LOG_SOURCES[name][1], status='unavailable', oldest_available_at=None)])
     value = check(name, local(name, args))
     assert value['status'] == 'partial' and not value['truncated']
 
@@ -74,7 +74,7 @@ def test_restart_synthetic_states(state):
     result = check('restart_service', local('restart_service', args))
     assert result['data']['proposal_status'] == state
     assert result['status'] == 'ok'
-    assert isinstance(result['data']['executed'], bool)
+    assert result['data']['executed'] is None if state == 'execution_unknown' else isinstance(result['data']['executed'], bool)
     if state in {'denied','expired','pending_approval','approved'}:
         assert result['data']['executed'] is False
 
@@ -119,6 +119,9 @@ def test_stdio_examples_and_privacy(capfd):
             args = {**arguments('restart_service'), 'mode':'status', 'action_id':'mock-fixture-denied'}
             result = check('restart_service', await client.call_tool('restart_service', args))
             assert result['data']['proposal_status'] == 'denied' and not result['data']['executed']
+            args['action_id'] = 'mock-fixture-execution_unknown'
+            result = check('restart_service', await client.call_tool('restart_service', args))
+            assert result['data']['executed'] is None and result['data']['unit'] == 'nginx.service'
     asyncio.run(run())
     output = capfd.readouterr()
     assert 'PRIVATE_R2_MARKER' not in output.out + output.err

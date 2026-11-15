@@ -18,6 +18,11 @@ def generated(name):
     schema['properties']['tool'] = {'const': name}
     if name != 'restart_service':
         schema['properties']['status']['enum'].remove('approval_required')
+    if name in {'memory_oom_events', 'failed_logins'}:
+        sources = ['journal.kernel', 'dmesg'] if name == 'memory_oom_events' else ['journal.auth', 'auth.log']
+        schema['allOf'].append({'properties': {'data': {'properties': {
+            'coverage': {'items': {'properties': {'source': {'enum': sources}}}}
+        }}}})
     schema['allOf'].append({
         'if': {'properties': {'status': {'const': 'error'}}, 'required': ['status']},
         'then': {'properties': {'data': load(ROOT / 'error-data.schema.json')}},

@@ -40,6 +40,11 @@
         "expires_at": {
           "type": "string",
           "format": "date-time"
+        },
+        "unit": {
+          "type": "string",
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9][a-zA-Z0-9_.-]*\\.service$"
         }
       },
       "required": [
@@ -49,7 +54,8 @@
         "evidence_ids",
         "executed",
         "message",
-        "expires_at"
+        "expires_at",
+        "unit"
       ],
       "additionalProperties": false
     },
@@ -76,7 +82,10 @@
           ]
         },
         "executed": {
-          "type": "boolean"
+          "type": [
+            "boolean",
+            "null"
+          ]
         },
         "message": {
           "type": "string",
@@ -85,6 +94,11 @@
         "expires_at": {
           "type": "string",
           "format": "date-time"
+        },
+        "unit": {
+          "type": "string",
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9][a-zA-Z0-9_.-]*\\.service$"
         }
       },
       "required": [
@@ -92,9 +106,35 @@
         "proposal_status",
         "executed",
         "message",
-        "expires_at"
+        "expires_at",
+        "unit"
       ],
-      "additionalProperties": false
+      "additionalProperties": false,
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "proposal_status": {
+                "const": "execution_unknown"
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "executed": {
+                "type": "null"
+              }
+            }
+          },
+          "else": {
+            "properties": {
+              "executed": {
+                "type": "boolean"
+              }
+            }
+          }
+        }
+      ]
     }
   ]
 }

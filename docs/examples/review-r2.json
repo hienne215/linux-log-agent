@@ -19,22 +19,24 @@
       "attempt_id": "synthetic-attempt",
       "tool": "memory_oom_events",
       "status": "ok",
-      "started_at": "2026-11-15T08:04:20.896216Z",
-      "completed_at": "2026-11-15T08:04:20.896216Z",
-      "duration_ms": 0,
+      "started_at": "2026-11-15T08:42:36.683422Z",
+      "completed_at": "2026-11-15T08:42:36.706998Z",
+      "duration_ms": 16,
       "data": {
         "events": [
           {
             "timestamp": "2026-11-02T09:20:00Z",
             "process": "mock-worker",
             "pid": 123,
-            "message": "Synthetic OOM event."
+            "message": "Synthetic OOM event.",
+            "evidence_id": "ev-KyedkcSlTY_c1G_c6KQpF94n"
           },
           {
             "timestamp": "2026-11-02T09:21:00Z",
             "process": null,
             "pid": null,
-            "message": "Synthetic OOM event with unknown process."
+            "message": "Synthetic OOM event with unknown process.",
+            "evidence_id": "ev-kEX9g9Qgxq2X6IqkQhHzBJ5e"
           }
         ],
         "count": 2,
@@ -52,7 +54,26 @@
           }
         ]
       },
-      "evidence": [],
+      "evidence": [
+        {
+          "evidence_id": "ev-KyedkcSlTY_c1G_c6KQpF94n",
+          "source": "journal.kernel",
+          "unit": null,
+          "observed_at": "2026-11-02T09:20:00Z",
+          "excerpt": "Synthetic OOM event.",
+          "redacted": true,
+          "truncated": false
+        },
+        {
+          "evidence_id": "ev-kEX9g9Qgxq2X6IqkQhHzBJ5e",
+          "source": "journal.kernel",
+          "unit": null,
+          "observed_at": "2026-11-02T09:21:00Z",
+          "excerpt": "Synthetic OOM event with unknown process.",
+          "redacted": true,
+          "truncated": false
+        }
+      ],
       "error_code": null,
       "truncated": false,
       "next_cursor": null
@@ -79,8 +100,8 @@
       "attempt_id": "synthetic-attempt",
       "tool": "memory_oom_events",
       "status": "ok",
-      "started_at": "2026-11-15T08:04:20.897416Z",
-      "completed_at": "2026-11-15T08:04:20.897416Z",
+      "started_at": "2026-11-15T08:42:36.706998Z",
+      "completed_at": "2026-11-15T08:42:36.706998Z",
       "duration_ms": 0,
       "data": {
         "events": [],
@@ -120,22 +141,20 @@
     },
     "structuredContent": {
       "schema_version": "1.0.0",
-      "session_id": null,
-      "trace_id": "invalid-input",
-      "logical_tool_call_id": "invalid-input",
-      "attempt_id": "invalid-input",
+      "session_id": "synthetic-session",
+      "trace_id": "synthetic-trace",
+      "logical_tool_call_id": "synthetic-call",
+      "attempt_id": "synthetic-attempt",
       "tool": "memory_oom_events",
       "status": "error",
-      "started_at": "2026-11-15T08:04:20.898013Z",
-      "completed_at": "2026-11-15T08:04:20.898613Z",
-      "duration_ms": 0,
+      "started_at": "2026-11-15T08:42:36.706998Z",
+      "completed_at": "2026-11-15T08:42:36.715859Z",
+      "duration_ms": 15,
       "data": {
-        "message": "Request rejected.",
-        "field": "",
-        "rule": "coverage",
+        "message": "journal.kernel: permission denied",
         "coverage": [
           {
-            "source": "synthetic.journal",
+            "source": "journal.kernel",
             "status": "permission_denied",
             "oldest_available_at": null
           }
@@ -162,22 +181,20 @@
     },
     "structuredContent": {
       "schema_version": "1.0.0",
-      "session_id": null,
-      "trace_id": "invalid-input",
-      "logical_tool_call_id": "invalid-input",
-      "attempt_id": "invalid-input",
+      "session_id": "synthetic-session",
+      "trace_id": "synthetic-trace",
+      "logical_tool_call_id": "synthetic-call",
+      "attempt_id": "synthetic-attempt",
       "tool": "memory_oom_events",
       "status": "error",
-      "started_at": "2026-11-15T08:04:20.899213Z",
-      "completed_at": "2026-11-15T08:04:20.899213Z",
+      "started_at": "2026-11-15T08:42:36.715859Z",
+      "completed_at": "2026-11-15T08:42:36.715859Z",
       "duration_ms": 0,
       "data": {
-        "message": "Request rejected.",
-        "field": "",
-        "rule": "coverage",
+        "message": "journal.kernel: source unavailable",
         "coverage": [
           {
-            "source": "synthetic.journal",
+            "source": "journal.kernel",
             "status": "unavailable",
             "oldest_available_at": null
           }
@@ -210,8 +227,8 @@
       "attempt_id": "synthetic-attempt",
       "tool": "memory_oom_events",
       "status": "partial",
-      "started_at": "2026-11-15T08:04:20.899816Z",
-      "completed_at": "2026-11-15T08:04:20.899816Z",
+      "started_at": "2026-11-15T08:42:36.718747Z",
+      "completed_at": "2026-11-15T08:42:36.718747Z",
       "duration_ms": 0,
       "data": {
         "events": [],
@@ -219,12 +236,12 @@
         "limit": 100,
         "coverage": [
           {
-            "source": "synthetic.journal",
+            "source": "journal.kernel",
             "status": "ok",
             "oldest_available_at": null
           },
           {
-            "source": "synthetic.dmesg",
+            "source": "dmesg",
             "status": "permission_denied",
             "oldest_available_at": null
           }
@@ -257,24 +274,28 @@
       "attempt_id": "synthetic-attempt",
       "tool": "failed_logins",
       "status": "ok",
-      "started_at": "2026-11-15T08:04:20.901012Z",
-      "completed_at": "2026-11-15T08:04:20.901012Z",
+      "started_at": "2026-11-15T08:42:36.718747Z",
+      "completed_at": "2026-11-15T08:42:36.718747Z",
       "duration_ms": 0,
       "data": {
         "events": [
           {
             "timestamp": "2026-11-02T09:25:00Z",
             "user": "[REDACTED]",
+            "user_class": "root",
             "source_ip": "ip:synthetic-peer-1",
             "service": "sshd",
-            "message": "Synthetic authentication failure."
+            "message": "Synthetic authentication failure.",
+            "evidence_id": "ev-jhtCawNL7SenZcQXyPdJfd22"
           },
           {
             "timestamp": "2026-11-02T09:26:00Z",
             "user": "[REDACTED]",
+            "user_class": "unknown",
             "source_ip": null,
             "service": "login",
-            "message": "Synthetic console authentication failure."
+            "message": "Synthetic console authentication failure.",
+            "evidence_id": "ev-XW_jp7g8jQmTiTXRHdmBknCk"
           }
         ],
         "count": 2,
@@ -284,10 +305,34 @@
             "source": "journal.auth",
             "status": "ok",
             "oldest_available_at": "2026-11-02T00:00:00Z"
+          },
+          {
+            "source": "auth.log",
+            "status": "ok",
+            "oldest_available_at": "2026-11-02T00:00:00Z"
           }
         ]
       },
-      "evidence": [],
+      "evidence": [
+        {
+          "evidence_id": "ev-jhtCawNL7SenZcQXyPdJfd22",
+          "source": "journal.auth",
+          "unit": null,
+          "observed_at": "2026-11-02T09:25:00Z",
+          "excerpt": "Synthetic authentication failure.",
+          "redacted": true,
+          "truncated": false
+        },
+        {
+          "evidence_id": "ev-XW_jp7g8jQmTiTXRHdmBknCk",
+          "source": "journal.auth",
+          "unit": null,
+          "observed_at": "2026-11-02T09:26:00Z",
+          "excerpt": "Synthetic console authentication failure.",
+          "redacted": true,
+          "truncated": false
+        }
+      ],
       "error_code": null,
       "truncated": false,
       "next_cursor": null
@@ -314,8 +359,8 @@
       "attempt_id": "synthetic-attempt",
       "tool": "failed_logins",
       "status": "ok",
-      "started_at": "2026-11-15T08:04:20.901601Z",
-      "completed_at": "2026-11-15T08:04:20.901601Z",
+      "started_at": "2026-11-15T08:42:36.731571Z",
+      "completed_at": "2026-11-15T08:42:36.732554Z",
       "duration_ms": 0,
       "data": {
         "events": [],
@@ -324,6 +369,11 @@
         "coverage": [
           {
             "source": "journal.auth",
+            "status": "ok",
+            "oldest_available_at": "2026-11-02T00:00:00Z"
+          },
+          {
+            "source": "auth.log",
             "status": "ok",
             "oldest_available_at": "2026-11-02T00:00:00Z"
           }
@@ -350,22 +400,20 @@
     },
     "structuredContent": {
       "schema_version": "1.0.0",
-      "session_id": null,
-      "trace_id": "invalid-input",
-      "logical_tool_call_id": "invalid-input",
-      "attempt_id": "invalid-input",
+      "session_id": "synthetic-session",
+      "trace_id": "synthetic-trace",
+      "logical_tool_call_id": "synthetic-call",
+      "attempt_id": "synthetic-attempt",
       "tool": "failed_logins",
       "status": "error",
-      "started_at": "2026-11-15T08:04:20.902188Z",
-      "completed_at": "2026-11-15T08:04:20.902832Z",
+      "started_at": "2026-11-15T08:42:36.732980Z",
+      "completed_at": "2026-11-15T08:42:36.732980Z",
       "duration_ms": 0,
       "data": {
-        "message": "Request rejected.",
-        "field": "",
-        "rule": "coverage",
+        "message": "journal.auth: permission denied",
         "coverage": [
           {
-            "source": "synthetic.journal",
+            "source": "journal.auth",
             "status": "permission_denied",
             "oldest_available_at": null
           }
@@ -392,22 +440,20 @@
     },
     "structuredContent": {
       "schema_version": "1.0.0",
-      "session_id": null,
-      "trace_id": "invalid-input",
-      "logical_tool_call_id": "invalid-input",
-      "attempt_id": "invalid-input",
+      "session_id": "synthetic-session",
+      "trace_id": "synthetic-trace",
+      "logical_tool_call_id": "synthetic-call",
+      "attempt_id": "synthetic-attempt",
       "tool": "failed_logins",
       "status": "error",
-      "started_at": "2026-11-15T08:04:20.903434Z",
-      "completed_at": "2026-11-15T08:04:20.903434Z",
+      "started_at": "2026-11-15T08:42:36.732980Z",
+      "completed_at": "2026-11-15T08:42:36.732980Z",
       "duration_ms": 0,
       "data": {
-        "message": "Request rejected.",
-        "field": "",
-        "rule": "coverage",
+        "message": "journal.auth: source unavailable",
         "coverage": [
           {
-            "source": "synthetic.journal",
+            "source": "journal.auth",
             "status": "unavailable",
             "oldest_available_at": null
           }
@@ -440,8 +486,8 @@
       "attempt_id": "synthetic-attempt",
       "tool": "failed_logins",
       "status": "partial",
-      "started_at": "2026-11-15T08:04:20.904025Z",
-      "completed_at": "2026-11-15T08:04:20.904025Z",
+      "started_at": "2026-11-15T08:42:36.739737Z",
+      "completed_at": "2026-11-15T08:42:36.739737Z",
       "duration_ms": 0,
       "data": {
         "events": [],
@@ -449,12 +495,12 @@
         "limit": 100,
         "coverage": [
           {
-            "source": "synthetic.journal",
+            "source": "journal.auth",
             "status": "ok",
             "oldest_available_at": null
           },
           {
-            "source": "synthetic.dmesg",
+            "source": "auth.log",
             "status": "permission_denied",
             "oldest_available_at": null
           }
@@ -491,18 +537,19 @@
       "attempt_id": "synthetic-attempt",
       "tool": "restart_service",
       "status": "approval_required",
-      "started_at": "2026-11-15T08:04:20.904643Z",
-      "completed_at": "2026-11-15T08:04:20.905314Z",
+      "started_at": "2026-11-15T08:42:36.739737Z",
+      "completed_at": "2026-11-15T08:42:36.739737Z",
       "duration_ms": 0,
       "data": {
-        "action_id": "mock-action-ZtsOv7JDkXXIWEvpWhldVKm4kKh3OH__",
+        "action_id": "mock-action-tFWX-dTvJOjDLo31TO9MNJeI92zYN5N_",
         "proposal_status": "pending_approval",
         "executed": false,
         "reason": "[REDACTED]",
         "evidence_ids": [
           "synthetic-evidence"
         ],
-        "expires_at": "2026-11-15T08:09:20.904643Z",
+        "unit": "nginx.service",
+        "expires_at": "2026-11-15T08:43:36.739737Z",
         "message": "Synthetic proposal; human approval required."
       },
       "evidence": [],
@@ -532,14 +579,15 @@
       "attempt_id": "synthetic-attempt",
       "tool": "restart_service",
       "status": "ok",
-      "started_at": "2026-11-15T08:04:20.905947Z",
-      "completed_at": "2026-11-15T08:04:20.905947Z",
+      "started_at": "2026-11-15T08:42:36.739737Z",
+      "completed_at": "2026-11-15T08:42:36.739737Z",
       "duration_ms": 0,
       "data": {
         "action_id": "mock-fixture-pending_approval",
         "proposal_status": "pending_approval",
         "executed": false,
-        "expires_at": "2026-11-02T10:00:00Z",
+        "unit": "nginx.service",
+        "expires_at": "2026-11-15T08:43:36.739737Z",
         "message": "Synthetic status only; no command was executed."
       },
       "evidence": [],
@@ -569,14 +617,15 @@
       "attempt_id": "synthetic-attempt",
       "tool": "restart_service",
       "status": "ok",
-      "started_at": "2026-11-15T08:04:20.907198Z",
-      "completed_at": "2026-11-15T08:04:20.907198Z",
+      "started_at": "2026-11-15T08:42:36.748058Z",
+      "completed_at": "2026-11-15T08:42:36.748058Z",
       "duration_ms": 0,
       "data": {
         "action_id": "mock-fixture-denied",
         "proposal_status": "denied",
         "executed": false,
-        "expires_at": "2026-11-02T10:00:00Z",
+        "unit": "nginx.service",
+        "expires_at": "2026-11-15T08:43:36.748058Z",
         "message": "Synthetic status only; no command was executed."
       },
       "evidence": [],
@@ -606,14 +655,15 @@
       "attempt_id": "synthetic-attempt",
       "tool": "restart_service",
       "status": "ok",
-      "started_at": "2026-11-15T08:04:20.907821Z",
-      "completed_at": "2026-11-15T08:04:20.907821Z",
+      "started_at": "2026-11-15T08:42:36.752264Z",
+      "completed_at": "2026-11-15T08:42:36.752264Z",
       "duration_ms": 0,
       "data": {
         "action_id": "mock-fixture-expired",
         "proposal_status": "expired",
         "executed": false,
-        "expires_at": "2026-11-02T10:00:00Z",
+        "unit": "nginx.service",
+        "expires_at": "2026-11-15T08:41:36.752264Z",
         "message": "Synthetic status only; no command was executed."
       },
       "evidence": [],
@@ -643,14 +693,15 @@
       "attempt_id": "synthetic-attempt",
       "tool": "restart_service",
       "status": "ok",
-      "started_at": "2026-11-15T08:04:20.908520Z",
-      "completed_at": "2026-11-15T08:04:20.908520Z",
+      "started_at": "2026-11-15T08:42:36.755787Z",
+      "completed_at": "2026-11-15T08:42:36.755787Z",
       "duration_ms": 0,
       "data": {
         "action_id": "mock-fixture-approved",
         "proposal_status": "approved",
         "executed": false,
-        "expires_at": "2026-11-02T10:00:00Z",
+        "unit": "nginx.service",
+        "expires_at": "2026-11-15T08:43:36.755787Z",
         "message": "Synthetic status only; no command was executed."
       },
       "evidence": [],
@@ -680,14 +731,15 @@
       "attempt_id": "synthetic-attempt",
       "tool": "restart_service",
       "status": "ok",
-      "started_at": "2026-11-15T08:04:20.909823Z",
-      "completed_at": "2026-11-15T08:04:20.909823Z",
+      "started_at": "2026-11-15T08:42:36.757800Z",
+      "completed_at": "2026-11-15T08:42:36.757800Z",
       "duration_ms": 0,
       "data": {
         "action_id": "mock-fixture-executing",
         "proposal_status": "executing",
         "executed": false,
-        "expires_at": "2026-11-02T10:00:00Z",
+        "unit": "nginx.service",
+        "expires_at": "2026-11-15T08:43:36.757800Z",
         "message": "Synthetic status only; no command was executed."
       },
       "evidence": [],
@@ -717,14 +769,15 @@
       "attempt_id": "synthetic-attempt",
       "tool": "restart_service",
       "status": "ok",
-      "started_at": "2026-11-15T08:04:20.910488Z",
-      "completed_at": "2026-11-15T08:04:20.910488Z",
+      "started_at": "2026-11-15T08:42:36.759833Z",
+      "completed_at": "2026-11-15T08:42:36.759833Z",
       "duration_ms": 0,
       "data": {
         "action_id": "mock-fixture-succeeded",
         "proposal_status": "succeeded",
         "executed": true,
-        "expires_at": "2026-11-02T10:00:00Z",
+        "unit": "nginx.service",
+        "expires_at": "2026-11-15T08:43:36.759833Z",
         "message": "Synthetic status only; no command was executed."
       },
       "evidence": [],
@@ -754,14 +807,15 @@
       "attempt_id": "synthetic-attempt",
       "tool": "restart_service",
       "status": "ok",
-      "started_at": "2026-11-15T08:04:20.911146Z",
-      "completed_at": "2026-11-15T08:04:20.911725Z",
+      "started_at": "2026-11-15T08:42:36.761848Z",
+      "completed_at": "2026-11-15T08:42:36.761848Z",
       "duration_ms": 0,
       "data": {
         "action_id": "mock-fixture-failed",
         "proposal_status": "failed",
         "executed": true,
-        "expires_at": "2026-11-02T10:00:00Z",
+        "unit": "nginx.service",
+        "expires_at": "2026-11-15T08:43:36.761848Z",
         "message": "Synthetic status only; no command was executed."
       },
       "evidence": [],
@@ -791,14 +845,15 @@
       "attempt_id": "synthetic-attempt",
       "tool": "restart_service",
       "status": "ok",
-      "started_at": "2026-11-15T08:04:20.912342Z",
-      "completed_at": "2026-11-15T08:04:20.912342Z",
+      "started_at": "2026-11-15T08:42:36.763859Z",
+      "completed_at": "2026-11-15T08:42:36.763859Z",
       "duration_ms": 0,
       "data": {
         "action_id": "mock-fixture-execution_unknown",
         "proposal_status": "execution_unknown",
-        "executed": false,
-        "expires_at": "2026-11-02T10:00:00Z",
+        "executed": null,
+        "unit": "nginx.service",
+        "expires_at": "2026-11-15T08:43:36.763859Z",
         "message": "Synthetic status only; no command was executed."
       },
       "evidence": [],
