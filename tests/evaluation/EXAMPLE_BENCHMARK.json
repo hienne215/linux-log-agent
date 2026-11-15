@@ -1,0 +1,152 @@
+{
+  "cohorts": [
+    {
+      "config_sha256": "3cf967fb1c6594fa5c49f17e54aecb8eb7e80feeaf3b1e57a568777f8e00e1ec",
+      "error_categories": {},
+      "latency_scope": "model_request",
+      "metrics": {
+        "citation_validity": {
+          "denominator": 0,
+          "eligible_runs": 0,
+          "missing_runs": 18,
+          "numerator": 0,
+          "status": "NOT_EVALUABLE",
+          "value": null
+        },
+        "cleanup_success": {
+          "denominator": 0,
+          "eligible_runs": 0,
+          "missing_runs": 18,
+          "numerator": 0,
+          "status": "NOT_EVALUABLE",
+          "value": null
+        },
+        "diagnostic_correctness": {
+          "denominator": 0,
+          "eligible_runs": 0,
+          "missing_runs": 18,
+          "numerator": 0,
+          "status": "NOT_EVALUABLE",
+          "value": null
+        },
+        "error_rate": {
+          "denominator": 18,
+          "eligible_runs": 18,
+          "missing_runs": 0,
+          "numerator": 0,
+          "status": "EVALUATED",
+          "value": 0.0
+        },
+        "evidence_correctness": {
+          "denominator": 0,
+          "eligible_runs": 0,
+          "missing_runs": 18,
+          "numerator": 0,
+          "status": "NOT_EVALUABLE",
+          "value": null
+        },
+        "latency": {
+          "max": 8.268310438998014,
+          "mean": 4.55606677655568,
+          "median": 3.1734472885000287,
+          "min": 2.490858733002824,
+          "missing_runs": 0,
+          "n": 18,
+          "status": "EVALUATED",
+          "unit": "seconds"
+        },
+        "outside_allowlist_executions": {
+          "count": null,
+          "eligible_runs": 0,
+          "missing_runs": 18,
+          "status": "NOT_EVALUABLE"
+        },
+        "timeout_rate": {
+          "denominator": 18,
+          "eligible_runs": 18,
+          "missing_runs": 0,
+          "numerator": 0,
+          "status": "EVALUATED",
+          "value": 0.0
+        },
+        "tool_and_exact_arguments_accuracy": {
+          "denominator": 18,
+          "eligible_runs": 18,
+          "missing_runs": 0,
+          "numerator": 18,
+          "status": "EVALUATED",
+          "value": 1.0
+        },
+        "tool_dispatch_count": {
+          "max": null,
+          "mean": null,
+          "median": null,
+          "min": null,
+          "missing_runs": 18,
+          "n": 0,
+          "status": "NOT_EVALUABLE",
+          "unit": "dispatches"
+        },
+        "tool_selection_accuracy": {
+          "denominator": 18,
+          "eligible_runs": 18,
+          "missing_runs": 0,
+          "numerator": 18,
+          "status": "EVALUATED",
+          "value": 1.0
+        },
+        "unauthorized_write_rejection": {
+          "denominator": 0,
+          "eligible_runs": 0,
+          "missing_runs": 18,
+          "numerator": 0,
+          "status": "NOT_EVALUABLE",
+          "value": null
+        },
+        "verify_success": {
+          "denominator": 0,
+          "eligible_runs": 0,
+          "missing_runs": 18,
+          "numerator": 0,
+          "status": "NOT_EVALUABLE",
+          "unknown": 0,
+          "value": null
+        }
+      },
+      "mode": "live_llm_mock_tools",
+      "protocol": "scrum14-instruct-6x3-native-selection",
+      "revision": "990f41f68c8ef13218bf825bd57ff233a8c82f1c",
+      "runs": 18
+    }
+  ],
+  "duplicate_runs_ignored": 0,
+  "error_runs": [],
+  "provenance_verification": "DECLARED_HASH_REFERENCES_NOT_AUTHENTICATION",
+  "schema_version": "1.0",
+  "sources": [
+    {
+      "artifact_sha256": "472bef128482cc2f0491b1ebb2e68486245a0061cb2b561c15e71976e2d336ab",
+      "record_pointers": [
+        "/rows/0",
+        "/rows/1",
+        "/rows/10",
+        "/rows/11",
+        "/rows/12",
+        "/rows/13",
+        "/rows/14",
+        "/rows/15",
+        "/rows/16",
+        "/rows/17",
+        "/rows/2",
+        "/rows/3",
+        "/rows/4",
+        "/rows/5",
+        "/rows/6",
+        "/rows/7",
+        "/rows/8",
+        "/rows/9"
+      ]
+    }
+  ],
+  "unique_runs": 18
+}
