@@ -60,6 +60,8 @@ class ServerScaffold:
             field = next(iter(error.absolute_path), "")
             response = contracts.safe_error(params.name, {}, field=field if field in schema["properties"] else "",
                                             rule=str(error.validator))
+        elif not contracts.valid_window(arguments):
+            response = contracts.safe_error(params.name, {}, rule="window")
         elif params.name not in self.backends:
             response = contracts.safe_error(params.name, {}, "UNSUPPORTED", rule="backend_unavailable")
         else:
@@ -69,14 +71,24 @@ class ServerScaffold:
                 if not output_validator.is_valid(response):
                     raise WorkerFailure("EXECUTION_UNKNOWN")
                 if response["status"] == "error":
-                    # No child message, stderr, metadata or evidence is trusted for errors.
-                    response = contracts.safe_error(params.name, {}, response["error_code"], rule="worker")
+                    coverage = response["data"].get("coverage")
+                    if (params.name in contracts.LOG_SOURCES and coverage
+                            and response["error_code"] in {"PERMISSION_DENIED", "UNSUPPORTED"}
+                            and all(source["status"] != "ok" for source in coverage)):
+                        if any(response[key] != arguments[key] for key in
+                               ("session_id", "trace_id", "logical_tool_call_id", "attempt_id")):
+                            raise WorkerFailure("EXECUTION_UNKNOWN")
+                        # Never forward worker text: reconstruct diagnostics from schema-enforced enums.
+                        response = contracts.coverage_error(params.name,
+                            {key: arguments[key] for key in ("session_id", "trace_id", "logical_tool_call_id", "attempt_id")},
+                            coverage)
+                    else:
+                        response = contracts.safe_error(params.name, {}, response["error_code"], rule="worker")
                 elif any(response[key] != arguments[key] for key in
                          ("session_id", "trace_id", "logical_tool_call_id", "attempt_id")):
                     raise WorkerFailure("EXECUTION_UNKNOWN")
             except WorkerFailure as failure:
                 response = contracts.safe_error(params.name, {}, failure.code, rule="worker")
-                response["truncated"] = failure.code == "OUTPUT_LIMIT"
             except (ValueError, UnicodeError, TypeError, KeyError):
                 response = contracts.safe_error(params.name, {}, "EXECUTION_UNKNOWN", rule="worker_output")
             except Exception:
@@ -90,13 +102,16 @@ class ServerScaffold:
         if not output_validator.is_valid(response):
             response = contracts.safe_error(params.name, {}, "EXECUTION_UNKNOWN", rule="output_validation")
         response = contracts.bound_response(response, request_id, native_builder=self.native)
-        if response["status"] == "error" and (response["session_id"] is not None or any(
+        accepted_coverage_error = (params.name in contracts.LOG_SOURCES
+            and response["error_code"] in {"PERMISSION_DENIED", "UNSUPPORTED"}
+            and bool(response["data"].get("coverage")))
+        if response["status"] == "error" and not accepted_coverage_error and (response["session_id"] is not None or any(
                 response[key] != "invalid-input" for key in ("trace_id", "logical_tool_call_id", "attempt_id"))):
             # A post-validation cap failure also must not echo potentially secret metadata.
             limited = response["error_code"] == "OUTPUT_LIMIT"
             response = contracts.safe_error(params.name, {}, response["error_code"], rule="result_failure")
             response.update(started_at=started, completed_at=contracts.current_time(),
-                            duration_ms=int((time.monotonic() - tick) * 1000), truncated=limited)
+                            duration_ms=int((time.monotonic() - tick) * 1000), truncated=False)
             if limited:
                 response["data"]["max_response_bytes"] = contracts.MAX_RESPONSE_BYTES
         if not output_validator.is_valid(response):

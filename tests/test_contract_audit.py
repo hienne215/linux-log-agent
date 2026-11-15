@@ -49,7 +49,7 @@ def test_runtime_raw_contract_matrix(name):
     args = arguments(name)
     # Required-only is distinct from null, and runtime validates raw JSON types.
     schema = server.TOOLS[name][1]
-    minimum = {k: v for k, v in args.items() if k in schema['required']}
+    minimum = {k: v for k, v in args.items() if k in (schema['required'] + (['unit','reason','evidence_ids'] if name == 'restart_service' else []))}
     assert not check(name, local(name, minimum))['status'] == 'error'
     for field in schema['required']:
         bad = dict(minimum); bad.pop(field)
@@ -163,8 +163,14 @@ def test_all_schema_syntax_and_result_composition():
     for name in CASES:
         assert all(server.TOOLS[name][1]['properties'][key]==value for key,value in request_common['properties'].items())
         result=server.TOOLS[name][2]
-        assert result['properties']=={**common['properties'],'tool':{'const':name}}
-        assert result['allOf'][-1]['then']['properties']['data']==error
+        expected = copy.deepcopy(common['properties'])
+        expected['tool'] = {'const': name}
+        if name != 'restart_service':
+            expected['status']['enum'].remove('approval_required')
+        assert result['properties'] == expected
+        actual_error = dict(result['allOf'][-1]['then']['properties']['data'])
+        actual_error.pop('$schema')
+        assert actual_error == error
         assert result['allOf'][-1]['else']['properties']['data']==json.loads((ROOT/f'schemas/tools/{name}.response.schema.json').read_text())
 
 
@@ -179,7 +185,7 @@ async def sdk_matrix():
         calls=0
         for name in CASES:
             schema=server.TOOLS[name][1];args=arguments(name)
-            minimum={k:v for k,v in args.items() if k in schema['required']}
+            minimum={k:v for k,v in args.items() if k in (schema['required'] + (['unit','reason','evidence_ids'] if name == 'restart_service' else []))}
             assert check(name,await client.call_tool(name,minimum))['status']!='error';calls+=1
             for field in schema['required']:
                 bad=dict(minimum);bad.pop(field)
@@ -206,7 +212,7 @@ async def sdk_matrix():
             assert len(pages)==3 and len({json.dumps(p,sort_keys=True) for p in pages})==3 and cursor is None
             first=check(name,await client.call_tool(name,args));token=first['next_cursor']
             if name in {'query_journal','search_log'}:
-                equivalent={**args,'cursor':token,'since':'2026-11-01T07:00:00+07:00','until':'2026-11-05T07:00:00+07:00'}
+                equivalent={**args,'cursor':token,'since':'2026-11-02T07:00:00+07:00','until':'2026-11-03T07:00:00+07:00'}
                 assert not (await client.call_tool(name,equivalent)).is_error
             async with Client(params) as other_client:
                 assert (await other_client.call_tool(name,{**args,'cursor':token})).is_error
@@ -278,13 +284,13 @@ def test_sdk_optional_values_and_protocol_negatives():
         'check_config':{'unit':'sshd.service'},'memory_oom_events':{'limit':1},'failed_logins':{'limit':1},
         'detect_anomaly':{'unit':'nginx.service','signals':['oom_events'],'max_findings':1},
         'verify_fix':{'until':None,'action_id':None,'baseline_evidence_refs':None},
-        'restart_service':{'evidence_ids':['ev-001'],'action_id':'mock-proposal-001'},'service_status':{},
+        'restart_service':{'evidence_ids':['ev-001']},'service_status':{},
     }
     async def exercise():
         async with Client(StdioServerParameters(command=sys.executable,args=[str(ROOT/'mock_mcp_server.py')])) as client:
             for name,values in optional.items():
                 assert not (await client.call_tool(name,{**arguments(name),**values})).is_error
-            status=check('restart_service',await client.call_tool('restart_service',{**arguments('restart_service'),'mode':'status','action_id':'mock-proposal-001'}))
+            status=check('restart_service',await client.call_tool('restart_service',{**arguments('restart_service'),'mode':'status','action_id':'mock-fixture-pending_approval'}))
             assert status['data']['executed'] is False
             with pytest.raises(Exception): await client.call_tool('unknown_tool',{})
             # Invalid discovery cursor is separate from business pagination.

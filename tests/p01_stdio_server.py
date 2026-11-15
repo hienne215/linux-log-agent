@@ -8,6 +8,8 @@ sys.path.insert(0, str(ROOT))
 from src.mcp_server.runner import WorkerRunner
 from src.mcp_server.server import ServerScaffold
 
-tool = "query_journal" if sys.argv[1] == "partial" else "service_status"
+mode = sys.argv[1]
+tool = ("memory_oom_events" if mode.startswith("oom_") else "failed_logins" if mode.startswith("login_")
+        else "query_journal" if mode == "partial" else "service_status")
 profile = (sys.executable, "-I", str(ROOT / "tests/p01_worker_fixture.py"), sys.argv[1])
 asyncio.run(ServerScaffold(backends={tool: profile}, runner=WorkerRunner(timeout=0.3 if sys.argv[1] == "sleep" else 10)).serve())

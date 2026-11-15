@@ -2,7 +2,7 @@
 
 Owner: Thủy; reviewer: Hiền; EPIC-01; Critical; 5 SP / estimate 6h (not measured effort). Date: 15/11/2026. **DRAFT / In Progress, not accepted or Done.** [SCRUM-15](https://vku-team-etxjrjs2.atlassian.net/browse/SCRUM-15).
 
-Base: P00-03 candidate `d442479493d94c54a2d35698d3f920e7758b7744`; schema_version 1.0.0, official mcp==2.3.0, Python 3.12, Draft 2020-12, stdio. The user explicitly authorized draft implementation while P00-03 awaits signoff. This does not finalize P00-03, remove Jira dependency SCRUM-12 or authorize merging PR #6.
+Updated dependency: P00-03 R3 `fd737fbc1a6fe991e55af27b0554c342a818022a` (merged into the original scaffold based on d442479); schema_version 1.0.0, official mcp==2.3.0, Python 3.12, Draft 2020-12, stdio. The user explicitly authorized draft implementation while P00-03 awaits signoff. This does not finalize P00-03, remove Jira dependency SCRUM-12 or authorize merging PR #6.
 
 ## 1. P01-01.1 — design and input checklist
 
@@ -14,7 +14,7 @@ Base: P00-03 candidate `d442479493d94c54a2d35698d3f920e7758b7744`; schema_versio
 | SDK and dispatch | Official low-level Server and stdio_server. No custom JSON-RPC transport, product UI, LLM inference or helper. Absolute executable/argv, fixed repository cwd and minimal environment are application-owned; MCP arguments only go through stdin, not command/executable/cwd/sudo fields. No shell=True. |
 | Budgets | Default 10s monotonic worker deadline including spawn/I/O; IPC input <=16 KiB, worker stdout <=64 KiB, discarded stderr <=4 KiB; whole native tools/call frame <=64 KiB UTF-8 including exact admitted ID, SDK metadata and newline. |
 | Concurrency | One owned worker; busy/closing requests fail POLICY_DENIED. No unbounded worker queue or automatic retry. |
-| Privacy | Static safe codes/messages/rules; no raw child stderr, exception, malformed output, forged IDs or worker error payload. All scaffold error responses, including late output-cap failure, suppress application correlation metadata. Successful/partial results echo validated client IDs. |
+| Privacy | Static safe codes/messages/rules; no raw child stderr, exception, malformed output, forged IDs or worker error payload. Invalid input, untrusted worker errors and late output-cap failures suppress application correlation metadata. R3 log-source coverage errors preserve matching validated IDs/coverage and reconstruct diagnostics from fixed enums; child error text is never forwarded. Successful/partial results echo validated client IDs. |
 | Output | Independently validate complete canonical structured envelope; child success must also match tool/client metadata. Native text/structuredContent/isError agree. Keep whole-record partial or bounded error; never split JSON/UTF-8/records. |
 | Identity | Refuse root on POSIX. Never change UID/groups, call sudo/setuid, or claim process isolation from the Agent sharing its UID. Deployment supplies reviewed reader identity and immutable code/config. Windows tests are not Linux permission/sandbox evidence. |
 | Lifecycle | Own pending spawn/direct child; timeout/cancel/failure terminate -> grace -> kill -> wait. Unconfirmed cleanup retains ownership, refuses new work and uses EXECUTION_UNKNOWN/rule=cleanup_pending when a response exists. OS creation/teardown is not a hard wall SLA. |
@@ -83,3 +83,7 @@ Read-only inspection: [PR #13](https://github.com/hienne215/linux-log-agent/pull
 ```
 
 Final counts/logs and failure/fix notes are in delivery evidence. No credentials, real Linux logs, environment dumps or machine-specific runtime artifacts should be committed. Jira remains In Progress/draft with its SCRUM-12 blocking link intact; not Done until dependencies and independent review are satisfied.
+
+## R3 compatibility update — 16/11/2026
+
+See [R3 integration and downstream branch guidance](P01-01-R3-integration-2026-11-16.md). Atomic OUTPUT_LIMIT errors use truncated=false; only partial records use truncated=true. R3 request/window validation and coverage-error correlation are enforced before delivery.

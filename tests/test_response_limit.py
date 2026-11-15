@@ -60,7 +60,7 @@ def test_response_over_64_kib_returns_output_limit():
 
     assert response["status"] == "error"
     assert response["error_code"] == "OUTPUT_LIMIT"
-    assert response["truncated"] is True
+    assert response["truncated"] is False
     assert response["data"]["max_response_bytes"] == 64 * 1024
     assert response["evidence"] == []
     assert response["next_cursor"] is None
@@ -82,7 +82,7 @@ def test_response_limit_counts_utf8_bytes():
 
     assert response["status"] == "error"
     assert response["error_code"] == "OUTPUT_LIMIT"
-    assert response["truncated"] is True
+    assert response["truncated"] is False
 
     serialized = json.dumps(
         response,
