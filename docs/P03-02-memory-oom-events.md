@@ -97,3 +97,17 @@ Expected: stage A is `partial` (`journal.kernel` = `permission_denied`, `dmesg` 
 - `dmesg` times are derived from boot time and can drift after a VM pause; the journal time wins when both report the same kill.
 - Only kernel OOM kills are reported, not user-space killers such as `systemd-oomd`.
 - Not tested on a real OOM; not tested with other kernel versions.
+
+## 6. Smoke results (lab VM `linux-log-lab`, 2026-11-16)
+
+| Stage | Reader groups | Response | `journal.kernel` | `dmesg` | Events |
+|---|---|---|---|---|---|
+| A | none | `partial` | `permission_denied` | `ok` | 1 (pid 4242, from `dmesg`) |
+| B | `systemd-journal` | `ok` | `ok` (oldest 2026-11-01) | `ok` | 1 (pid 4242, journal and dmesg merged) |
+
+- The simulated event shows once in stage B: the journal and dmesg records were merged.
+- Its time differs by 1 s between A (`dmesg`) and B (journal): the `dmesg` clock drift described in section 5. The journal time wins when both sources report the event.
+- The reader can read `MemTotal` and `MemAvailable` from `/proc/meminfo` in both stages.
+- The case where both sources are denied (`PERMISSION_DENIED`) is covered by unit tests only: `dmesg` is readable in this VM.
+- The event is the simulated kernel line from P03-01, not a real OOM.
+- Raw output: `docs/evidence/p03-02-A-no-groups.txt`, `docs/evidence/p03-02-B-journal.txt`.
