@@ -51,9 +51,13 @@ def fake(journal, oldest, dmesg):
     return run
 
 
-def go(req=None, journal=None, oldest=None, dmesg=None, found=True, lacks=False):
+NO_FILE = "/nonexistent/oom-process-allowlist"
+
+
+def go(req=None, journal=None, oldest=None, dmesg=None, found=True, lacks=False, allow_file=NO_FILE):
     find = (lambda names: names[0]) if found else (lambda names: None)
-    return oom.collect(dict(REQ, **(req or {})), fake(journal, oldest, dmesg), find, lambda: lacks)
+    return oom.collect(dict(REQ, **(req or {})), fake(journal, oldest, dmesg), find, lambda: lacks,
+                       allow_file=allow_file)
 
 
 QUIET_OLDEST = ok(jline("2026-11-02T02:12:54Z", NOISE))
@@ -166,6 +170,7 @@ def test_limit_keeps_most_recent_and_marks_truncated():
              for h in range(1, 4)]
     r = go(req={"limit": 2}, journal=ok("\n".join(lines)), oldest=QUIET_OLDEST, dmesg=QUIET_DMESG)
     assert r["status"] == "partial" and r["truncated"] and r["data"]["count"] == 2
+    assert r["error_code"] == "OUTPUT_LIMIT" and r["next_cursor"] is None     # R3: not resumable
     assert [e["pid"] for e in r["data"]["events"]] == [12, 13]
 
 
@@ -190,6 +195,7 @@ def test_huge_result_is_trimmed_to_fit_budget():
                    "Out of memory: Killed process %d (%s) total-vm:1kB" % (i + 1, "x" * 60)) for i in range(200)]
     r = go(req={"limit": 200}, journal=ok("\n".join(lines)), oldest=QUIET_OLDEST, dmesg=QUIET_DMESG)
     assert r["truncated"] and r["status"] == "partial" and 0 < r["data"]["count"] < 200
+    assert r["error_code"] == "OUTPUT_LIMIT" and r["next_cursor"] is None
     assert oom._size(r) <= oom.MAX_RESPONSE_BYTES
     assert r["data"]["events"][-1]["pid"] == 200 and len(r["evidence"]) == r["data"]["count"]
 
@@ -200,14 +206,14 @@ def test_huge_result_is_trimmed_to_fit_budget():
 def test_invalid_requests_are_rejected_before_any_command(change):
     def boom(*args, **kwargs):
         raise AssertionError("command must not run")
-    r = oom.collect(dict(REQ, **change), boom, lambda n: n[0], lambda: False)
+    r = oom.collect(dict(REQ, **change), boom, lambda n: n[0], lambda: False, allow_file=NO_FILE)
     assert r["status"] == "error" and r["error_code"] == "INVALID_INPUT"
 
 
 def test_budget_exhaustion_means_unavailable_not_empty():
     ticks = iter([0.0] + [100.0] * 50)
     r = oom.collect(REQ, fake(QUIET_JOURNAL, QUIET_OLDEST, QUIET_DMESG), lambda n: n[0], lambda: False,
-                    lambda: next(ticks))
+                    lambda: next(ticks), allow_file=NO_FILE)
     assert r["error_code"] == "UNSUPPORTED"
 
 
@@ -227,7 +233,8 @@ def test_no_shell_and_fixed_absolute_commands():
 MARKER = "SYNTHETIC_CHILD_SECRET"
 
 
-@pytest.mark.parametrize("name", [MARKER, "token=SYNTHETIC1", "password", "x" * 40, "a/b\x1b[0mc", "api_key9"])
+@pytest.mark.parametrize("name", [MARKER, "APIKEY_7D19", "Z9K2-7D19", "hunter2", "token=SYNTHETIC1", "password",
+                                  "x" * 40, "a/b\x1b[0mc", "api_key9", "myapp"])
 def test_process_name_with_secret_like_text_never_appears_anywhere(name):
     kill = "Out of memory: Killed process 31 (%s) total-vm:5kB, anon-rss:4kB" % name
     oomkill = ("oom-kill:constraint=CONSTRAINT_NONE,cpuset=/,task_memcg=/system.slice/%s.service,"
@@ -241,11 +248,30 @@ def test_process_name_with_secret_like_text_never_appears_anywhere(name):
     assert all(ev["redacted"] is True and name not in ev["excerpt"] for ev in r["evidence"])
 
 
-@pytest.mark.parametrize("name", ["java", "lab-oom", "Web Content", "kworker/u2:1", "python3.8"])
-def test_ordinary_process_names_are_kept(name):
+@pytest.mark.parametrize("name", ["java", "lab-oom", "nginx", "python3.8", "mysqld"])
+def test_allowlisted_process_names_are_kept(name):
     line = "Out of memory: Killed process 31 (%s) total-vm:5kB" % name
     r = go(journal=ok(jline("2026-11-14T09:00:00Z", line)), oldest=QUIET_OLDEST, dmesg=QUIET_DMESG)
     assert r["data"]["events"][0]["process"] == name and r["evidence"][0]["redacted"] is False
+
+
+def test_operator_allowlist_file_extends_the_list_only_when_it_is_trusted(tmp_path):
+    line = "Out of memory: Killed process 31 (myapp) total-vm:5kB"
+    kwargs = dict(journal=ok(jline("2026-11-14T09:00:00Z", line)), oldest=QUIET_OLDEST, dmesg=QUIET_DMESG)
+    assert go(**kwargs)["data"]["events"][0]["process"] == oom.REDACTED
+    listing = tmp_path / "allow"
+    listing.write_text("# comment\nmyapp\nbad name with spaces\n" + "S" * 40 + "\n", encoding="utf-8")
+    names = oom.load_operator_names(str(listing))
+    if os.name == "posix" and os.geteuid() == 0:
+        assert names == {"myapp"}
+    else:
+        assert names == set()                       # not root-owned: ignored
+    monkey = oom.load_operator_names
+    try:
+        oom.load_operator_names = lambda path: {"myapp"}
+        assert go(**kwargs)["data"]["events"][0]["process"] == "myapp"
+    finally:
+        oom.load_operator_names = monkey
 
 
 def test_message_is_rebuilt_from_parsed_fields_only():
@@ -279,6 +305,12 @@ def test_output_cut_by_our_own_cap_is_partial_not_a_failed_command():
     cut = (-9, jline("2026-11-14T09:00:00Z", KILL_MODERN).encode() + b"\n{partial", b"", True, False)
     r = go(journal=cut, oldest=QUIET_OLDEST, dmesg=QUIET_DMESG)
     assert r["status"] == "partial" and r["truncated"] and r["data"]["count"] == 1
+    assert r["error_code"] == "OUTPUT_LIMIT"
+
+
+def test_a_partial_that_is_not_cut_has_no_error_code():
+    r = go(journal=(0, b"", HINT, False, False), oldest=ok(b""), dmesg=ok(dline("2026-11-14T23:53:00Z", FIXTURE)))
+    assert r["status"] == "partial" and r["error_code"] is None and not r["truncated"]
 
 
 def test_dedupe_requires_compatible_process_names():
@@ -286,7 +318,7 @@ def test_dedupe_requires_compatible_process_names():
     b = "Out of memory: Killed process 500 (beta) total-vm:1kB"      # pid reuse inside 60 s
     r = go(journal=ok("\n".join([jline("2026-11-14T09:00:00Z", a), jline("2026-11-14T09:00:30Z", b)])),
            oldest=QUIET_OLDEST, dmesg=QUIET_DMESG)
-    assert [e["process"] for e in r["data"]["events"]] == ["alpha", "beta"]
+    assert [e["process"] for e in r["data"]["events"]] == [oom.REDACTED, oom.REDACTED]   # two different names
     same = go(journal=ok(jline("2026-11-14T09:00:00Z", a)), oldest=QUIET_OLDEST,
               dmesg=ok(dline("2026-11-14T09:00:40Z", a)))
     assert same["data"]["count"] == 1

@@ -8,6 +8,7 @@ import hashlib
 import json
 import os
 import re
+import stat
 import subprocess
 import threading
 import time
@@ -41,12 +42,19 @@ _OOMKILL = re.compile(r"\boom-kill:.*?,task=([^,]{1,64}),pid=(\d+)")
 _VM = re.compile(r"total-vm:(\d+)kB")
 _ANON = re.compile(r"anon-rss:(\d+)kB")
 _CTRL = re.compile(r"[\x00-\x1f\x7f-\x9f]")
-# A process name is workload-controlled free text, so it is never echoed as it came: only the
-# shape of a kernel comm name (<= 15 characters, plain characters) and nothing that looks like a
-# credential keyword survives. Anything else becomes "[REDACTED]" and the evidence says so.
-_NAME_OK = re.compile(r"^[A-Za-z0-9._+\-/: ()@]{1,15}$")
-_SECRET_WORDS = re.compile(r"pass(wo?r?d)?|secret|token|api[-_ ]?key|bearer|authoriz|credential|private", re.I)
+# A process name is workload-controlled free text and no filter can tell a harmless name from a
+# secret one. So a name is echoed only if it is on an allowlist (exact match); anything else becomes
+# "[REDACTED]" and the evidence says so. The built-in list is small and common; the operator can add
+# names in a root-owned file that is not group/world-writable.
 REDACTED = "[REDACTED]"
+_NAME_OK = re.compile(r"^[A-Za-z0-9._+\-/:@]{1,15}$")      # shape of an allowlist entry
+DEFAULT_ALLOWED = frozenset({
+    "nginx", "sshd", "systemd", "systemd-journal", "java", "python", "python3", "python3.8",
+    "python3.12", "node", "mysqld", "mariadbd", "postgres", "redis-server", "apache2", "httpd",
+    "php-fpm", "gunicorn", "uwsgi", "dockerd", "containerd", "stress", "stress-ng",
+    "lab-oom", "lab-backend"})
+OPERATOR_ALLOWLIST = "/etc/linux-log-agent/oom-process-allowlist"
+ALLOWED = DEFAULT_ALLOWED
 
 
 # ---------------------------------------------------------------- helpers
@@ -72,12 +80,26 @@ def clean(text, limit):
     return _CTRL.sub(" ", text).strip()[:limit]
 
 
+def load_operator_names(path=OPERATOR_ALLOWLIST):
+    """Extra allowed names, one per line. Ignored unless the file is root-owned and not writable by others."""
+    try:
+        info = os.stat(path)
+        if not stat.S_ISREG(info.st_mode) or info.st_uid != 0 or info.st_mode & 0o022:
+            return set()
+        with open(path, encoding="utf-8") as handle:
+            lines = handle.read(8192).splitlines()[:200]
+    except (OSError, UnicodeError):
+        return set()
+    names = (line.strip() for line in lines)
+    return {n for n in names if n and not n.startswith("#") and _NAME_OK.match(n)}
+
+
 def safe_name(raw):
-    """Return (name, redacted). Never returns text that failed the comm-name shape check."""
+    """Return (name, redacted). Only an allowlisted name is ever returned as text."""
     name = clean(raw, 128)
     if not name:
         return None, False
-    if _NAME_OK.match(name) and not _SECRET_WORDS.search(name):
+    if name in ALLOWED:
         return name, False
     return REDACTED, True
 
@@ -159,7 +181,9 @@ def _fields(pid, name, msg, kind, sizes=True):
     vm = _VM.search(msg) if sizes else None
     anon = _ANON.search(msg) if sizes else None
     process, redacted = safe_name(name)
+    raw = clean(name, 128)
     return {"pid": pid if pid >= 1 else None, "process": process, "redacted": redacted, "kind": kind,
+            "name_key": hashlib.sha1(raw.encode("utf-8", "replace")).hexdigest()[:12] if raw else None,
             "total_vm_kb": int(vm.group(1)) if vm else None,
             "anon_rss_kb": int(anon.group(1)) if anon else None}
 
@@ -262,7 +286,7 @@ def parse_dmesg(text, since, until, truncated=False):
 def _same_kill(a, b):
     """Same pid, same process name (or one is unknown) and within DEDUPE_SECONDS."""
     return (a["pid"] is not None and a["pid"] == b["pid"]
-            and (a["process"] == b["process"] or a["process"] is None or b["process"] is None)
+            and (a["name_key"] == b["name_key"] or a["name_key"] is None or b["name_key"] is None)
             and abs((a["_dt"] - b["_dt"]).total_seconds()) <= DEDUPE_SECONDS)
 
 
@@ -366,7 +390,10 @@ def _size(response):
     return len(json.dumps(response, ensure_ascii=False).encode("utf-8"))
 
 
-def collect(req, run=run_cmd, find=find_exe, lacks_access=lacks_journal_access, clock=time.monotonic):
+def collect(req, run=run_cmd, find=find_exe, lacks_access=lacks_journal_access, clock=time.monotonic,
+            allow_file=OPERATOR_ALLOWLIST):
+    global ALLOWED
+    ALLOWED = DEFAULT_ALLOWED | load_operator_names(allow_file)
     start = clock()
 
     def remaining():
@@ -412,7 +439,8 @@ def collect(req, run=run_cmd, find=find_exe, lacks_access=lacks_journal_access, 
                      "source": e["_src"], "unit": None, "excerpt": e["message"],
                      "redacted": e["redacted"], "truncated": False} for e in items]
         status = "partial" if (gap or trunc) else "ok"
-        return _envelope(req, status, data, evidence, None, trunc)
+        # R3 (section 10.1): a cut result is partial + OUTPUT_LIMIT + truncated, with no cursor.
+        return _envelope(req, status, data, evidence, "OUTPUT_LIMIT" if trunc else None, trunc)
 
     response = build(events, truncated)
     while _size(response) > MAX_RESPONSE_BYTES and events:
