@@ -1,0 +1,811 @@
+[
+  {
+    "case": "memory_oom_events-events",
+    "tool": "memory_oom_events",
+    "input": {
+      "schema_version": "1.0.0",
+      "session_id": "synthetic-session",
+      "trace_id": "synthetic-trace",
+      "logical_tool_call_id": "synthetic-call",
+      "attempt_id": "synthetic-attempt",
+      "since": "2026-11-02T00:00:00Z",
+      "until": "2026-11-03T00:00:00Z"
+    },
+    "structuredContent": {
+      "schema_version": "1.0.0",
+      "session_id": "synthetic-session",
+      "trace_id": "synthetic-trace",
+      "logical_tool_call_id": "synthetic-call",
+      "attempt_id": "synthetic-attempt",
+      "tool": "memory_oom_events",
+      "status": "ok",
+      "started_at": "2026-11-15T08:04:20.896216Z",
+      "completed_at": "2026-11-15T08:04:20.896216Z",
+      "duration_ms": 0,
+      "data": {
+        "events": [
+          {
+            "timestamp": "2026-11-02T09:20:00Z",
+            "process": "mock-worker",
+            "pid": 123,
+            "message": "Synthetic OOM event."
+          },
+          {
+            "timestamp": "2026-11-02T09:21:00Z",
+            "process": null,
+            "pid": null,
+            "message": "Synthetic OOM event with unknown process."
+          }
+        ],
+        "count": 2,
+        "limit": 100,
+        "coverage": [
+          {
+            "source": "journal.kernel",
+            "status": "ok",
+            "oldest_available_at": "2026-11-02T00:00:00Z"
+          },
+          {
+            "source": "dmesg",
+            "status": "ok",
+            "oldest_available_at": "2026-11-02T00:00:00Z"
+          }
+        ]
+      },
+      "evidence": [],
+      "error_code": null,
+      "truncated": false,
+      "next_cursor": null
+    },
+    "isError": false
+  },
+  {
+    "case": "memory_oom_events-empty",
+    "tool": "memory_oom_events",
+    "input": {
+      "schema_version": "1.0.0",
+      "session_id": "synthetic-session",
+      "trace_id": "synthetic-trace",
+      "logical_tool_call_id": "synthetic-call",
+      "attempt_id": "synthetic-attempt",
+      "since": "2026-11-03T00:00:00Z",
+      "until": "2026-11-04T00:00:00Z"
+    },
+    "structuredContent": {
+      "schema_version": "1.0.0",
+      "session_id": "synthetic-session",
+      "trace_id": "synthetic-trace",
+      "logical_tool_call_id": "synthetic-call",
+      "attempt_id": "synthetic-attempt",
+      "tool": "memory_oom_events",
+      "status": "ok",
+      "started_at": "2026-11-15T08:04:20.897416Z",
+      "completed_at": "2026-11-15T08:04:20.897416Z",
+      "duration_ms": 0,
+      "data": {
+        "events": [],
+        "count": 0,
+        "limit": 100,
+        "coverage": [
+          {
+            "source": "journal.kernel",
+            "status": "ok",
+            "oldest_available_at": "2026-11-02T00:00:00Z"
+          },
+          {
+            "source": "dmesg",
+            "status": "ok",
+            "oldest_available_at": "2026-11-02T00:00:00Z"
+          }
+        ]
+      },
+      "evidence": [],
+      "error_code": null,
+      "truncated": false,
+      "next_cursor": null
+    },
+    "isError": false
+  },
+  {
+    "case": "memory_oom_events-permission_denied",
+    "tool": "memory_oom_events",
+    "input": {
+      "schema_version": "1.0.0",
+      "session_id": "synthetic-session",
+      "trace_id": "synthetic-trace",
+      "logical_tool_call_id": "synthetic-call",
+      "attempt_id": "synthetic-attempt",
+      "since": "2026-11-02T00:00:00Z",
+      "until": "2026-11-03T00:00:00Z"
+    },
+    "structuredContent": {
+      "schema_version": "1.0.0",
+      "session_id": null,
+      "trace_id": "invalid-input",
+      "logical_tool_call_id": "invalid-input",
+      "attempt_id": "invalid-input",
+      "tool": "memory_oom_events",
+      "status": "error",
+      "started_at": "2026-11-15T08:04:20.898013Z",
+      "completed_at": "2026-11-15T08:04:20.898613Z",
+      "duration_ms": 0,
+      "data": {
+        "message": "Request rejected.",
+        "field": "",
+        "rule": "coverage",
+        "coverage": [
+          {
+            "source": "synthetic.journal",
+            "status": "permission_denied",
+            "oldest_available_at": null
+          }
+        ]
+      },
+      "evidence": [],
+      "error_code": "PERMISSION_DENIED",
+      "truncated": false,
+      "next_cursor": null
+    },
+    "isError": true
+  },
+  {
+    "case": "memory_oom_events-unavailable",
+    "tool": "memory_oom_events",
+    "input": {
+      "schema_version": "1.0.0",
+      "session_id": "synthetic-session",
+      "trace_id": "synthetic-trace",
+      "logical_tool_call_id": "synthetic-call",
+      "attempt_id": "synthetic-attempt",
+      "since": "2026-11-02T00:00:00Z",
+      "until": "2026-11-03T00:00:00Z"
+    },
+    "structuredContent": {
+      "schema_version": "1.0.0",
+      "session_id": null,
+      "trace_id": "invalid-input",
+      "logical_tool_call_id": "invalid-input",
+      "attempt_id": "invalid-input",
+      "tool": "memory_oom_events",
+      "status": "error",
+      "started_at": "2026-11-15T08:04:20.899213Z",
+      "completed_at": "2026-11-15T08:04:20.899213Z",
+      "duration_ms": 0,
+      "data": {
+        "message": "Request rejected.",
+        "field": "",
+        "rule": "coverage",
+        "coverage": [
+          {
+            "source": "synthetic.journal",
+            "status": "unavailable",
+            "oldest_available_at": null
+          }
+        ]
+      },
+      "evidence": [],
+      "error_code": "UNSUPPORTED",
+      "truncated": false,
+      "next_cursor": null
+    },
+    "isError": true
+  },
+  {
+    "case": "memory_oom_events-partial-empty",
+    "tool": "memory_oom_events",
+    "input": {
+      "schema_version": "1.0.0",
+      "session_id": "synthetic-session",
+      "trace_id": "synthetic-trace",
+      "logical_tool_call_id": "synthetic-call",
+      "attempt_id": "synthetic-attempt",
+      "since": "2026-11-03T00:00:00Z",
+      "until": "2026-11-04T00:00:00Z"
+    },
+    "structuredContent": {
+      "schema_version": "1.0.0",
+      "session_id": "synthetic-session",
+      "trace_id": "synthetic-trace",
+      "logical_tool_call_id": "synthetic-call",
+      "attempt_id": "synthetic-attempt",
+      "tool": "memory_oom_events",
+      "status": "partial",
+      "started_at": "2026-11-15T08:04:20.899816Z",
+      "completed_at": "2026-11-15T08:04:20.899816Z",
+      "duration_ms": 0,
+      "data": {
+        "events": [],
+        "count": 0,
+        "limit": 100,
+        "coverage": [
+          {
+            "source": "synthetic.journal",
+            "status": "ok",
+            "oldest_available_at": null
+          },
+          {
+            "source": "synthetic.dmesg",
+            "status": "permission_denied",
+            "oldest_available_at": null
+          }
+        ]
+      },
+      "evidence": [],
+      "error_code": null,
+      "truncated": false,
+      "next_cursor": null
+    },
+    "isError": false
+  },
+  {
+    "case": "failed_logins-events",
+    "tool": "failed_logins",
+    "input": {
+      "schema_version": "1.0.0",
+      "session_id": "synthetic-session",
+      "trace_id": "synthetic-trace",
+      "logical_tool_call_id": "synthetic-call",
+      "attempt_id": "synthetic-attempt",
+      "since": "2026-11-02T00:00:00Z",
+      "until": "2026-11-03T00:00:00Z"
+    },
+    "structuredContent": {
+      "schema_version": "1.0.0",
+      "session_id": "synthetic-session",
+      "trace_id": "synthetic-trace",
+      "logical_tool_call_id": "synthetic-call",
+      "attempt_id": "synthetic-attempt",
+      "tool": "failed_logins",
+      "status": "ok",
+      "started_at": "2026-11-15T08:04:20.901012Z",
+      "completed_at": "2026-11-15T08:04:20.901012Z",
+      "duration_ms": 0,
+      "data": {
+        "events": [
+          {
+            "timestamp": "2026-11-02T09:25:00Z",
+            "user": "[REDACTED]",
+            "source_ip": "ip:synthetic-peer-1",
+            "service": "sshd",
+            "message": "Synthetic authentication failure."
+          },
+          {
+            "timestamp": "2026-11-02T09:26:00Z",
+            "user": "[REDACTED]",
+            "source_ip": null,
+            "service": "login",
+            "message": "Synthetic console authentication failure."
+          }
+        ],
+        "count": 2,
+        "limit": 100,
+        "coverage": [
+          {
+            "source": "journal.auth",
+            "status": "ok",
+            "oldest_available_at": "2026-11-02T00:00:00Z"
+          }
+        ]
+      },
+      "evidence": [],
+      "error_code": null,
+      "truncated": false,
+      "next_cursor": null
+    },
+    "isError": false
+  },
+  {
+    "case": "failed_logins-empty",
+    "tool": "failed_logins",
+    "input": {
+      "schema_version": "1.0.0",
+      "session_id": "synthetic-session",
+      "trace_id": "synthetic-trace",
+      "logical_tool_call_id": "synthetic-call",
+      "attempt_id": "synthetic-attempt",
+      "since": "2026-11-03T00:00:00Z",
+      "until": "2026-11-04T00:00:00Z"
+    },
+    "structuredContent": {
+      "schema_version": "1.0.0",
+      "session_id": "synthetic-session",
+      "trace_id": "synthetic-trace",
+      "logical_tool_call_id": "synthetic-call",
+      "attempt_id": "synthetic-attempt",
+      "tool": "failed_logins",
+      "status": "ok",
+      "started_at": "2026-11-15T08:04:20.901601Z",
+      "completed_at": "2026-11-15T08:04:20.901601Z",
+      "duration_ms": 0,
+      "data": {
+        "events": [],
+        "count": 0,
+        "limit": 100,
+        "coverage": [
+          {
+            "source": "journal.auth",
+            "status": "ok",
+            "oldest_available_at": "2026-11-02T00:00:00Z"
+          }
+        ]
+      },
+      "evidence": [],
+      "error_code": null,
+      "truncated": false,
+      "next_cursor": null
+    },
+    "isError": false
+  },
+  {
+    "case": "failed_logins-permission_denied",
+    "tool": "failed_logins",
+    "input": {
+      "schema_version": "1.0.0",
+      "session_id": "synthetic-session",
+      "trace_id": "synthetic-trace",
+      "logical_tool_call_id": "synthetic-call",
+      "attempt_id": "synthetic-attempt",
+      "since": "2026-11-02T00:00:00Z",
+      "until": "2026-11-03T00:00:00Z"
+    },
+    "structuredContent": {
+      "schema_version": "1.0.0",
+      "session_id": null,
+      "trace_id": "invalid-input",
+      "logical_tool_call_id": "invalid-input",
+      "attempt_id": "invalid-input",
+      "tool": "failed_logins",
+      "status": "error",
+      "started_at": "2026-11-15T08:04:20.902188Z",
+      "completed_at": "2026-11-15T08:04:20.902832Z",
+      "duration_ms": 0,
+      "data": {
+        "message": "Request rejected.",
+        "field": "",
+        "rule": "coverage",
+        "coverage": [
+          {
+            "source": "synthetic.journal",
+            "status": "permission_denied",
+            "oldest_available_at": null
+          }
+        ]
+      },
+      "evidence": [],
+      "error_code": "PERMISSION_DENIED",
+      "truncated": false,
+      "next_cursor": null
+    },
+    "isError": true
+  },
+  {
+    "case": "failed_logins-unavailable",
+    "tool": "failed_logins",
+    "input": {
+      "schema_version": "1.0.0",
+      "session_id": "synthetic-session",
+      "trace_id": "synthetic-trace",
+      "logical_tool_call_id": "synthetic-call",
+      "attempt_id": "synthetic-attempt",
+      "since": "2026-11-02T00:00:00Z",
+      "until": "2026-11-03T00:00:00Z"
+    },
+    "structuredContent": {
+      "schema_version": "1.0.0",
+      "session_id": null,
+      "trace_id": "invalid-input",
+      "logical_tool_call_id": "invalid-input",
+      "attempt_id": "invalid-input",
+      "tool": "failed_logins",
+      "status": "error",
+      "started_at": "2026-11-15T08:04:20.903434Z",
+      "completed_at": "2026-11-15T08:04:20.903434Z",
+      "duration_ms": 0,
+      "data": {
+        "message": "Request rejected.",
+        "field": "",
+        "rule": "coverage",
+        "coverage": [
+          {
+            "source": "synthetic.journal",
+            "status": "unavailable",
+            "oldest_available_at": null
+          }
+        ]
+      },
+      "evidence": [],
+      "error_code": "UNSUPPORTED",
+      "truncated": false,
+      "next_cursor": null
+    },
+    "isError": true
+  },
+  {
+    "case": "failed_logins-partial-empty",
+    "tool": "failed_logins",
+    "input": {
+      "schema_version": "1.0.0",
+      "session_id": "synthetic-session",
+      "trace_id": "synthetic-trace",
+      "logical_tool_call_id": "synthetic-call",
+      "attempt_id": "synthetic-attempt",
+      "since": "2026-11-03T00:00:00Z",
+      "until": "2026-11-04T00:00:00Z"
+    },
+    "structuredContent": {
+      "schema_version": "1.0.0",
+      "session_id": "synthetic-session",
+      "trace_id": "synthetic-trace",
+      "logical_tool_call_id": "synthetic-call",
+      "attempt_id": "synthetic-attempt",
+      "tool": "failed_logins",
+      "status": "partial",
+      "started_at": "2026-11-15T08:04:20.904025Z",
+      "completed_at": "2026-11-15T08:04:20.904025Z",
+      "duration_ms": 0,
+      "data": {
+        "events": [],
+        "count": 0,
+        "limit": 100,
+        "coverage": [
+          {
+            "source": "synthetic.journal",
+            "status": "ok",
+            "oldest_available_at": null
+          },
+          {
+            "source": "synthetic.dmesg",
+            "status": "permission_denied",
+            "oldest_available_at": null
+          }
+        ]
+      },
+      "evidence": [],
+      "error_code": null,
+      "truncated": false,
+      "next_cursor": null
+    },
+    "isError": false
+  },
+  {
+    "case": "restart-propose",
+    "tool": "restart_service",
+    "input": {
+      "schema_version": "1.0.0",
+      "session_id": "synthetic-session",
+      "trace_id": "synthetic-trace",
+      "logical_tool_call_id": "synthetic-call",
+      "attempt_id": "synthetic-attempt",
+      "mode": "propose",
+      "unit": "nginx.service",
+      "reason": "Synthetic reason",
+      "evidence_ids": [
+        "synthetic-evidence"
+      ]
+    },
+    "structuredContent": {
+      "schema_version": "1.0.0",
+      "session_id": "synthetic-session",
+      "trace_id": "synthetic-trace",
+      "logical_tool_call_id": "synthetic-call",
+      "attempt_id": "synthetic-attempt",
+      "tool": "restart_service",
+      "status": "approval_required",
+      "started_at": "2026-11-15T08:04:20.904643Z",
+      "completed_at": "2026-11-15T08:04:20.905314Z",
+      "duration_ms": 0,
+      "data": {
+        "action_id": "mock-action-ZtsOv7JDkXXIWEvpWhldVKm4kKh3OH__",
+        "proposal_status": "pending_approval",
+        "executed": false,
+        "reason": "[REDACTED]",
+        "evidence_ids": [
+          "synthetic-evidence"
+        ],
+        "expires_at": "2026-11-15T08:09:20.904643Z",
+        "message": "Synthetic proposal; human approval required."
+      },
+      "evidence": [],
+      "error_code": "APPROVAL_REQUIRED",
+      "truncated": false,
+      "next_cursor": null
+    },
+    "isError": false
+  },
+  {
+    "case": "restart-pending_approval",
+    "tool": "restart_service",
+    "input": {
+      "schema_version": "1.0.0",
+      "session_id": "synthetic-session",
+      "trace_id": "synthetic-trace",
+      "logical_tool_call_id": "synthetic-call",
+      "attempt_id": "synthetic-attempt",
+      "mode": "status",
+      "action_id": "mock-fixture-pending_approval"
+    },
+    "structuredContent": {
+      "schema_version": "1.0.0",
+      "session_id": "synthetic-session",
+      "trace_id": "synthetic-trace",
+      "logical_tool_call_id": "synthetic-call",
+      "attempt_id": "synthetic-attempt",
+      "tool": "restart_service",
+      "status": "ok",
+      "started_at": "2026-11-15T08:04:20.905947Z",
+      "completed_at": "2026-11-15T08:04:20.905947Z",
+      "duration_ms": 0,
+      "data": {
+        "action_id": "mock-fixture-pending_approval",
+        "proposal_status": "pending_approval",
+        "executed": false,
+        "expires_at": "2026-11-02T10:00:00Z",
+        "message": "Synthetic status only; no command was executed."
+      },
+      "evidence": [],
+      "error_code": null,
+      "truncated": false,
+      "next_cursor": null
+    },
+    "isError": false
+  },
+  {
+    "case": "restart-denied",
+    "tool": "restart_service",
+    "input": {
+      "schema_version": "1.0.0",
+      "session_id": "synthetic-session",
+      "trace_id": "synthetic-trace",
+      "logical_tool_call_id": "synthetic-call",
+      "attempt_id": "synthetic-attempt",
+      "mode": "status",
+      "action_id": "mock-fixture-denied"
+    },
+    "structuredContent": {
+      "schema_version": "1.0.0",
+      "session_id": "synthetic-session",
+      "trace_id": "synthetic-trace",
+      "logical_tool_call_id": "synthetic-call",
+      "attempt_id": "synthetic-attempt",
+      "tool": "restart_service",
+      "status": "ok",
+      "started_at": "2026-11-15T08:04:20.907198Z",
+      "completed_at": "2026-11-15T08:04:20.907198Z",
+      "duration_ms": 0,
+      "data": {
+        "action_id": "mock-fixture-denied",
+        "proposal_status": "denied",
+        "executed": false,
+        "expires_at": "2026-11-02T10:00:00Z",
+        "message": "Synthetic status only; no command was executed."
+      },
+      "evidence": [],
+      "error_code": null,
+      "truncated": false,
+      "next_cursor": null
+    },
+    "isError": false
+  },
+  {
+    "case": "restart-expired",
+    "tool": "restart_service",
+    "input": {
+      "schema_version": "1.0.0",
+      "session_id": "synthetic-session",
+      "trace_id": "synthetic-trace",
+      "logical_tool_call_id": "synthetic-call",
+      "attempt_id": "synthetic-attempt",
+      "mode": "status",
+      "action_id": "mock-fixture-expired"
+    },
+    "structuredContent": {
+      "schema_version": "1.0.0",
+      "session_id": "synthetic-session",
+      "trace_id": "synthetic-trace",
+      "logical_tool_call_id": "synthetic-call",
+      "attempt_id": "synthetic-attempt",
+      "tool": "restart_service",
+      "status": "ok",
+      "started_at": "2026-11-15T08:04:20.907821Z",
+      "completed_at": "2026-11-15T08:04:20.907821Z",
+      "duration_ms": 0,
+      "data": {
+        "action_id": "mock-fixture-expired",
+        "proposal_status": "expired",
+        "executed": false,
+        "expires_at": "2026-11-02T10:00:00Z",
+        "message": "Synthetic status only; no command was executed."
+      },
+      "evidence": [],
+      "error_code": null,
+      "truncated": false,
+      "next_cursor": null
+    },
+    "isError": false
+  },
+  {
+    "case": "restart-approved",
+    "tool": "restart_service",
+    "input": {
+      "schema_version": "1.0.0",
+      "session_id": "synthetic-session",
+      "trace_id": "synthetic-trace",
+      "logical_tool_call_id": "synthetic-call",
+      "attempt_id": "synthetic-attempt",
+      "mode": "status",
+      "action_id": "mock-fixture-approved"
+    },
+    "structuredContent": {
+      "schema_version": "1.0.0",
+      "session_id": "synthetic-session",
+      "trace_id": "synthetic-trace",
+      "logical_tool_call_id": "synthetic-call",
+      "attempt_id": "synthetic-attempt",
+      "tool": "restart_service",
+      "status": "ok",
+      "started_at": "2026-11-15T08:04:20.908520Z",
+      "completed_at": "2026-11-15T08:04:20.908520Z",
+      "duration_ms": 0,
+      "data": {
+        "action_id": "mock-fixture-approved",
+        "proposal_status": "approved",
+        "executed": false,
+        "expires_at": "2026-11-02T10:00:00Z",
+        "message": "Synthetic status only; no command was executed."
+      },
+      "evidence": [],
+      "error_code": null,
+      "truncated": false,
+      "next_cursor": null
+    },
+    "isError": false
+  },
+  {
+    "case": "restart-executing",
+    "tool": "restart_service",
+    "input": {
+      "schema_version": "1.0.0",
+      "session_id": "synthetic-session",
+      "trace_id": "synthetic-trace",
+      "logical_tool_call_id": "synthetic-call",
+      "attempt_id": "synthetic-attempt",
+      "mode": "status",
+      "action_id": "mock-fixture-executing"
+    },
+    "structuredContent": {
+      "schema_version": "1.0.0",
+      "session_id": "synthetic-session",
+      "trace_id": "synthetic-trace",
+      "logical_tool_call_id": "synthetic-call",
+      "attempt_id": "synthetic-attempt",
+      "tool": "restart_service",
+      "status": "ok",
+      "started_at": "2026-11-15T08:04:20.909823Z",
+      "completed_at": "2026-11-15T08:04:20.909823Z",
+      "duration_ms": 0,
+      "data": {
+        "action_id": "mock-fixture-executing",
+        "proposal_status": "executing",
+        "executed": false,
+        "expires_at": "2026-11-02T10:00:00Z",
+        "message": "Synthetic status only; no command was executed."
+      },
+      "evidence": [],
+      "error_code": null,
+      "truncated": false,
+      "next_cursor": null
+    },
+    "isError": false
+  },
+  {
+    "case": "restart-succeeded",
+    "tool": "restart_service",
+    "input": {
+      "schema_version": "1.0.0",
+      "session_id": "synthetic-session",
+      "trace_id": "synthetic-trace",
+      "logical_tool_call_id": "synthetic-call",
+      "attempt_id": "synthetic-attempt",
+      "mode": "status",
+      "action_id": "mock-fixture-succeeded"
+    },
+    "structuredContent": {
+      "schema_version": "1.0.0",
+      "session_id": "synthetic-session",
+      "trace_id": "synthetic-trace",
+      "logical_tool_call_id": "synthetic-call",
+      "attempt_id": "synthetic-attempt",
+      "tool": "restart_service",
+      "status": "ok",
+      "started_at": "2026-11-15T08:04:20.910488Z",
+      "completed_at": "2026-11-15T08:04:20.910488Z",
+      "duration_ms": 0,
+      "data": {
+        "action_id": "mock-fixture-succeeded",
+        "proposal_status": "succeeded",
+        "executed": true,
+        "expires_at": "2026-11-02T10:00:00Z",
+        "message": "Synthetic status only; no command was executed."
+      },
+      "evidence": [],
+      "error_code": null,
+      "truncated": false,
+      "next_cursor": null
+    },
+    "isError": false
+  },
+  {
+    "case": "restart-failed",
+    "tool": "restart_service",
+    "input": {
+      "schema_version": "1.0.0",
+      "session_id": "synthetic-session",
+      "trace_id": "synthetic-trace",
+      "logical_tool_call_id": "synthetic-call",
+      "attempt_id": "synthetic-attempt",
+      "mode": "status",
+      "action_id": "mock-fixture-failed"
+    },
+    "structuredContent": {
+      "schema_version": "1.0.0",
+      "session_id": "synthetic-session",
+      "trace_id": "synthetic-trace",
+      "logical_tool_call_id": "synthetic-call",
+      "attempt_id": "synthetic-attempt",
+      "tool": "restart_service",
+      "status": "ok",
+      "started_at": "2026-11-15T08:04:20.911146Z",
+      "completed_at": "2026-11-15T08:04:20.911725Z",
+      "duration_ms": 0,
+      "data": {
+        "action_id": "mock-fixture-failed",
+        "proposal_status": "failed",
+        "executed": true,
+        "expires_at": "2026-11-02T10:00:00Z",
+        "message": "Synthetic status only; no command was executed."
+      },
+      "evidence": [],
+      "error_code": null,
+      "truncated": false,
+      "next_cursor": null
+    },
+    "isError": false
+  },
+  {
+    "case": "restart-execution_unknown",
+    "tool": "restart_service",
+    "input": {
+      "schema_version": "1.0.0",
+      "session_id": "synthetic-session",
+      "trace_id": "synthetic-trace",
+      "logical_tool_call_id": "synthetic-call",
+      "attempt_id": "synthetic-attempt",
+      "mode": "status",
+      "action_id": "mock-fixture-execution_unknown"
+    },
+    "structuredContent": {
+      "schema_version": "1.0.0",
+      "session_id": "synthetic-session",
+      "trace_id": "synthetic-trace",
+      "logical_tool_call_id": "synthetic-call",
+      "attempt_id": "synthetic-attempt",
+      "tool": "restart_service",
+      "status": "ok",
+      "started_at": "2026-11-15T08:04:20.912342Z",
+      "completed_at": "2026-11-15T08:04:20.912342Z",
+      "duration_ms": 0,
+      "data": {
+        "action_id": "mock-fixture-execution_unknown",
+        "proposal_status": "execution_unknown",
+        "executed": false,
+        "expires_at": "2026-11-02T10:00:00Z",
+        "message": "Synthetic status only; no command was executed."
+      },
+      "evidence": [],
+      "error_code": null,
+      "truncated": false,
+      "next_cursor": null
+    },
+    "isError": false
+  }
+]

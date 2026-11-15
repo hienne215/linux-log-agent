@@ -1,4 +1,3 @@
-
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "title": "query_journal Response Data",
@@ -20,10 +19,15 @@
             "maximum": 7
           },
           "message": {
-            "type": "string"
+            "type": "string",
+            "maxLength": 2048
           }
         },
-        "required": ["timestamp", "priority", "message"],
+        "required": [
+          "timestamp",
+          "priority",
+          "message"
+        ],
         "additionalProperties": false
       }
     },
@@ -37,6 +41,10 @@
       "maximum": 200
     }
   },
-  "required": ["entries", "count", "limit"],
+  "required": [
+    "entries",
+    "count",
+    "limit"
+  ],
   "additionalProperties": false
 }

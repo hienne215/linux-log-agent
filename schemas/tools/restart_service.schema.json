@@ -48,19 +48,25 @@
       "type": "array",
       "items": {
         "type": "string",
-        "minLength": 1
+        "minLength": 1,
+        "maxLength": 128
       },
-      "description": "Evidence references supporting the restart proposal."
+      "description": "Evidence references supporting the restart proposal.",
+      "minItems": 1,
+      "maxItems": 32,
+      "uniqueItems": true
     },
     "action_id": {
       "type": "string",
       "minLength": 1,
-      "description": "Proposal identifier required when mode is status."
+      "description": "Proposal identifier required when mode is status.",
+      "maxLength": 128
     },
     "reason": {
       "type": "string",
       "minLength": 1,
-      "description": "Reason for proposing the service restart."
+      "description": "Reason for proposing the service restart.",
+      "maxLength": 512
     }
   },
   "required": [
@@ -69,9 +75,7 @@
     "trace_id",
     "logical_tool_call_id",
     "attempt_id",
-    "unit",
-    "mode",
-    "reason"
+    "mode"
   ],
   "additionalProperties": false,
   "allOf": [
@@ -79,7 +83,7 @@
       "if": {
         "properties": {
           "mode": {
-            "const": "status"
+            "const": "propose"
           }
         },
         "required": [
@@ -87,6 +91,18 @@
         ]
       },
       "then": {
+        "required": [
+          "unit",
+          "reason",
+          "evidence_ids"
+        ],
+        "not": {
+          "required": [
+            "action_id"
+          ]
+        }
+      },
+      "else": {
         "required": [
           "action_id"
         ]

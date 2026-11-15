@@ -7,6 +7,14 @@ sys.path.insert(0,str(Path(__file__).resolve().parents[2]))
 import mock_mcp_server as server
 
 mode=sys.argv[1]
+if mode in {'coverage-denied', 'coverage-partial', 'coverage-unavailable'}:
+    def fixture_coverage(name):
+        states = {'coverage-denied':['permission_denied'],
+                  'coverage-unavailable':['unavailable'],
+                  'coverage-partial':['ok','permission_denied']}[mode]
+        return [dict(source='synthetic.source.'+str(i), status=state,
+                     oldest_available_at=None) for i,state in enumerate(states)]
+    server.log_coverage=fixture_coverage
 async def injected(ctx,params):
     if mode=='slow' and params.name=='service_status': await asyncio.sleep(10)
     if mode=='disconnect' and params.name=='service_status': os._exit(0)

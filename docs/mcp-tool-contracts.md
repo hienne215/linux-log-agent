@@ -7,9 +7,9 @@
 **Python:** 3.12  
 **Transport:** stdio  
 **Contract version:** 1.0.0  
-**Status:** Contracts 1.0.0 ready for Hiền/Trang review — revision 2026-11-14-R1; NOT finalized, signoff pending
+**Status:** Contracts 1.0.0 revision 2026-11-15-R2 pending Hiền/Trang re-review; NOT finalized
 
-**Review entry point:** [Final contract review and collector handoff](SCRUM-12-contract-review-2026-11-14.md). Runtime audited at `917d9f0`; this revision changes documentation only.
+**Current review entry point:** [R2 review response, ADR and handoff](SCRUM-12-review-R2-2026-11-15.md). R2 changes schemas/runtime and supersedes conflicting R1 details. [R1 historical review](SCRUM-12-contract-review-2026-11-14.md) was accepted by Hiền for Integration R1 only.
 
 ---
 
@@ -238,13 +238,13 @@ The mock implementation must never perform a real restart.
 | service_status | unit | none | ok; unit/active_state/sub_state/load_state/description; synthetic evidence | no |
 | list_failed_units | none | limit, cursor | ok; failed_units/count/limit | yes |
 | disk_usage | none | filesystem, include_inodes | ok; filesystem/mount_point/used_percent/available_bytes/inodes_included | no |
-| memory_oom_events | since, until | limit | ok; events/count/limit | no |
-| failed_logins | since, until | limit | ok; events/count/limit | no |
+| memory_oom_events | since, until | limit, cursor | ok/partial; events/count/limit/coverage; safe error if no source readable | yes |
+| failed_logins | since, until | limit, cursor | ok/partial; events/count/limit/coverage; safe error if no source readable | yes |
 | listening_ports | none | protocol, port, unit | ok; ports/count | no |
 | check_config | profile | unit | ok; profile/unit/valid/issues/message | no |
 | detect_anomaly | since, until | unit, signals, max_findings | ok/partial; anomalies/analyzed_signals/insufficient_signals/findings_truncated/confidence | no |
 | verify_fix | unit, since, check_types | until, action_id, baseline_evidence_refs | partial; checks and overall_result=unknown for synthetic mock | no |
-| restart_service | mode, unit, reason; action_id additionally for status | evidence_ids, action_id for propose | approval_required for propose; ok for status; executed=false | no |
+| restart_service | propose: mode, unit, reason, evidence_ids; status: mode, action_id | bounded legacy context on status; no action_id on propose | approval_required for propose; ok for status; synthetic lifecycle states, boolean executed and expires_at | no |
 
 All tools additionally require all five common metadata fields. Canonical schemas specify types, enums, numeric limits, patterns and required fields. Missing optional values remain missing on the wire. Only `verify_fix.until`, `action_id`, and `baseline_evidence_refs` explicitly accept null; all other optional fields reject null. Function defaults are internal implementation details. Units reject paths, options and template instances; OS deployment allowlists remain a separate production gate.
 
@@ -313,7 +313,7 @@ Review checklist and signoff for this revision are tracked in `SCRUM-12-contract
 - [x] Stdio JSON-RPC IDs have an enforced 128-byte serialized-UTF-8 admission limit; rejected IDs close the session without echo/truncation.
 - [x] Maximum admitted IDs and near-cap results are verified through the official SDK stdio transport.
 - [x] SDK timeout, cancellation, disconnect and child-process cleanup are tested.
-- [x] restart_service remains a mock facade with executed=false.
+- [x] restart_service remains a mock facade; synthetic status fixtures do not dispatch commands.
 - [ ] Hiền confirms anomaly/verify/binder semantics.
 - [ ] Trang confirms Linux/approval/security deployment contracts.
 - [x] Hiền reported an independent audit of 6d581f2 with 140 pytest PASS and service_status ToolBridge compatibility; three follow-up items remained (user-provided review, 14/11).

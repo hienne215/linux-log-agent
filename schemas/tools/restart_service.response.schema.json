@@ -7,37 +7,49 @@
       "title": "Proposal created",
       "type": "object",
       "properties": {
-        "proposal_id": {
-          "type": "string",
-          "minLength": 1
-        },
         "proposal_status": {
           "const": "pending_approval"
         },
         "reason": {
-          "type": "string"
+          "type": "string",
+          "maxLength": 512
         },
         "evidence_ids": {
           "type": "array",
           "items": {
             "type": "string",
-            "minLength": 1
-          }
+            "minLength": 1,
+            "maxLength": 128
+          },
+          "minItems": 1,
+          "maxItems": 32,
+          "uniqueItems": true
         },
         "executed": {
           "const": false
         },
         "message": {
-          "type": "string"
+          "type": "string",
+          "maxLength": 2048
+        },
+        "action_id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128
+        },
+        "expires_at": {
+          "type": "string",
+          "format": "date-time"
         }
       },
       "required": [
-        "proposal_id",
+        "action_id",
         "proposal_status",
         "reason",
         "evidence_ids",
         "executed",
-        "message"
+        "message",
+        "expires_at"
       ],
       "additionalProperties": false
     },
@@ -47,23 +59,40 @@
       "properties": {
         "action_id": {
           "type": "string",
-          "minLength": 1
+          "minLength": 1,
+          "maxLength": 128
         },
         "proposal_status": {
-          "const": "pending_approval"
+          "type": "string",
+          "enum": [
+            "pending_approval",
+            "denied",
+            "expired",
+            "approved",
+            "executing",
+            "succeeded",
+            "failed",
+            "execution_unknown"
+          ]
         },
         "executed": {
-          "const": false
+          "type": "boolean"
         },
         "message": {
-          "type": "string"
+          "type": "string",
+          "maxLength": 2048
+        },
+        "expires_at": {
+          "type": "string",
+          "format": "date-time"
         }
       },
       "required": [
         "action_id",
         "proposal_status",
         "executed",
-        "message"
+        "message",
+        "expires_at"
       ],
       "additionalProperties": false
     }
