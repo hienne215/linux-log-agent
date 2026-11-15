@@ -95,3 +95,11 @@ The tool statuses below refer to real Linux collection/execution, not the existi
 - Jira: task status, owner, priority and progress.
 - GitHub: source code, documents, branches and Pull Requests.
 - `docs/proposal-v2.md`: agreed scope, architecture and deliverables.
+
+## P00-03 review revision R2
+
+[R2 review response and ADR](SCRUM-12-review-R2-2026-11-15.md): schema/runtime changes pending independent Hiền/Trang confirmation; NOT finalized. Hiền accepted Integration R1 only at d442479/917d9f0. Trang review requests fixes despite GitHub APPROVED state. No merge authorization.
+
+## P00-03 review revision R3
+
+[R3 review response](SCRUM-12-review-R3-2026-11-15.md) addresses Trang's second review. Pending independent confirmation; NOT finalized. Trang's proposed signoff scope is security/privacy of three tools, not all nine remaining tools or the complete transport/deployment.

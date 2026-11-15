@@ -1,4 +1,3 @@
-
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "title": "Common MCP Tool Response",
@@ -9,26 +8,29 @@
       "type": "string",
       "const": "1.0.0"
     },
-  "session_id": {
-    "type": ["string", "null"],
-    "minLength": 1,
-    "maxLength": 128
-  },
-  "trace_id": {
-    "type": "string",
-    "minLength": 1,
-    "maxLength": 128
-  },
-  "logical_tool_call_id": {
-    "type": "string",
-    "minLength": 1,
-    "maxLength": 128
-  },
-  "attempt_id": {
-    "type": "string",
-    "minLength": 1,
-    "maxLength": 128
-  },
+    "session_id": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "minLength": 1,
+      "maxLength": 128
+    },
+    "trace_id": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 128
+    },
+    "logical_tool_call_id": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 128
+    },
+    "attempt_id": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 128
+    },
     "tool": {
       "type": "string",
       "minLength": 1
@@ -75,10 +77,14 @@
             "minLength": 1
           },
           "unit": {
-            "type": ["string", "null"]
+            "type": [
+              "string",
+              "null"
+            ]
           },
           "excerpt": {
-            "type": "string"
+            "type": "string",
+            "maxLength": 2048
           },
           "redacted": {
             "type": "boolean"
@@ -100,7 +106,10 @@
       }
     },
     "error_code": {
-      "type": ["string", "null"],
+      "type": [
+        "string",
+        "null"
+      ],
       "enum": [
         "INVALID_INPUT",
         "PERMISSION_DENIED",
@@ -121,7 +130,10 @@
       "type": "boolean"
     },
     "next_cursor": {
-      "type": ["string", "null"]
+      "type": [
+        "string",
+        "null"
+      ]
     }
   },
   "required": [
@@ -149,7 +161,9 @@
             "const": "error"
           }
         },
-        "required": ["status"]
+        "required": [
+          "status"
+        ]
       },
       "then": {
         "properties": {
@@ -167,7 +181,9 @@
             "const": "approval_required"
           }
         },
-        "required": ["status"]
+        "required": [
+          "status"
+        ]
       },
       "then": {
         "properties": {
@@ -177,37 +193,64 @@
         }
       }
     },
-{
-  "if": {
-    "properties": {
-      "status": {
-        "const": "ok"
+    {
+      "if": {
+        "properties": {
+          "status": {
+            "const": "ok"
+          }
+        },
+        "required": [
+          "status"
+        ]
+      },
+      "then": {
+        "properties": {
+          "error_code": {
+            "type": "null"
+          }
+        }
       }
     },
-    "required": ["status"]
-  },
-  "then": {
-    "properties": {
-      "error_code": {
-        "type": "null"
+    {
+      "if": {
+        "properties": {
+          "status": {
+            "const": "partial"
+          },
+          "error_code": {
+            "enum": [
+              null,
+              "OUTPUT_LIMIT"
+            ]
+          }
+        },
+        "required": [
+          "status",
+          "error_code"
+        ]
+      },
+      "then": {}
+    },
+    {
+      "if": {
+        "properties": {
+          "truncated": {
+            "const": true
+          }
+        },
+        "required": [
+          "truncated"
+        ]
+      },
+      "then": {
+        "properties": {
+          "status": {
+            "const": "partial"
+          }
+        }
       }
     }
-  }
-},
-{
-  "if": {
-    "properties": {
-      "status": {
-        "const": "partial"
-      },
-      "error_code": {
-        "enum": [null, "OUTPUT_LIMIT"]
-      }
-    },
-    "required": ["status", "error_code"]
-  },
-  "then": {}
-}
   ],
   "additionalProperties": false
 }

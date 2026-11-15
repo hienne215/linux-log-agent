@@ -39,8 +39,7 @@
       "enum": [
         "ok",
         "partial",
-        "error",
-        "approval_required"
+        "error"
       ]
     },
     "started_at": {
@@ -82,7 +81,8 @@
             ]
           },
           "excerpt": {
-            "type": "string"
+            "type": "string",
+            "maxLength": 2048
           },
           "redacted": {
             "type": "boolean"
@@ -233,6 +233,45 @@
     {
       "if": {
         "properties": {
+          "truncated": {
+            "const": true
+          }
+        },
+        "required": [
+          "truncated"
+        ]
+      },
+      "then": {
+        "properties": {
+          "status": {
+            "const": "partial"
+          }
+        }
+      }
+    },
+    {
+      "properties": {
+        "data": {
+          "properties": {
+            "coverage": {
+              "items": {
+                "properties": {
+                  "source": {
+                    "enum": [
+                      "journal.kernel",
+                      "dmesg"
+                    ]
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
           "status": {
             "const": "error"
           }
@@ -247,7 +286,8 @@
             "type": "object",
             "properties": {
               "message": {
-                "type": "string"
+                "type": "string",
+                "maxLength": 2048
               },
               "field": {
                 "type": "string"
@@ -257,12 +297,48 @@
               },
               "max_response_bytes": {
                 "const": 65536
+              },
+              "coverage": {
+                "type": "array",
+                "minItems": 1,
+                "maxItems": 8,
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "source": {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 128
+                    },
+                    "status": {
+                      "enum": [
+                        "ok",
+                        "permission_denied",
+                        "unavailable"
+                      ]
+                    },
+                    "oldest_available_at": {
+                      "type": [
+                        "string",
+                        "null"
+                      ],
+                      "format": "date-time"
+                    }
+                  },
+                  "required": [
+                    "source",
+                    "status",
+                    "oldest_available_at"
+                  ],
+                  "additionalProperties": false
+                }
               }
             },
             "required": [
               "message"
             ],
-            "additionalProperties": false
+            "additionalProperties": false,
+            "$schema": "https://json-schema.org/draft/2020-12/schema"
           }
         }
       },
@@ -283,17 +359,50 @@
                       "format": "date-time"
                     },
                     "process": {
-                      "type": "string",
-                      "minLength": 1
+                      "type": [
+                        "string",
+                        "null"
+                      ],
+                      "minLength": 1,
+                      "maxLength": 128
                     },
                     "message": {
-                      "type": "string"
+                      "type": "string",
+                      "maxLength": 2048
+                    },
+                    "pid": {
+                      "type": [
+                        "integer",
+                        "null"
+                      ],
+                      "minimum": 1
+                    },
+                    "anon_rss_kb": {
+                      "type": [
+                        "integer",
+                        "null"
+                      ],
+                      "minimum": 0
+                    },
+                    "total_vm_kb": {
+                      "type": [
+                        "integer",
+                        "null"
+                      ],
+                      "minimum": 0
+                    },
+                    "evidence_id": {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 128
                     }
                   },
                   "required": [
                     "timestamp",
                     "process",
-                    "message"
+                    "message",
+                    "pid",
+                    "evidence_id"
                   ],
                   "additionalProperties": false
                 }
@@ -306,12 +415,49 @@
                 "type": "integer",
                 "minimum": 1,
                 "maximum": 200
+              },
+              "coverage": {
+                "type": "array",
+                "minItems": 1,
+                "maxItems": 8,
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "source": {
+                      "enum": [
+                        "journal.kernel",
+                        "dmesg"
+                      ]
+                    },
+                    "status": {
+                      "enum": [
+                        "ok",
+                        "permission_denied",
+                        "unavailable"
+                      ]
+                    },
+                    "oldest_available_at": {
+                      "type": [
+                        "string",
+                        "null"
+                      ],
+                      "format": "date-time"
+                    }
+                  },
+                  "required": [
+                    "source",
+                    "status",
+                    "oldest_available_at"
+                  ],
+                  "additionalProperties": false
+                }
               }
             },
             "required": [
               "events",
               "count",
-              "limit"
+              "limit",
+              "coverage"
             ],
             "additionalProperties": false
           }

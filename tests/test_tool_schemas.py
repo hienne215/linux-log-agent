@@ -123,7 +123,8 @@ TEST_CASES = [
             **COMMON_REQUEST,
             "unit": "nginx.service",
             "mode": "propose",
-            "reason": "Verify restart proposal"
+            "reason": "Verify restart proposal",
+            "evidence_ids": ["ev-synthetic-1"]
         }
     )
 ]

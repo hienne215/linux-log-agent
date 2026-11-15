@@ -372,7 +372,7 @@ async def main():
                 "unit": "nginx.service",
                 "reason": "Check proposal status",
                 "evidence_ids": ["evidence-001"],
-                "action_id": "mock-proposal-001"
+                "action_id": "mock-fixture-pending_approval"
             }
         )
 

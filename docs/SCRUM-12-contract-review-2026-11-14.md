@@ -1,4 +1,7 @@
-# PR #6 — final contract review and collector handoff
+# PR #6 — historical R1 contract review and collector handoff
+
+> Historical R1: Hiền accepted Integration R1 at d442479 against 917d9f0.
+> Current changes require [R2 review](SCRUM-12-review-R2-2026-11-15.md); statements below are frozen R1 behavior, not the current R2 contract. No finalization or merge approval is implied.
 
 Revision: **2026-11-14-R1**, schema_version **1.0.0**. Owner: Thủy. Reviewers: Hiền (@hienne215) for integration mapping; Trang (@Qtrang2826) for security/privacy/transport. **Ready for review; NOT finalized; no merge until both explicitly sign off.**
 

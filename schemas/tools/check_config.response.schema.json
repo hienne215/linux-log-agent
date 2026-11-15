@@ -1,4 +1,3 @@
-
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "title": "check_config Response Data",
@@ -10,7 +9,10 @@
       "minLength": 1
     },
     "unit": {
-      "type": ["string", "null"]
+      "type": [
+        "string",
+        "null"
+      ]
     },
     "valid": {
       "type": "boolean"
@@ -22,7 +24,8 @@
       }
     },
     "message": {
-      "type": "string"
+      "type": "string",
+      "maxLength": 2048
     }
   },
   "required": [

@@ -12,6 +12,7 @@ from mcp.types import CallToolResult, TextContent
 from typing import Literal
 from pathlib import Path
 from jsonschema import Draft202012Validator, FormatChecker
+import rfc3339_validator  # Required: FormatChecker otherwise silently skips date-time.
 import json
 import secrets
 
@@ -186,7 +187,7 @@ def bound_response(response, request_id=0, native_builder=None):
             if wire_size(native_builder(candidate), request_id) <= MAX_RESPONSE_BYTES:
                 return candidate
     # Do not split evidence, individual records, JSON strings, or UTF-8 bytes.
-    response.update(status="error", error_code="OUTPUT_LIMIT", truncated=True,
+    response.update(status="error", error_code="OUTPUT_LIMIT", truncated=False,
                     data={"message": "Response exceeded the maximum size limit.",
                           "max_response_bytes": MAX_RESPONSE_BYTES},
                     evidence=[], next_cursor=None)
@@ -251,7 +252,13 @@ async def call_tool(ctx, params):
             field = ""
         response = safe_error(params.name, arguments, field=field,
                               rule=str(error.validator))
+    elif not valid_window(arguments):
+        response = safe_error(params.name, {}, rule="window")
     else:
+        if 'since' in arguments and arguments.get('until') is None:
+            arguments = dict(arguments)
+            start = datetime.fromisoformat(arguments['since'].replace('Z', '+00:00'))
+            arguments['until'] = min(datetime.now(timezone.utc), start + timedelta(hours=24)).isoformat().replace('+00:00', 'Z')
         started = current_time()
         tick = time.monotonic()
         try:
@@ -269,6 +276,7 @@ async def call_tool(ctx, params):
         response["started_at"] = started
         response["completed_at"] = current_time()
         response["duration_ms"] = int((time.monotonic() - tick) * 1000)
+    response = bound_response(response, ctx.request_id)
     if not output_validator.is_valid(response):
         response = safe_error(params.name, {}, "EXECUTION_UNKNOWN", rule="output_validation")
     response = bound_response(response, ctx.request_id)
@@ -276,6 +284,19 @@ async def call_tool(ctx, params):
     if not output_validator.is_valid(response):
         raise RuntimeError("Internal result contract failure")
     return result
+
+
+def valid_window(arguments):
+    """Cross-field checks cannot be expressed using standard JSON Schema."""
+    if 'since' not in arguments:
+        return True
+    try:
+        start = datetime.fromisoformat(arguments['since'].replace('Z', '+00:00'))
+        end = (datetime.fromisoformat(arguments['until'].replace('Z', '+00:00'))
+               if arguments.get('until') is not None else min(datetime.now(timezone.utc), start + timedelta(hours=24)))
+        return start.tzinfo is not None and end.tzinfo is not None and timedelta(0) < end - start <= timedelta(hours=24)
+    except (ValueError, TypeError, OverflowError):
+        return False
 
 
 async def protocol_guard(ctx, call_next):
@@ -720,69 +741,86 @@ def check_config(
     )
 
 
-@register_tool()
-def memory_oom_events(
-    schema_version: str,
-    session_id: str,
-    trace_id: str,
-    logical_tool_call_id: str,
-    attempt_id: str,
-    since: str,
-    until: str,
-    limit: int = 100,
-) -> dict:
-    """Return mock Linux out-of-memory events."""
-    return make_response(
-        tool="memory_oom_events",
-        trace_id=trace_id,
-        logical_tool_call_id=logical_tool_call_id,
-        attempt_id=attempt_id,
-        session_id=session_id,
-        data={
-            "events": [
-                {
-                    "timestamp": "2026-11-02T09:20:00Z",
-                    "process": "mock-worker",
-                    "message": "Mock process was terminated by OOM killer.",
-                }
-            ] if within_window([{"timestamp": "2026-11-02T09:20:00Z"}], since, until) else [],
-            "count": int(bool(within_window([{"timestamp": "2026-11-02T09:20:00Z"}], since, until))),
-            "limit": limit,
-        },
-    )
+LOG_SOURCES = {'memory_oom_events': ('journal.kernel', 'dmesg'),
+               'failed_logins': ('journal.auth', 'auth.log')}
+
+
+def log_coverage(name):
+    """Code-owned synthetic coverage; real collectors must probe effective access."""
+    sources = LOG_SOURCES[name]
+    return [{'source': source, 'status': 'ok',
+             'oldest_available_at': '2026-11-02T00:00:00Z'} for source in sources]
+
+
+def event_page(name, metadata, since, until, limit, cursor, events):
+    filters = dict(since=since, until=until, limit=limit)
+    offset = 0
+    if cursor is not None:
+        valid, offset = validate_cursor(cursor, name, metadata['session_id'], filters)
+        if not valid:
+            return safe_error(name, {}, offset, rule='cursor')
+    coverage = log_coverage(name)
+    states = [source['status'] for source in coverage]
+    if all(state != 'ok' for state in states):
+        code = 'PERMISSION_DENIED' if all(state == 'permission_denied' for state in states) else 'UNSUPPORTED'
+        descriptions = [source['source'] + (': permission denied' if source['status'] == 'permission_denied'
+                         else ': source unavailable') for source in coverage]
+        return make_response(tool=name, **metadata, status='error', error_code=code,
+                             data=dict(message='; '.join(descriptions), coverage=coverage))
+    # Fixed synthetic events belong to the journal source, never to unreadable sources.
+    available = within_window(events, since, until) if coverage[0]['status'] == 'ok' else []
+    if coverage[0]['oldest_available_at'] is not None:
+        oldest = datetime.fromisoformat(coverage[0]['oldest_available_at'].replace('Z', '+00:00'))
+        available = [event for event in available if datetime.fromisoformat(event['timestamp'].replace('Z', '+00:00')) >= oldest]
+    page = available[offset:offset + limit]
+    more = offset + len(page) < len(available)
+    token = create_cursor(name, metadata['session_id'], filters, offset + len(page)) if more else None
+    start = datetime.fromisoformat(since.replace('Z', '+00:00'))
+    retention_gap = any(source['status'] == 'ok' and (
+        source['oldest_available_at'] is None or
+        datetime.fromisoformat(source['oldest_available_at'].replace('Z', '+00:00')) > start)
+        for source in coverage)
+    partial = any(state != 'ok' for state in states) or more or retention_gap
+    evidence = []
+    for index, event in enumerate(page):
+        event = event.copy()
+        event['evidence_id'] = 'ev-' + secrets.token_urlsafe(18)
+        evidence.append(dict(evidence_id=event['evidence_id'], source=coverage[0]['source'],
+                             unit=None, observed_at=event['timestamp'], excerpt=event['message'],
+                             redacted=True, truncated=False))
+        page[index] = event
+    return make_response(tool=name, **metadata,
+        data=dict(events=page, count=len(page), limit=limit, coverage=coverage),
+        status='partial' if partial else 'ok', truncated=more, next_cursor=token,
+        evidence=evidence)
 
 
 @register_tool()
-def failed_logins(
-    schema_version: str,
-    session_id: str,
-    trace_id: str,
-    logical_tool_call_id: str,
-    attempt_id: str,
-    since: str,
-    until: str,
-    limit: int = 100,
-) -> dict:
-    """Return mock failed login events."""
-    return make_response(
-        tool="failed_logins",
-        trace_id=trace_id,
-        logical_tool_call_id=logical_tool_call_id,
-        attempt_id=attempt_id,
-        session_id=session_id,
-        data={
-            "events": [
-                {
-                    "timestamp": "2026-11-02T09:25:00Z",
-                    "user": "mock-user",
-                    "source_ip": "192.0.2.10",
-                    "message": "Mock authentication failure.",
-                }
-            ] if within_window([{"timestamp": "2026-11-02T09:25:00Z"}], since, until) else [],
-            "count": int(bool(within_window([{"timestamp": "2026-11-02T09:25:00Z"}], since, until))),
-            "limit": limit,
-        },
-    )
+def memory_oom_events(schema_version: str, session_id: str, trace_id: str,
+                      logical_tool_call_id: str, attempt_id: str, since: str,
+                      until: str, limit: int = 100, cursor: str | None = None) -> dict:
+    """Return synthetic OOM events with explicit source coverage; no Linux reads."""
+    metadata = dict(session_id=session_id, trace_id=trace_id,
+                    logical_tool_call_id=logical_tool_call_id, attempt_id=attempt_id)
+    events = [dict(timestamp='2026-11-02T09:20:00Z', process='mock-worker', pid=123,
+                   message='Synthetic OOM event.'),
+              dict(timestamp='2026-11-02T09:21:00Z', process=None, pid=None,
+                   message='Synthetic OOM event with unknown process.')]
+    return event_page('memory_oom_events', metadata, since, until, limit, cursor, events)
+
+
+@register_tool()
+def failed_logins(schema_version: str, session_id: str, trace_id: str,
+                  logical_tool_call_id: str, attempt_id: str, since: str,
+                  until: str, limit: int = 100, cursor: str | None = None) -> dict:
+    """Return synthetic authentication events; raw usernames and IPs are never emitted."""
+    metadata = dict(session_id=session_id, trace_id=trace_id,
+                    logical_tool_call_id=logical_tool_call_id, attempt_id=attempt_id)
+    events = [dict(timestamp='2026-11-02T09:25:00Z', user='[REDACTED]',
+                   user_class='root', source_ip='ip:synthetic-peer-1', service='sshd', message='Synthetic authentication failure.'),
+              dict(timestamp='2026-11-02T09:26:00Z', user='[REDACTED]',
+                   user_class='unknown', source_ip=None, service='login', message='Synthetic console authentication failure.')]
+    return event_page('failed_logins', metadata, since, until, limit, cursor, events)
 
 
 @register_tool()
@@ -1104,90 +1142,48 @@ def verify_fix(
     )
 
 
+# Proposal ownership is session-bound and bounded; there is no approve/execute API.
+PROPOSALS = {}
+PROPOSAL_TTL_SECONDS = 60
+RESTART_STATES = ('pending_approval', 'denied', 'expired', 'approved', 'executing',
+                  'succeeded', 'failed', 'execution_unknown')
+
+
 @register_tool()
-def restart_service(
-    schema_version: str,
-    session_id: str,
-    trace_id: str,
-    logical_tool_call_id: str,
-    attempt_id: str,
-    mode: Literal["propose", "status"],
-    unit: str,
-    reason: str,
-    evidence_ids: list[str] | None = None,
-    action_id: str | None = None,
-) -> dict:
-    """Create or inspect a mock restart proposal. Never restarts a service."""
-    if not unit or not unit.strip():
-        return make_response(
-            tool="restart_service",
-            trace_id=trace_id,
-            logical_tool_call_id=logical_tool_call_id,
-            attempt_id=attempt_id,
-            session_id=session_id,
-            data={"message": "unit is required."},
-            status="error",
-            error_code="INVALID_INPUT",
-        )
-
-    if mode == "propose":
-        return make_response(
-            tool="restart_service",
-            trace_id=trace_id,
-            logical_tool_call_id=logical_tool_call_id,
-            attempt_id=attempt_id,
-            session_id=session_id,
-            data={
-                "proposal_id": "mock-proposal-001",
-                "proposal_status": "pending_approval",
-                "reason": reason,
-                "evidence_ids": evidence_ids or [],
-                "executed": False,
-                "message": "Mock proposal created. Human approval is required.",
-            },
-            status="approval_required",
-            error_code="APPROVAL_REQUIRED",
-        )
-
-    if mode == "status":
-        if not action_id:
-            return make_response(
-                tool="restart_service",
-                trace_id=trace_id,
-                logical_tool_call_id=logical_tool_call_id,
-                attempt_id=attempt_id,
-                session_id=session_id,
-                data={
-                    "message": "action_id is required to inspect proposal status."
-                },
-                status="error",
-                error_code="INVALID_INPUT",
-            )
-
-        return make_response(
-            tool="restart_service",
-            trace_id=trace_id,
-            logical_tool_call_id=logical_tool_call_id,
-            attempt_id=attempt_id,
-            session_id=session_id,
-            data={
-                "action_id": action_id,
-                "proposal_status": "pending_approval",
-                "executed": False,
-                "message": "Mock proposal is waiting for approval.",
-            },
-        )
-
-    return make_response(
-        tool="restart_service",
-        trace_id=trace_id,
-        logical_tool_call_id=logical_tool_call_id,
-        attempt_id=attempt_id,
-        session_id=session_id,
-        data={"message": "Unsupported mock mode."},
-        status="error",
-        error_code="INVALID_INPUT",
-    )
+def restart_service(schema_version: str, session_id: str, trace_id: str,
+                    logical_tool_call_id: str, attempt_id: str,
+                    mode: Literal['propose', 'status'], unit: str | None = None,
+                    reason: str | None = None, evidence_ids: list[str] | None = None,
+                    action_id: str | None = None) -> dict:
+    """Create or inspect synthetic restart proposals. Never authorizes or executes a restart."""
+    metadata = dict(session_id=session_id, trace_id=trace_id,
+                    logical_tool_call_id=logical_tool_call_id, attempt_id=attempt_id)
+    now = datetime.now(timezone.utc)
+    for key, record in list(PROPOSALS.items()):
+        if datetime.fromisoformat(record['expires_at'].replace('Z', '+00:00')) <= now:
+            PROPOSALS.pop(key)
+    if mode == 'propose':
+        if len(PROPOSALS) >= 256:
+            return safe_error('restart_service', {}, 'POLICY_DENIED', rule='proposal_budget')
+        action_id = 'mock-action-' + secrets.token_urlsafe(24)
+        expires_at = (now + timedelta(seconds=PROPOSAL_TTL_SECONDS)).isoformat().replace('+00:00', 'Z')
+        PROPOSALS[(session_id, action_id)] = dict(expires_at=expires_at, unit=unit)
+        data = dict(action_id=action_id, proposal_status='pending_approval',
+                    executed=False, reason='[REDACTED]', evidence_ids=evidence_ids,
+                    unit=unit, expires_at=expires_at, message='Synthetic proposal; human approval required.')
+        return make_response('restart_service', **metadata, data=data,
+                             status='approval_required', error_code='APPROVAL_REQUIRED')
+    record = PROPOSALS.get((session_id, action_id))
+    # Public fixed walkthrough IDs represent synthetic states, never real outcomes.
+    state = next((value for value in RESTART_STATES if action_id == 'mock-fixture-' + value), None)
+    if record is None and state is None:
+        return safe_error('restart_service', {}, 'NOT_FOUND', rule='action')
+    data = dict(action_id=action_id, proposal_status=state or 'pending_approval',
+                executed=None if state == 'execution_unknown' else state in {'succeeded', 'failed'},
+                unit=record['unit'] if record else 'nginx.service',
+                expires_at=record['expires_at'] if record else (now + timedelta(seconds=-60 if state == 'expired' else PROPOSAL_TTL_SECONDS)).isoformat().replace('+00:00', 'Z'),
+                message='Synthetic status only; no command was executed.')
+    return make_response('restart_service', **metadata, data=data)
 
 
 if __name__ == "__main__":

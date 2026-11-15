@@ -25,15 +25,15 @@ REQUESTS = {
     "query_journal": {
         **COMMON,
         "unit": "nginx.service",
-        "since": "2026-11-01T00:00:00Z",
-        "until": "2026-11-05T00:00:00Z",
+        "since": "2026-11-02T00:00:00Z",
+        "until": "2026-11-03T00:00:00Z",
     },
     "search_log": {
         **COMMON,
         "source_id": "mock-source",
         "query": "error",
-        "since": "2026-11-01T00:00:00Z",
-        "until": "2026-11-05T00:00:00Z",
+        "since": "2026-11-02T00:00:00Z",
+        "until": "2026-11-03T00:00:00Z",
     },
     "service_status": {
         **COMMON,
@@ -54,32 +54,34 @@ REQUESTS = {
     },
     "memory_oom_events": {
         **COMMON,
-        "since": "2026-11-01T00:00:00Z",
-        "until": "2026-11-05T00:00:00Z",
+        "since": "2026-11-02T00:00:00Z",
+        "until": "2026-11-03T00:00:00Z",
     },
     "failed_logins": {
         **COMMON,
-        "since": "2026-11-01T00:00:00Z",
-        "until": "2026-11-05T00:00:00Z",
+        "since": "2026-11-02T00:00:00Z",
+        "until": "2026-11-03T00:00:00Z",
     },
     "detect_anomaly": {
         **COMMON,
-        "since": "2026-11-01T00:00:00Z",
-        "until": "2026-11-05T00:00:00Z",
+        "since": "2026-11-02T00:00:00Z",
+        "until": "2026-11-03T00:00:00Z",
     },
     "verify_fix": {
         **COMMON,
         "unit": "nginx.service",
         "check_types": ["service_active"],
         "baseline_evidence_refs": ["baseline-001"],
-        "since": "2026-11-01T00:00:00Z",
-        "until": "2026-11-05T00:00:00Z",
+        "since": "2026-11-02T00:00:00Z",
+        "until": "2026-11-03T00:00:00Z",
     },
     "restart_service": {
         **COMMON,
         "mode": "propose",
         "unit": "nginx.service",
         "reason": "STDIO mock test",
+        "evidence_ids": ["ev-synthetic-1"],
+        "evidence_ids": ["ev-synthetic-1"],
     },
 }
 
