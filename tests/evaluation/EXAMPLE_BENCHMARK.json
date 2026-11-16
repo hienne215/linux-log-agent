@@ -2,18 +2,43 @@
   "cohorts": [
     {
       "config_sha256": "3cf967fb1c6594fa5c49f17e54aecb8eb7e80feeaf3b1e57a568777f8e00e1ec",
+      "declared_protocol_gate": {
+        "expected_runs": 18,
+        "minimum_coverage": null,
+        "protocol_sha256": null
+      },
       "error_categories": {},
       "latency_scope": "model_request",
       "metrics": {
         "citation_validity": {
+          "coverage": {
+            "eligible_runs": 0,
+            "expected_runs": 18,
+            "observed_runs": 18,
+            "reason": "MISSING_PROTOCOL_THRESHOLD_OR_REFERENCE",
+            "status": "PENDING_PROTOCOL_GATE",
+            "unobserved_runs": 0,
+            "value": 0.0
+          },
           "denominator": 0,
           "eligible_runs": 0,
+          "meaning": "REFERENCE_RESOLUTION_ONLY",
           "missing_runs": 18,
           "numerator": 0,
+          "semantic_correctness": "NOT_EVALUATED",
           "status": "NOT_EVALUABLE",
           "value": null
         },
         "cleanup_success": {
+          "coverage": {
+            "eligible_runs": 0,
+            "expected_runs": 18,
+            "observed_runs": 18,
+            "reason": "MISSING_PROTOCOL_THRESHOLD_OR_REFERENCE",
+            "status": "PENDING_PROTOCOL_GATE",
+            "unobserved_runs": 0,
+            "value": 0.0
+          },
           "denominator": 0,
           "eligible_runs": 0,
           "missing_runs": 18,
@@ -22,14 +47,33 @@
           "value": null
         },
         "diagnostic_correctness": {
+          "coverage": {
+            "eligible_runs": 0,
+            "expected_runs": 18,
+            "observed_runs": 18,
+            "reason": "MISSING_PROTOCOL_THRESHOLD_OR_REFERENCE",
+            "status": "PENDING_PROTOCOL_GATE",
+            "unobserved_runs": 0,
+            "value": 0.0
+          },
           "denominator": 0,
           "eligible_runs": 0,
           "missing_runs": 18,
           "numerator": 0,
           "status": "NOT_EVALUABLE",
-          "value": null
+          "value": null,
+          "verification_status": "UNVERIFIED"
         },
         "error_rate": {
+          "coverage": {
+            "eligible_runs": 18,
+            "expected_runs": 18,
+            "observed_runs": 18,
+            "reason": "MISSING_PROTOCOL_THRESHOLD_OR_REFERENCE",
+            "status": "PENDING_PROTOCOL_GATE",
+            "unobserved_runs": 0,
+            "value": 1.0
+          },
           "denominator": 18,
           "eligible_runs": 18,
           "missing_runs": 0,
@@ -38,14 +82,33 @@
           "value": 0.0
         },
         "evidence_correctness": {
+          "coverage": {
+            "eligible_runs": 0,
+            "expected_runs": 18,
+            "observed_runs": 18,
+            "reason": "MISSING_PROTOCOL_THRESHOLD_OR_REFERENCE",
+            "status": "PENDING_PROTOCOL_GATE",
+            "unobserved_runs": 0,
+            "value": 0.0
+          },
           "denominator": 0,
           "eligible_runs": 0,
           "missing_runs": 18,
           "numerator": 0,
           "status": "NOT_EVALUABLE",
-          "value": null
+          "value": null,
+          "verification_status": "UNVERIFIED"
         },
         "latency": {
+          "coverage": {
+            "eligible_runs": 18,
+            "expected_runs": 18,
+            "observed_runs": 18,
+            "reason": "MISSING_PROTOCOL_THRESHOLD_OR_REFERENCE",
+            "status": "PENDING_PROTOCOL_GATE",
+            "unobserved_runs": 0,
+            "value": 1.0
+          },
           "max": 8.268310438998014,
           "mean": 4.55606677655568,
           "median": 3.1734472885000287,
@@ -57,11 +120,29 @@
         },
         "outside_allowlist_executions": {
           "count": null,
+          "coverage": {
+            "eligible_runs": 0,
+            "expected_runs": 18,
+            "observed_runs": 18,
+            "reason": "MISSING_PROTOCOL_THRESHOLD_OR_REFERENCE",
+            "status": "PENDING_PROTOCOL_GATE",
+            "unobserved_runs": 0,
+            "value": 0.0
+          },
           "eligible_runs": 0,
           "missing_runs": 18,
           "status": "NOT_EVALUABLE"
         },
         "timeout_rate": {
+          "coverage": {
+            "eligible_runs": 18,
+            "expected_runs": 18,
+            "observed_runs": 18,
+            "reason": "MISSING_PROTOCOL_THRESHOLD_OR_REFERENCE",
+            "status": "PENDING_PROTOCOL_GATE",
+            "unobserved_runs": 0,
+            "value": 1.0
+          },
           "denominator": 18,
           "eligible_runs": 18,
           "missing_runs": 0,
@@ -70,6 +151,15 @@
           "value": 0.0
         },
         "tool_and_exact_arguments_accuracy": {
+          "coverage": {
+            "eligible_runs": 18,
+            "expected_runs": 18,
+            "observed_runs": 18,
+            "reason": "MISSING_PROTOCOL_THRESHOLD_OR_REFERENCE",
+            "status": "PENDING_PROTOCOL_GATE",
+            "unobserved_runs": 0,
+            "value": 1.0
+          },
           "denominator": 18,
           "eligible_runs": 18,
           "missing_runs": 0,
@@ -78,6 +168,15 @@
           "value": 1.0
         },
         "tool_dispatch_count": {
+          "coverage": {
+            "eligible_runs": 0,
+            "expected_runs": 18,
+            "observed_runs": 18,
+            "reason": "MISSING_PROTOCOL_THRESHOLD_OR_REFERENCE",
+            "status": "PENDING_PROTOCOL_GATE",
+            "unobserved_runs": 0,
+            "value": 0.0
+          },
           "max": null,
           "mean": null,
           "median": null,
@@ -88,6 +187,15 @@
           "unit": "dispatches"
         },
         "tool_selection_accuracy": {
+          "coverage": {
+            "eligible_runs": 18,
+            "expected_runs": 18,
+            "observed_runs": 18,
+            "reason": "MISSING_PROTOCOL_THRESHOLD_OR_REFERENCE",
+            "status": "PENDING_PROTOCOL_GATE",
+            "unobserved_runs": 0,
+            "value": 1.0
+          },
           "denominator": 18,
           "eligible_runs": 18,
           "missing_runs": 0,
@@ -96,6 +204,15 @@
           "value": 1.0
         },
         "unauthorized_write_rejection": {
+          "coverage": {
+            "eligible_runs": 0,
+            "expected_runs": 18,
+            "observed_runs": 18,
+            "reason": "MISSING_PROTOCOL_THRESHOLD_OR_REFERENCE",
+            "status": "PENDING_PROTOCOL_GATE",
+            "unobserved_runs": 0,
+            "value": 0.0
+          },
           "denominator": 0,
           "eligible_runs": 0,
           "missing_runs": 18,
@@ -104,6 +221,15 @@
           "value": null
         },
         "verify_success": {
+          "coverage": {
+            "eligible_runs": 0,
+            "expected_runs": 18,
+            "observed_runs": 18,
+            "reason": "MISSING_PROTOCOL_THRESHOLD_OR_REFERENCE",
+            "status": "PENDING_PROTOCOL_GATE",
+            "unobserved_runs": 0,
+            "value": 0.0
+          },
           "denominator": 0,
           "eligible_runs": 0,
           "missing_runs": 18,
@@ -114,6 +240,13 @@
         }
       },
       "mode": "live_llm_mock_tools",
+      "official_report_eligibility": {
+        "reasons": [
+          "INDEPENDENT_ARTIFACT_COMPARISON_REQUIRED",
+          "INDEPENDENT_REVIEW_REQUIRED"
+        ],
+        "status": "UNVERIFIED"
+      },
       "protocol": "scrum14-instruct-6x3-native-selection",
       "revision": "990f41f68c8ef13218bf825bd57ff233a8c82f1c",
       "runs": 18

@@ -166,3 +166,99 @@ class MetricsTests(unittest.TestCase):
     def test_empty_dataset_does_not_invent_results(self):
         report=m.evaluate(dataset())
         self.assertEqual(report['unique_runs'],0);self.assertEqual(report['cohorts'],[])
+
+
+class ReviewRegressionTests(unittest.TestCase):
+    """Artificial protocol/assessment fixtures, never reviewer approvals."""
+    def with_protocol(self, *runs, expected=15, minimum=1.0, reference='b'*64):
+        return {**dataset(*runs),'protocols':{'unit-fixture':{'expected_runs':expected,
+            'minimum_coverage':minimum,'protocol_sha256':reference}}}
+
+    def test_metadata_only_assessment_remains_unverified(self):
+        result=m.evaluate(dataset(run(diagnosis=assessment(True))))['cohorts'][0]
+        metric=result['metrics']['diagnostic_correctness']
+        self.assertEqual(metric['value'],1)
+        self.assertEqual(metric['verification_status'],'UNVERIFIED')
+        self.assertEqual(result['official_report_eligibility']['status'],'UNVERIFIED')
+        self.assertIn('INDEPENDENT_ARTIFACT_COMPARISON_REQUIRED',result['official_report_eligibility']['reasons'])
+        self.assertIn('INDEPENDENT_REVIEW_REQUIRED',result['official_report_eligibility']['reasons'])
+        missing=metrics(run(diagnosis={**assessment(True),'reviewer_sha256':None}))['diagnostic_correctness']
+        self.assertEqual(missing['status'],'NOT_EVALUABLE')
+        self.assertEqual(missing['verification_status'],'UNVERIFIED')
+
+    def test_input_cannot_approve_itself(self):
+        for extra in ({'verified':True},{'reviewer_verified':True},{'artifacts_verified':True}):
+            with self.assertRaises(ValueError):metrics(run(diagnosis={**assessment(True),**extra}))
+
+    def test_high_accuracy_low_protocol_coverage_is_insufficient_data(self):
+        record=run(selection=selection([{'name':'service_status','arguments':{'unit':'nginx.service'}}]))
+        result=m.evaluate(self.with_protocol(record))['cohorts'][0]
+        score=result['metrics']['tool_selection_accuracy']
+        self.assertEqual(score['value'],1)
+        self.assertEqual(score['coverage']['value'],1/15)
+        self.assertEqual(score['coverage']['status'],'INSUFFICIENT_DATA')
+        self.assertEqual(score['coverage']['unobserved_runs'],14)
+        self.assertEqual(result['official_report_eligibility']['status'],'UNVERIFIED')
+
+    def test_coverage_uses_eligible_runs_not_only_observed_count(self):
+        rows=[run(i,diagnosis=assessment(True) if i==0 else None) for i in range(3)]
+        score=m.evaluate(self.with_protocol(*rows,expected=3))['cohorts'][0]['metrics']['diagnostic_correctness']
+        self.assertEqual(score['coverage']['eligible_runs'],1)
+        self.assertEqual(score['coverage']['observed_runs'],3)
+        self.assertEqual(score['coverage']['value'],1/3)
+        self.assertEqual(score['coverage']['unobserved_runs'],0)
+        self.assertEqual(score['coverage']['status'],'INSUFFICIENT_DATA')
+
+    def test_missing_protocol_and_missing_threshold_stay_pending(self):
+        result=m.evaluate(dataset(run(latency_s=1)))['cohorts'][0]
+        self.assertEqual(result['metrics']['latency']['coverage']['status'],'PENDING_PROTOCOL_GATE')
+        self.assertIsNone(result['metrics']['latency']['coverage']['value'])
+        for minimum,reference in ((None,'b'*64),(1.0,None)):
+            metric=m.evaluate(self.with_protocol(run(latency_s=1),expected=1,minimum=minimum,reference=reference))['cohorts'][0]['metrics']['latency']
+            self.assertEqual(metric['coverage']['value'],1)
+            self.assertEqual(metric['coverage']['status'],'PENDING_PROTOCOL_GATE')
+
+    def test_full_count_coverage_is_not_acceptance_or_accuracy_pass(self):
+        r=run(selection=selection([]))
+        c=m.evaluate(self.with_protocol(r,expected=1))['cohorts'][0]
+        self.assertEqual(c['metrics']['tool_selection_accuracy']['value'],0)
+        self.assertEqual(c['metrics']['tool_selection_accuracy']['coverage']['status'],'MET')
+        self.assertEqual(c['official_report_eligibility']['status'],'UNVERIFIED')
+
+    def test_invalid_protocol_and_invalid_provenance_fail_closed(self):
+        for expected,minimum in ((0,1.0),(True,1.0),(15,True),(15,float('nan')),(15,1.1)):
+            with self.assertRaises(ValueError):m.evaluate(self.with_protocol(run(),expected=expected,minimum=minimum))
+        for sha,pointer in (('not-a-hash','/runs/0'),('a'*64,'/runs/00'),('a'*64,'/runs/../0')):
+            with self.assertRaises(ValueError):metrics(run(provenance={'artifact_sha256':sha,
+                'record_pointer':pointer,'snapshot_sha256':None}))
+
+    def test_duplicate_cannot_fill_protocol_missing_runs(self):
+        r=run(latency_s=1)
+        c=m.evaluate(self.with_protocol(r,deepcopy(r),expected=2))['cohorts'][0]
+        self.assertEqual(c['metrics']['latency']['coverage']['value'],.5)
+        self.assertEqual(c['metrics']['latency']['coverage']['status'],'INSUFFICIENT_DATA')
+
+    def test_reference_resolution_alias_does_not_claim_semantics(self):
+        c=m.evaluate(dataset(run(citations=['e1'],evidence_ids=['e1'])))['cohorts'][0]
+        metric=c['metrics']['citation_validity']
+        self.assertEqual(metric['value'],1)
+        self.assertEqual(metric['meaning'],'REFERENCE_RESOLUTION_ONLY')
+        self.assertEqual(metric['semantic_correctness'],'NOT_EVALUATED')
+        self.assertEqual(c['metrics']['evidence_correctness']['status'],'NOT_EVALUABLE')
+        text=m.markdown(m.evaluate(dataset(run(citations=['e1'],evidence_ids=['e1']))))
+        self.assertIn('REFERENCE_RESOLUTION_ONLY',text)
+        self.assertIn('does not prove',text)
+        r=run(citations=['e1','missing','e1'],evidence_ids=['e1'])
+        metric=m.evaluate(self.with_protocol(r,expected=2))['cohorts'][0]['metrics']['citation_validity']
+        self.assertEqual(metric['denominator'],2)  # Unique references, not runs.
+        self.assertEqual(metric['coverage']['eligible_runs'],1)
+        self.assertEqual(metric['coverage']['value'],.5)
+        self.assertEqual(metric['value'],.5)
+
+    def test_no_data_and_excess_runs_not_mislabelled_failed_diagnosis(self):
+        c=m.evaluate(self.with_protocol(run(),expected=1))['cohorts'][0]
+        self.assertEqual(c['metrics']['diagnostic_correctness']['status'],'NOT_EVALUABLE')
+        self.assertEqual(c['metrics']['diagnostic_correctness']['coverage']['status'],'INSUFFICIENT_DATA')
+        c=m.evaluate(self.with_protocol(run(0,latency_s=1),run(1,latency_s=2),expected=1))['cohorts'][0]
+        self.assertEqual(c['metrics']['latency']['coverage']['status'],'PENDING_PROTOCOL_GATE')
+        self.assertEqual(c['metrics']['latency']['coverage']['reason'],'UNEXPECTED_RUN_COUNT')

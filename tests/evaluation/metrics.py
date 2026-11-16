@@ -54,6 +54,7 @@ def _count(value):
 
 
 def _assessment(value):
+    """Validate declared scoring inputs, not artifact authenticity or reviewer approval."""
     if value is None:
         return False
     if type(value) is not dict or set(value) != {'correct','ground_truth_sha256','reviewer_sha256','rubric_sha256'}:
@@ -77,7 +78,7 @@ def validate(run):
     p = run['provenance']
     if (type(p) is not dict or set(p) != {'artifact_sha256','record_pointer','snapshot_sha256'}
             or not _hash(p['artifact_sha256']) or type(p['record_pointer']) is not str
-            or re.fullmatch(r'/(?:rows|runs)/[0-9]{1,6}',p['record_pointer']) is None
+            or re.fullmatch(r'/(?:rows|runs)/(?:0|[1-9][0-9]{0,5})',p['record_pointer']) is None
             or (p['snapshot_sha256'] is not None and not _hash(p['snapshot_sha256']))
             or (run['mode']=='real_linux' and p['snapshot_sha256'] is None)):
         raise ValueError('INVALID_PROVENANCE')
@@ -164,11 +165,49 @@ def classify(run):
     return sorted(errors)
 
 
+def _protocols(value):
+    """Optional declared protocol gates. No default experimental threshold."""
+    if type(value) is not dict:
+        raise ValueError('INVALID_PROTOCOL')
+    for name,p in value.items():
+        if (type(name) is not str or re.fullmatch(r'[a-z0-9_-]{1,64}',name) is None
+                or type(p) is not dict
+                or set(p) != {'expected_runs','minimum_coverage','protocol_sha256'}):
+            raise ValueError('INVALID_PROTOCOL')
+        minimum = p['minimum_coverage']
+        if (not _count(p['expected_runs']) or p['expected_runs'] == 0
+                or (minimum is not None and (type(minimum) not in (int,float)
+                    or not math.isfinite(minimum) or not 0 <= minimum <= 1))
+                or (p['protocol_sha256'] is not None and not _hash(p['protocol_sha256']))):
+            raise ValueError('INVALID_PROTOCOL')
+    return value
+
+
+def _coverage(eligible, observed, protocol):
+    expected = protocol['expected_runs'] if protocol else None
+    result = {'eligible_runs':eligible,'observed_runs':observed,'expected_runs':expected,
+              'value':eligible/expected if expected else None,
+              'unobserved_runs':max(expected-observed,0) if expected else None,
+              'status':'PENDING_PROTOCOL_GATE','reason':'MISSING_PROTOCOL'}
+    if protocol:
+        if observed > expected:
+            result['reason'] = 'UNEXPECTED_RUN_COUNT'
+        elif protocol['minimum_coverage'] is None or protocol['protocol_sha256'] is None:
+            result['reason'] = 'MISSING_PROTOCOL_THRESHOLD_OR_REFERENCE'
+        elif eligible/expected < protocol['minimum_coverage']:
+            result.update(status='INSUFFICIENT_DATA',reason='ELIGIBLE_RUN_COVERAGE_BELOW_PROTOCOL')
+        else:
+            result.update(status='MET',reason='DECLARED_COUNT_COVERAGE_ONLY')
+    return result
+
+
 def evaluate(dataset):
-    if (type(dataset) is not dict or set(dataset) != {'schema_version','runs'}
+    if (type(dataset) is not dict or not {'schema_version','runs'} <= dataset.keys()
+            or dataset.keys() - {'schema_version','runs','protocols'}
             or dataset['schema_version'] != '1.0' or type(dataset['runs']) is not list
             or len(dataset['runs']) > 10000):
         raise ValueError('INVALID_DATASET')
+    protocols = _protocols(dataset.get('protocols',{}))
     unique,locators = {},{}
     duplicates = 0
     for run in dataset['runs']:
@@ -201,9 +240,11 @@ def evaluate(dataset):
                    'tool_and_exact_arguments_accuracy':_rate([s[1] for s in scores],total)}
         for source,target in (('diagnosis','diagnostic_correctness'),('evidence_assessment','evidence_correctness')):
             metrics[target] = _rate([r[source]['correct'] for r in runs if _assessment(r.get(source))],total)
+            metrics[target]['verification_status'] = 'UNVERIFIED'
         cited = [r for r in runs if r.get('citations') and r.get('evidence_ids') is not None]
         metrics['citation_validity'] = fraction(sum(ref in set(r['evidence_ids']) for r in cited for ref in set(r['citations'])),
-            sum(len(set(r['citations'])) for r in cited),eligible_runs=len(cited),missing_runs=total-len(cited))
+            sum(len(set(r['citations'])) for r in cited),eligible_runs=len(cited),missing_runs=total-len(cited),
+            meaning='REFERENCE_RESOLUTION_ONLY',semantic_correctness='NOT_EVALUATED')
         metrics['latency'] = _distribution([r['latency_s'] for r in runs if r.get('latency_s') is not None],total,'seconds')
         metrics['tool_dispatch_count'] = _distribution([r['tool_dispatches'] for r in runs if r.get('tool_dispatches') is not None],total,'dispatches')
         metrics['timeout_rate'] = _rate([r['timeout'] for r in runs if r.get('timeout') is not None],total)
@@ -219,13 +260,19 @@ def evaluate(dataset):
         verified = [r['verification']['outcome'] for r in runs if r.get('verification') and r['verification']['approved_fix']]
         metrics['verify_success'] = fraction(verified.count('pass'),len(verified),unknown=verified.count('unknown'),
             eligible_runs=len(verified),missing_runs=total-len(verified))
+        protocol = protocols.get(key[1])
+        for metric in metrics.values():
+            metric['coverage'] = _coverage(metric.get('eligible_runs',metric.get('n',0)),total,protocol)
         counts = Counter()
         for run in runs:
             errors = classify(run);counts.update(errors)
             if errors:
                 output['error_runs'].append({'run_id':run['run_id'],'provenance':run['provenance'],'categories':errors})
         output['cohorts'].append(dict(zip(('mode','protocol','config_sha256','revision','latency_scope'),key))
-                                 | {'runs':total,'metrics':metrics,'error_categories':dict(sorted(counts.items()))})
+                                 | {'runs':total,'metrics':metrics,'error_categories':dict(sorted(counts.items())),
+                                    'declared_protocol_gate':protocol,
+                                    'official_report_eligibility':{'status':'UNVERIFIED','reasons':[
+                                        'INDEPENDENT_ARTIFACT_COMPARISON_REQUIRED','INDEPENDENT_REVIEW_REQUIRED']}})
     output['error_runs'].sort(key=lambda r:r['run_id'])
     return output
 
@@ -259,24 +306,36 @@ def benchmark_example():
                 'record_pointer':pointer,'snapshot_sha256':None},
             'selection':{'expected':expected[row['case_id']],'actual':calls,'ground_truth_sha256':digest(cases_raw)},
             'latency_s':row['wall_latency_s'],'timeout':False,'errors':[]})
-    return {'schema_version':'1.0','runs':runs}
+    # Archive supplies the planned count, not a formal coverage threshold/signoff.
+    return {'schema_version':'1.0','runs':runs,'protocols':{
+        'scrum14-instruct-6x3-native-selection':{
+            'expected_runs':data['metadata']['planned_trials'],
+            'minimum_coverage':None,'protocol_sha256':None}}}
 
 
 def markdown(report):
     lines = ['# SCRUM-42 metrics','',
         'Offline recomputation only. No new inference or Linux run. Hash references are provenance, not authentication.',
+        'Official-report eligibility: UNVERIFIED. Original artifacts must be compared and independently reviewed.',
+        'EVALUATED means a calculation from declared inputs, not verified experimental correctness.',
+        'citation_validity is REFERENCE_RESOLUTION_ONLY: a resolved ID does not prove semantic evidence or conclusion correctness.',
         f"Unique runs: {report['unique_runs']}; exact duplicates ignored: {report['duplicate_runs_ignored']}.",'']
     for c in report['cohorts']:
         lines += [f"## {c['mode']} / {c['protocol']}",'',f"Revision: `{c['revision']}` (artifact snapshot, not proof of runtime identity).",
                   f"Config: `{c['config_sha256']}`; latency scope: {c['latency_scope']}; runs: {c['runs']}.",'',
-                  '| Metric | Value | Denominator / coverage |','|---|---|---|']
+                  'Count coverage gates are declared protocol checks only; MET is not acceptance.', '',
+                  '| Metric | Value | Denominator / observed missing | Protocol count coverage |','|---|---|---|---|']
         for name,m in c['metrics'].items():
             if m['status']=='NOT_EVALUABLE':value='NOT_EVALUABLE'
             elif 'value' in m:value=f"{m['value']:.6f}"
             elif 'median' in m:value=f"median {m['median']:.6f}; mean {m['mean']:.6f} {m['unit']}"
             else:value=str(m['count'])
             denominator = (f"{m['numerator']}/{m['denominator']}" if 'denominator' in m else str(m.get('n',m.get('eligible_runs',0))))
-            lines.append(f"| {name} | {value} | {denominator}; missing runs {m.get('missing_runs',0)} |")
+            if m.get('verification_status'):
+                value += '; '+m['verification_status']
+            coverage = m['coverage']
+            count = f"{coverage['eligible_runs']}/{coverage['expected_runs']}" if coverage['expected_runs'] else 'unknown expected count'
+            lines.append(f"| {name} | {value} | {denominator}; missing runs {m.get('missing_runs',0)} | {count}; {coverage['status']} ({coverage['reason']}) |")
         lines += ['', 'Error categories (multi-label; counts are not disjoint): '+canonical(c['error_categories']),'']
     lines += ['## Source artifacts', '', '| SHA-256 | Record pointers |', '|---|---|']
     for source in report['sources']:
