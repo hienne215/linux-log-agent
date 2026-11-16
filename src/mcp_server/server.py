@@ -24,6 +24,30 @@ def require_reader_identity():
         raise RuntimeError("Refusing root: launch under the configured reader UID")
 
 
+def valid_evidence_links(response):
+    """Validate local references; supplied baseline refs are external, not observations."""
+    identifiers = [item["evidence_id"] for item in response["evidence"]]
+    known = set(identifiers)
+    if len(known) != len(identifiers):
+        return False
+
+    def walk(value):
+        if isinstance(value, dict):
+            for key, child in value.items():
+                if key == "baseline_evidence_refs":
+                    continue
+                if key == "evidence_id" and child not in known:
+                    return False
+                if key == "evidence_refs" and any(ref not in known for ref in child):
+                    return False
+                if not walk(child):
+                    return False
+        elif isinstance(value, list):
+            return all(walk(child) for child in value)
+        return True
+    return walk(response["data"])
+
+
 class ServerScaffold:
     def __init__(self, backends=None, runner=None):
         self.backends = dict(backends or {})
@@ -86,6 +110,8 @@ class ServerScaffold:
                         response = contracts.safe_error(params.name, {}, response["error_code"], rule="worker")
                 elif any(response[key] != arguments[key] for key in
                          ("session_id", "trace_id", "logical_tool_call_id", "attempt_id")):
+                    raise WorkerFailure("EXECUTION_UNKNOWN")
+                if response["status"] != "error" and not valid_evidence_links(response):
                     raise WorkerFailure("EXECUTION_UNKNOWN")
             except WorkerFailure as failure:
                 response = contracts.safe_error(params.name, {}, failure.code, rule="worker")

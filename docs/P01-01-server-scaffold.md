@@ -87,3 +87,7 @@ Final counts/logs and failure/fix notes are in delivery evidence. No credentials
 ## R3 compatibility update — 16/11/2026
 
 See [R3 integration and downstream branch guidance](P01-01-R3-integration-2026-11-16.md). Atomic OUTPUT_LIMIT errors use truncated=false; only partial records use truncated=true. R3 request/window validation and coverage-error correlation are enforced before delivery.
+
+## Dependency review follow-up — 16/11/2026
+
+See [current dependency readiness](dependency-review-readiness.md). Worker success/partial data must reference uniquely identified returned evidence; dangling observation references or duplicate evidence IDs fail closed as EXECUTION_UNKNOWN. Supplied baseline_evidence_refs remain external and do not create observed evidence. This is structural provenance validation, not proof that a worker observed a real Linux event. Canonical schemas and default backend availability are unchanged.

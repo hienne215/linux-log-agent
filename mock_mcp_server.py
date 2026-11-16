@@ -1187,7 +1187,7 @@ def restart_service(schema_version: str, session_id: str, trace_id: str,
                 executed=None if state == 'execution_unknown' else state in {'succeeded', 'failed'},
                 unit=record['unit'] if record else 'nginx.service',
                 expires_at=record['expires_at'] if record else (now + timedelta(seconds=-60 if state == 'expired' else PROPOSAL_TTL_SECONDS)).isoformat().replace('+00:00', 'Z'),
-                message='Synthetic status only; no command was executed.')
+                message='Synthetic status fixture.')
     return make_response('restart_service', **metadata, data=data)
 
 

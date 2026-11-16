@@ -107,3 +107,7 @@ The tool statuses below refer to real Linux collection/execution, not the existi
 ## P01-01 R3 integration — 16/11/2026
 
 [Scaffold compatibility and P03-02 branch guidance](P01-01-R3-integration-2026-11-16.md): merges R3 without rewriting downstream history; fixes error cap/schema behavior and accepted coverage correlation. Draft, pending independent acceptance; no real collector or VM smoke claimed.
+
+## Dependency audit — 16/11/2026
+
+[PR #6/#14 review readiness](dependency-review-readiness.md): scoped confirmations recorded; current integration, detailed schemas/transport and independent scaffold review remain pending. Not finalized or Done.

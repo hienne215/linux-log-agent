@@ -59,6 +59,65 @@ def test_default_scaffold_fails_closed_without_linux_collector():
     asyncio.run(exercise())
 
 
+@pytest.mark.parametrize("fault", ["missing", "duplicate", "valid"])
+def test_worker_event_evidence_must_resolve_uniquely(fault):
+    class ResultRunner:
+        async def run(self, profile, arguments):
+            response = contracts.memory_oom_events(**arguments)
+            if fault == "missing":
+                response["data"]["events"][0]["evidence_id"] = SECRET
+            elif fault == "duplicate":
+                response["evidence"].append(dict(response["evidence"][0]))
+            assert contracts.TOOLS['memory_oom_events'][4].is_valid(response)
+            return json.dumps(response).encode('utf-8')
+    async def exercise():
+        args = {k:v for k,v in ARGS.items() if k != "unit"}
+        args.update(since="2026-11-02T00:00:00Z",until="2026-11-03T00:00:00Z")
+        app = ServerScaffold(backends={"memory_oom_events":argv("small")},runner=ResultRunner())
+        response = validate(await app.call_tool(SimpleNamespace(request_id=1),
+            CallToolRequestParams(name="memory_oom_events",arguments=args)),"memory_oom_events")
+        if fault == "valid":
+            assert response["status"] == "ok" and len(response["evidence"]) == 2
+        else:
+            assert response["error_code"] == "EXECUTION_UNKNOWN" and response["evidence"] == []
+    asyncio.run(exercise())
+
+
+def test_all_twelve_valid_contracts_over_scaffold_stdio():
+    from test_contract_audit import arguments
+    async def exercise():
+        params = StdioServerParameters(command=sys.executable,args=[str(ROOT/"run_mcp_server.py")])
+        async with Client(params) as client:
+            assert len((await client.list_tools()).tools) == 12
+            for name in contracts.TOOLS:
+                response = validate(await client.call_tool(name,arguments(name)),name)
+                assert response["error_code"] == "UNSUPPORTED"
+    asyncio.run(exercise())
+
+
+@pytest.mark.parametrize("dangling", [False, True])
+def test_verify_worker_external_baseline_is_distinct_from_observation_refs(dangling):
+    from test_contract_audit import arguments
+    class VerifyRunner:
+        async def run(self, profile, args):
+            response = contracts.verify_fix(**args)
+            if dangling:
+                response["data"]["checks"][0]["evidence_refs"] = [SECRET]
+            assert contracts.TOOLS['verify_fix'][4].is_valid(response)
+            return json.dumps(response).encode('utf-8')
+    async def exercise():
+        args = {**arguments('verify_fix'), 'baseline_evidence_refs':['external-baseline']}
+        app = ServerScaffold(backends={'verify_fix':argv('small')},runner=VerifyRunner())
+        response = validate(await app.call_tool(SimpleNamespace(request_id=1),
+            CallToolRequestParams(name='verify_fix',arguments=args)),'verify_fix')
+        if dangling:
+            assert response['error_code'] == 'EXECUTION_UNKNOWN'
+        else:
+            assert response['status'] == 'partial'
+            assert response['data']['baseline_evidence_refs'] == ['external-baseline']
+    asyncio.run(exercise())
+
+
 def test_root_identity_is_rejected_without_privilege_change(monkeypatch):
     monkeypatch.setattr(server_module, "os", SimpleNamespace(name="posix", geteuid=lambda: 0))
     with pytest.raises(RuntimeError, match="Refusing root"):
