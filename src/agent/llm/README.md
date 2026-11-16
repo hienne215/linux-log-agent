@@ -74,3 +74,192 @@ Bộ lọc nằm trong `redaction.py`, được Adapter dùng cho cả text và 
 - JSON lỗi/duplicate keys, quoted secret thiếu dấu đóng, private-key marker, vượt1MiB hoặc quá16 bước đệ quy bị DATA_POLICY. Không log body/exception chứa giá trị. Các formats/encoding ngoài phạm vi (base64, ciphertext, Unicode confusables tùy ý, unlabeled secrets) không có bảo đảm nhận biết; collector vẫn phải lọc trước.
 
 Kết quả: **57/57 offline unit tests PASS**, gồm32 tests cũ +25 regression tests. Không inference mới;4/4 live smoke là bằng chứng lịch sử trước bản sửa này, không chứng minh redaction mới đã qua live inference. Hard wall deadline/cancellation và MCP/Agent integration vẫn ngoài phạm vi.
+
+## Async integration candidate — 13/11/2026
+
+Worktree/branch `linux-log-agent-async-llm` / `feat/SCRUM-23-async-adapter`, base
+main `990f41f68c8ef13218bf825bd57ff233a8c82f1c`. Async PR độc lập vào main;
+Coordinator/Bridge/CLI chỉ là dependency của composed tests và demo tương lai.
+Main có Adapter, chưa có Coordinator/Bridge/CLI trong Draft PR #7/#8/#9. Composition
+runner lấy **exact PR #9 commit ab05df010a5dc95faf2adbfa6ee997387d2dbc1e** vào vùng
+Git archive tạm và overlay LLM code/tests mới; không sửa hoặc merge dependency.
+
+Thêm ba modules, không thay API sync hoặc thêm dependency/framework:
+
+- `async_adapter.AsyncOllamaAdapter.complete(...)`: await được, trả Completion cũ.
+  Single-flight, tối đa6attempts/120s từ lúc khởi tạo; request timeout bao gồm startup.
+  Text được lọc trước IPC; worker environment tối thiểu không kế thừa credentials.
+- `_async_worker`: một request/process, Adapter sync cũ thực hiện HTTP/validation.
+  Bounded JSON IPC tối đa1MiB mỗi chiều, không pickle/unbounded communicate/stderr
+  logging. Default model/options giữ nguyên; test seam chỉ nhận trusted argv.
+- `decision_source.AsyncDecisionSource.choose(question, observations)`: tương thích
+  Protocol của Coordinator (lazy import dependency PR #8); native call → Decision,
+  text phải là JSON đúng `{conclusion, citations}` với refs hiện có. Không dùng JSON
+  trong text làm tool call, không tự gắn mọi refs hoặc xác minh semantic claim.
+
+Registry/schema/read-only do ứng dụng tin cậy cấp, không lấy từ model. Source không
+có MCP wire fields/IDs/binder/approval. Observation không chứa trusted tool_name/call
+correlation; vì vậy truyền bằng user message có nhãn untrusted data, không tự bịa
+role=tool từ source text. Khi contract/binder được chốt có thể dùng ToolMessage thật.
+
+### Sử dụng seam khi đã compose dependencies
+
+```python
+from agent.llm.async_adapter import AsyncOllamaAdapter
+from agent.llm.decision_source import AsyncDecisionSource, run_coordinator
+
+model = AsyncDecisionSource(AsyncOllamaAdapter(seconds=120), trusted_tools,
+                            read_only=read_only_names)
+# Coordinator/executor/interpret do ứng dụng cung cấp, theo dependency đã review.
+coordinator = Coordinator(model, executor, read_only=read_only_names,
+                          scope_allows=scope_allows, interpret=interpret, redact=redact)
+report = await run_coordinator(coordinator, question)
+```
+
+Dùng `run_coordinator`, không chỉ gọi Coordinator.run rồi bỏ model: helper rejoin
+cả model lẫn executor. Nếu cleanup chưa xác nhận, c.report.cleanup_pending được đặt,
+exception safe CLEANUP_PENDING được trả; phải giữ coordinator/model và gọi
+`await model.finish_cleanup(); await coordinator.finish_cleanup()` để rejoin rồi đọc
+lại c.report. Không đóng event loop/service trong khi còn owner pending.
+
+### Deadline và cancellation thực sự đảm bảo gì?
+
+urllib sync không có external request abort handle. Không dùng to_thread/shield để
+cam kết hủy inference. Dedicated async owner khởi chạy fixed worker, quản lý pipes,
+request, terminate/grace/kill và wait; caller không cancel owner. Nếu cleanup budget
+hết, owner/process reference còn nguyên và không nhận request mới. Late result bị
+bỏ, không normalize/dispatch/MCP hoặc cập nhật decision history. Không tự retry.
+
+Coordinator wait_for có thể cancel choose khi deadline nhỏ hơn adapter budget;
+worker vẫn được join bằng cleanup budget riêng. No hard wall SLA: bounded CPU
+validation/redaction, process startup và OS teardown có giới hạn thực tế; worker
+không dừng được vẫn là cleanup_pending, không tuyên bố đã hủy. Test SIGTERM-ignore
+đã kiểm kill+reap. Không chứng minh Ollama backend đã dừng inference khi client
+worker bị dừng; usage latency vẫn là HTTP latency của Adapter, không gồm startup.
+
+AsyncLLMError có code/layer an toàn: CONNECTION_ERROR/HTTP_ERROR/WORKER_FAILURE
+(transport), MODEL_NOT_FOUND/API_ERROR/OUTPUT_POLICY (model), MALFORMED_RESPONSE
+(protocol). LLMTimeout là TimeoutError cho TIMEOUT/DEADLINE_EXCEEDED; caller
+cancellation vẫn là CancelledError. Source.last_error và adapter.last_error giữ code,
+không raw messages/log/reasoning. Coordinator cũ gom lỗi LLM không phải timeout
+thành data_policy; chưa thêm report status/API mới, UI sau này cần đọc safe code này.
+
+### Tests và tái lập
+
+Prepared Python3.12.16/MCP2.3.0/jsonschema4.26.0/referencing0.37.0. Từ root checkout,
+với venv chứa dependencies hiện có; Git object PR #9 phải có sẵn (nếu clone mới,
+fetch nhánh feat/SCRUM-27-cli-report trước). Không inference hoặc real Linux tools.
+
+```bash
+# Unit worker/Adapter, không cần Coordinator trong main
+PYTHONPATH=src python -B -m unittest discover -s tests/async_llm -p test_async.py -v
+# Async + Coordinator mock slice; immutable dependency composition
+PYTHONDONTWRITEBYTECODE=1 python -B tests/async_llm/run_composed_tests.py --suite async_llm
+# Tất cả regression; real SDK nhưng server vẫn synthetic
+RUN_MCP_STDIO_SMOKE=1 PYTHONDONTWRITEBYTECODE=1 python -B tests/async_llm/run_composed_tests.py
+```
+
+Kết quả lượt cuối: **276 PASS,0 FAIL,0 SKIP** =15 async unit/mock +9 Coordinator/
+Bridge mock integration +57 Adapter +46 MCP Client +50 Boundary +64 SCRUM24 +35 CLI.
+Tests có native tool/usage, conclusion/citations, invalid output no MCP dispatch,
+model timeout/disconnect/not-found, startup cancel/repeated cancel, late result,
+SIGTERM-ignore kill/reap, cleanup pending/rejoin, environment/redaction, six-turn
+cap và lower Bridge budget. Fixture six-turn đã cấu hình Bridge8calls; có test riêng
+chứng minh default4calls vẫn binding. Không tăng production budgets để làm tests pass.
+
+Giới hạn: no live Ollama; no Linux collector; no production contracts/binder;
+stateless prompt projection chưa là full model history/role=tool integration;
+semantic truth và known real-data redaction follow-ups chưa giải quyết. Chờ Thủy
+chốt service_status schemas/correlation/evidence; Trang+Hiền chốt target VM, UID/NNP,
+permissions, topology loopback/stdio và RAM. Bước demo ngắn nhất sau gate:1native
+LLM tool selection →1approved MCP service_status →source evidence thật →report,
+không lấy fixture hoặc dựng evidence từ active_state thay provenance của server.
+
+## Review update — async lifecycle và prepared live smoke
+
+Trạng thái ở lần review trước live: **READY FOR DRAFT PR; Live Ollama: NOT RUN**.
+Kết quả live mới và lần regression cuối nằm ở phần cập nhật bên dưới.
+Review đã tái hiện trước sửa ba NEEDS CHANGE, nay regression PASS:
+
+1. Teardown OSError có thể kết thúc owner trước khi process/I/O tasks được thu hồi.
+   Owner nay giữ process/task references, ghi code CLEANUP_FAILED và chờ explicit
+   finish_cleanup để thử lại teardown. Không bỏ owner hoặc log raw OSError.
+2. Tool-call history arguments chưa được validate trước IPC. Parent nay dùng chính
+   validator/_call của Adapter để từ chối arguments chứa secret trước spawn; không
+   tự rewrite arguments. Tool descriptions được redact trước IPC.
+3. Budget có thể hết trong normalization mà result vẫn được trả. Nay kiểm tra lại
+   request/global deadline trước publish Completion, bỏ late result và dừng reuse.
+
+Sync Adapter/HTTPTransport, worker protocol và Coordinator API không đổi. Baseline
+trước review là276PASS; sau thêm3regression và6smoke-driver tests: **285PASS,0FAIL,
+0SKIP** =18async unit/mock +9Coordinator synthetic +6driver mock +252regression.
+Trong96Client/Boundary tests có real SDK stdio synthetic; không phải MCP Linux thật.
+Các suites được chạy mới bằng Python3.12.16/MCP2.3.0. Source/tests không có hardcoded
+personal paths hoặc import từ worktree khác; composition dùng pinned Git objects.
+
+### Live smoke — cách chạy có kiểm soát
+
+Script `tests/async_llm/live_smoke.py`: mặc định không HTTP/inference; preflight chỉ
+đọc version/tags/show và RAM; không gọi chat/generate ở chế độ preflight.
+Capabilities metadata không chứng minh thinking bật/tắt. Giữ không truyền think;
+Adapter vẫn reject nonempty thinking/think tags.
+
+Chỉ sau khi Hiền phê duyệt riêng, từ root repository với prepared venv:
+
+```bash
+# Chỉ metadata, zero inference (đã được kiểm chứng)
+PYTHONPATH=src python -B tests/async_llm/live_smoke.py --preflight-only
+# Mỗi lần chạy mới cần phê duyệt riêng; không tự retry
+PYTHONPATH=src python -B tests/async_llm/live_smoke.py --run-live-two-requests
+```
+
+Điều kiện: xác nhận đúng version/model/digest ở preflight, Ollama idle và không
+chạy benchmark khác, RAM>=1GiB, giữ terminal/service sống để rejoin owner. Không
+đổi server/model, không pull model, không sửa endpoint. Metadata không chứng minh
+server idle; cần người vận hành xác nhận trước khi phê duyệt.
+
+Cấu hình: ctx4096,predict256,temp0,thread4,stream=false,omit think;45s/request gồm
+worker startup;100s overall adapter budget;max2attempts. Request1 native selection
+service_status(unit=nginx.service) synthetic, không thực thi tool. Request2 text JSON
+conclusion/citations từ synthetic smoke-e1. Stop ngay nếu case/RAM/API/deadline lỗi,
+không retry và không cố chạy request2 sau lỗi request1. Sample RAM mỗi~0.1s, không
+thể bảo đảm bắt mọi transient memory dip. Không real logs/MCP/Linux/approval/restart.
+
+JSON output chỉ lưu structural results/usage/latency/RAM và cleanup status, không
+raw model content/reasoning. Driver giữ event loop và owner để rejoin nếu cleanup
+pending, không thoát ngầm rồi bỏ process; điều đó có thể chờ lâu hơn request budget.
+Ctrl+C/force exit không chứng minh server đã dừng inference. Worker reaped chỉ là
+client-side cleanup; backend_inference_cancellation luôn NOT VERIFIED. Không tự
+rerun nếu timeout; cần kiểm tra backend đã idle trước lần được duyệt tiếp theo.
+
+### Bước tiếp gần demo nhất
+
+Giữ CLI hiện tại là synthetic. Smoke2request đã PASS trong lượt được duyệt riêng
+ngày13/11/2026; không tự chạy lại. Tiếp theo nối CLI→AsyncDecisionSource→
+Coordinator bằng backend factory tin cậy và error-code presentation, giữ lifecycle
+run_coordinator. Có thể kiểm mock path trước, không phát minh wire fields. Live MCP
+vẫn chờ Thủy chốt service_status schema/correlation/evidence và collector thật,
+Trang+Hiền chốt VM/UID/permissions/topology/RAM. Không đổi nhãn synthetic thành live
+hoặc bỏ IPC/UID deployment gates chỉ vì async wrapper/tests đã PASS.
+
+
+## Final validation — 13/11/2026
+
+- Python3.12.16, MCP2.3.0, jsonschema4.26.0; không thêm runtime dependency.
+- Regression mới thực chạy: **285 PASS, 0 FAIL, 0 SKIP** (kết quả chi tiết ở PR).
+  Trong đó 8 tests dùng real SDK với synthetic stdio server; không phải Linux MCP.
+- Live smoke ở lượt được Hiền duyệt riêng: **2/2 PASS**, đúng một invocation,
+  tối đa2attempts, không retry; không chạy lại inference trong final PR review.
+- Ollama0.40.13, qwen3:4b-instruct-2507-q4_K_M; ctx4096/predict256/temp0/thread4,
+  stream=false, omit think,45s/request. Native service_status(unit=nginx.service)
+  đúng schema; conclusion JSON có citation smoke-e1, semantic claim chưa được chấm.
+- HTTP latency8.847s/4.616s; tổng wall8.966s/4.750s; prompt/output tokens177/21
+  và75/47; generation14.54/13.92tokens/s. Không timeout/API/schema errors;
+  worker cleanup confirmed, exit0, không thấy worker còn sót sau chạy.
+- Không commit runtime artifacts, machine inventory, raw model content/reasoning
+  hoặc log thật. Đây là bằng chứng live LLM trên dữ liệu synthetic, không phải
+  end-to-end CLI+real MCP hoặc deployment theo UID/IPC của ARCHITECTURE.
+- Client worker cleanup không chứng minh Ollama backend dừng inference khi kill.
+  No hard wall SLA; cancellation live chưa thử. Chưa finalized contracts SCRUM-12,
+  chưa production binder, approval/helper, auto-remediation hoặc real Linux tools.
+  Chưa đủ điều kiện SCRUM-23 Done hay production-ready.
