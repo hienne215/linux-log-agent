@@ -28,7 +28,7 @@ It also tracks the status of project features, so planned work is never presente
 | System architecture | `docs/architecture.md` | Team | Planned |
 | Security design | `docs/security-design.md` | C | Planned |
 | Evaluation scenarios and answer keys | `docs/evaluation-scenarios.md` | C | Planned |
-| Setup and install guide | `docs/setup-guide.md` | C | Planned |
+| Setup and install guide | `docs/setup-guide.md` | C | Proposed |
 | Test report | `docs/test-report.md` | C | Planned |
 | Final report (English) | `docs/report/` | Team | Planned |
 | Slides (English) | `docs/report/` | Team | Planned |
@@ -68,7 +68,7 @@ Scope follows the agreed outline: 12 core tools, 5 required scenarios.
 | Markdown incident report | Core | B | Planned |
 | Privileged helper and approval flow | Core | C | Planned |
 | Audit log | Core | C | Planned |
-| Test VM and snapshot | Core | C | Planned |
+| Test VM and snapshot | Core | C | In Progress |
 | Evaluation runs (5 scenarios, 3 runs each) | Core | C | Planned |
 | Unit tests | Core | A | Planned |
 | Incident history (SQLite) | Optional | B | Planned |

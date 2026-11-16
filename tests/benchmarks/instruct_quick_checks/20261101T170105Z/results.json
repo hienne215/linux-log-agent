@@ -1,0 +1,559 @@
+{
+  "metadata": {
+    "started_at": "2026-11-01T17:01:05.235774+00:00",
+    "model": "qwen3:4b-instruct-2507-q4_K_M",
+    "planned_trials": 6,
+    "think_request": "omitted",
+    "options": {
+      "temperature": 0,
+      "num_ctx": 4096,
+      "num_predict": 256,
+      "num_thread": 4,
+      "seed": 42
+    },
+    "timeout_s": 45,
+    "total_budget_s": 360,
+    "base_url": "http://127.0.0.1:11434",
+    "suite_sha256": "a1c55728a3d614f2c9f8eca7c165999967ad9069ffb680cf2b2425a9ebc0d90a",
+    "script_sha256": "be3b882286f00624c5ba92a06794ea6af783e0bc8bf8f12121a405ad3dcee97f",
+    "reused_harness_sha256": "d5b2011ff3f7ad704a387f4d8fc2058e8a518eda06c4c73218469fac53dcea19",
+    "baseline_result_sha256": "5fd71390fb061f0b3da150c38aa3ea11e706cb9be42edf1b374e65d1b4fa6a4f",
+    "baseline": "results/20261101T162601152976Z/results.json",
+    "baseline_comparison": "think=true, repetition=1, seed=42, same six cases/tools/prompts/order",
+    "changed_model": "Thinking-2507 -> Instruct-2507; native model defaults retained",
+    "changed_deadline_s": [
+      45,
+      45
+    ],
+    "gate": "unchanged; quick six trials cannot qualify 18-trial gate",
+    "warmup": "none; cold/warm status and load duration retained; no warmup inference",
+    "ollama_version": "0.40.13",
+    "model_digest": "0edcdef34593eac1aa2be9c7d06c432dcf81945adca5eca2f27662c18f168ba0",
+    "loaded_before": {
+      "models": []
+    },
+    "thinking": null,
+    "capabilities": [
+      "tools",
+      "thinking",
+      "completion"
+    ],
+    "model_identity": {
+      "general.architecture": "qwen3",
+      "general.basename": "Qwen3",
+      "general.file_type": 15,
+      "general.finetune": "Instruct",
+      "general.license": "apache-2.0",
+      "general.license.link": "https://huggingface.co/Qwen/Qwen3-4B-Instruct-2507/blob/main/LICENSE",
+      "general.parameter_count": 4022468096,
+      "general.quantization_version": 2,
+      "general.size_label": "4B",
+      "general.tags": [
+        "text-generation"
+      ],
+      "general.type": "model",
+      "general.version": "2507"
+    },
+    "model_parameters": "top_p                          0.8\nrepeat_penalty                 1\nstop                           \"<|im_start|>\"\nstop                           \"<|im_end|>\"\ntemperature                    0.7\ntop_k                          20",
+    "template_sha256": "40c21f34cf67d8c760ef72f8ad3ae5afad514299d4b06e91dd9a8d705af7b541",
+    "template_always_opens_think": true,
+    "system_mem_before": {
+      "MemTotal": 15935508480,
+      "MemFree": 3624370176,
+      "MemAvailable": 7483703296,
+      "Buffers": 37715968,
+      "Cached": 5486198784,
+      "SwapCached": 28102656,
+      "Active": 4391550976,
+      "Inactive": 6414139392,
+      "Active(anon)": 3579502592,
+      "Inactive(anon)": 3123568640,
+      "Active(file)": 812048384,
+      "Inactive(file)": 3290570752,
+      "Unevictable": 398843904,
+      "Mlocked": 16384,
+      "SwapTotal": 4294963200,
+      "SwapFree": 2676092928,
+      "Zswap": 0,
+      "Zswapped": 0,
+      "Dirty": 8024064,
+      "Writeback": 0,
+      "AnonPages": 5669007360,
+      "Mapped": 1370951680,
+      "Shmem": 1421533184,
+      "KReclaimable": 349814784,
+      "Slab": 695894016,
+      "SReclaimable": 349814784,
+      "SUnreclaim": 346079232,
+      "KernelStack": 32841728,
+      "PageTables": 124239872,
+      "SecPageTables": 9641984,
+      "NFS_Unstable": 0,
+      "Bounce": 0,
+      "WritebackTmp": 0,
+      "CommitLimit": 12262715392,
+      "Committed_AS": 40251609088,
+      "VmallocTotal": 35184372087808,
+      "VmallocUsed": 81911808,
+      "VmallocChunk": 0,
+      "Percpu": 20054016,
+      "HardwareCorrupted": 0,
+      "AnonHugePages": 0,
+      "ShmemHugePages": 585105408,
+      "ShmemPmdMapped": 0,
+      "FileHugePages": 260046848,
+      "FilePmdMapped": 253755392,
+      "CmaTotal": 0,
+      "CmaFree": 0,
+      "Unaccepted": 0,
+      "Balloon": 0,
+      "HugePages_Total": 0,
+      "HugePages_Free": 0,
+      "HugePages_Rsvd": 0,
+      "HugePages_Surp": 0,
+      "Hugepagesize": 2097152,
+      "Hugetlb": 0,
+      "DirectMap4k": 333709312,
+      "DirectMap2M": 5819596800,
+      "DirectMap1G": 10737418240
+    },
+    "finished_at": "2026-11-01T17:01:46.019474+00:00",
+    "elapsed_s": 40.78356475200053,
+    "system_mem_after": {
+      "MemTotal": 15935508480,
+      "MemFree": 466378752,
+      "MemAvailable": 4231712768,
+      "Buffers": 35188736,
+      "Cached": 5369552896,
+      "SwapCached": 28520448,
+      "Active": 7618400256,
+      "Inactive": 6377746432,
+      "Active(anon)": 6875721728,
+      "Inactive(anon)": 3104813056,
+      "Active(file)": 742678528,
+      "Inactive(file)": 3272933376,
+      "Unevictable": 353140736,
+      "Mlocked": 16384,
+      "SwapTotal": 4294963200,
+      "SwapFree": 2672144384,
+      "Zswap": 0,
+      "Zswapped": 0,
+      "Dirty": 6164480,
+      "Writeback": 0,
+      "AnonPages": 8932425728,
+      "Mapped": 1373683712,
+      "Shmem": 1389383680,
+      "KReclaimable": 335826944,
+      "Slab": 681889792,
+      "SReclaimable": 335826944,
+      "SUnreclaim": 346062848,
+      "KernelStack": 33226752,
+      "PageTables": 130215936,
+      "SecPageTables": 9551872,
+      "NFS_Unstable": 0,
+      "Bounce": 0,
+      "WritebackTmp": 0,
+      "CommitLimit": 12262715392,
+      "Committed_AS": 43734872064,
+      "VmallocTotal": 35184372087808,
+      "VmallocUsed": 82268160,
+      "VmallocChunk": 0,
+      "Percpu": 20054016,
+      "HardwareCorrupted": 0,
+      "AnonHugePages": 0,
+      "ShmemHugePages": 576716800,
+      "ShmemPmdMapped": 0,
+      "FileHugePages": 260046848,
+      "FilePmdMapped": 253755392,
+      "CmaTotal": 0,
+      "CmaFree": 0,
+      "Unaccepted": 0,
+      "Balloon": 0,
+      "HugePages_Total": 0,
+      "HugePages_Free": 0,
+      "HugePages_Rsvd": 0,
+      "HugePages_Surp": 0,
+      "Hugepagesize": 2097152,
+      "Hugetlb": 0,
+      "DirectMap4k": 333709312,
+      "DirectMap2M": 5819596800,
+      "DirectMap1G": 10737418240
+    }
+  },
+  "status": "complete_quick_check",
+  "summary": {
+    "trials": 6,
+    "tool_correct": 6,
+    "arguments_correct": 6,
+    "valid_structure": 6,
+    "joint_success": 6,
+    "mean_latency_s": 6.758770611166862,
+    "median_latency_s": 5.304959668001175,
+    "output_tokens": 223,
+    "weighted_tokens_per_second": 11.81992498004924
+  },
+  "rows": [
+    {
+      "case_id": "S1",
+      "case_name": "Nginx failed",
+      "repetition": 1,
+      "think_request": "omitted",
+      "seed": 42,
+      "started_at": "2026-11-01T17:01:05.286582+00:00",
+      "wall_latency_s": 17.158866603000206,
+      "response_received": true,
+      "expected": {
+        "name": "service_status",
+        "arguments": {
+          "unit": "nginx.service"
+        }
+      },
+      "request_sha256": "e130b6b83dcbf366d01aa7733b34ff01edd850dd366fd39dfce805b09cf77dcd",
+      "ollama_tree_rss_peak_mib": 3146.9609375,
+      "ollama_tree_cpu_pct_one_core": 344.3488679599195,
+      "ollama_tree_cpu_pct_machine": 21.52180424749497,
+      "system_available_min_mib": 4059.57421875,
+      "system_swap_used_max_mib": 1547.12109375,
+      "classification": "correct",
+      "valid_structure": true,
+      "tool_correct": true,
+      "arguments_correct": true,
+      "joint_success": true,
+      "argument_schema_valid": true,
+      "tool_calls": [
+        {
+          "id": "jBnuUkdcOgptI3QlZKRXUqJeNtu20mCB",
+          "function": {
+            "index": 0,
+            "name": "service_status",
+            "arguments": {
+              "unit": "nginx.service"
+            }
+          }
+        }
+      ],
+      "content_chars": 0,
+      "thinking_chars": 0,
+      "content_think_marker": false,
+      "done_reason": "stop",
+      "done": true,
+      "total_duration_s": 17.080898859,
+      "load_duration_s": 3.309405294,
+      "prompt_eval_duration_s": 12.035859,
+      "eval_duration_s": 1.704294,
+      "prompt_eval_count": 624,
+      "eval_count": 21,
+      "tokens_per_second": 12.321817714549251,
+      "baseline_256": {
+        "joint_success": true,
+        "classification": "correct",
+        "wall_latency_s": 21.466991048000637,
+        "eval_count": 236,
+        "done_reason": "stop"
+      }
+    },
+    {
+      "case_id": "S2",
+      "case_name": "Read Nginx journal",
+      "repetition": 1,
+      "think_request": "omitted",
+      "seed": 42,
+      "started_at": "2026-11-01T17:01:22.467021+00:00",
+      "wall_latency_s": 7.7769418279967795,
+      "response_received": true,
+      "expected": {
+        "name": "query_journal",
+        "arguments": {
+          "unit": "nginx.service",
+          "since": "2026-11-01T15:00:00Z",
+          "until": "2026-11-01T15:15:00Z"
+        }
+      },
+      "request_sha256": "0d65600888afc77b8c64128cb84a791941c90fbe62658515d4945c357e939b5d",
+      "ollama_tree_rss_peak_mib": 3147.5859375,
+      "ollama_tree_cpu_pct_one_core": 399.29556194634466,
+      "ollama_tree_cpu_pct_machine": 24.95597262164654,
+      "system_available_min_mib": 4047.12890625,
+      "system_swap_used_max_mib": 1547.12109375,
+      "classification": "correct",
+      "valid_structure": true,
+      "tool_correct": true,
+      "arguments_correct": true,
+      "joint_success": true,
+      "argument_schema_valid": true,
+      "tool_calls": [
+        {
+          "id": "stAYAQhwP9fBUjiB0QstASepKZiVYOjy",
+          "function": {
+            "index": 0,
+            "name": "query_journal",
+            "arguments": {
+              "unit": "nginx.service",
+              "since": "2026-11-01T15:00:00Z",
+              "until": "2026-11-01T15:15:00Z"
+            }
+          }
+        }
+      ],
+      "content_chars": 0,
+      "thinking_chars": 0,
+      "content_think_marker": false,
+      "done_reason": "stop",
+      "done": true,
+      "total_duration_s": 7.696200436,
+      "load_duration_s": 0.00096488,
+      "prompt_eval_duration_s": 1.61609,
+      "eval_duration_s": 6.068615,
+      "prompt_eval_count": 667,
+      "eval_count": 71,
+      "tokens_per_second": 11.699539351235826,
+      "baseline_256": {
+        "joint_success": false,
+        "classification": "text_only",
+        "wall_latency_s": 26.39892725000027,
+        "eval_count": 256,
+        "done_reason": "length"
+      }
+    },
+    {
+      "case_id": "S3",
+      "case_name": "Disk nearly full",
+      "repetition": 1,
+      "think_request": "omitted",
+      "seed": 42,
+      "started_at": "2026-11-01T17:01:30.269592+00:00",
+      "wall_latency_s": 2.4141758139994636,
+      "response_received": true,
+      "expected": {
+        "name": "disk_usage",
+        "arguments": {
+          "path": "/"
+        }
+      },
+      "request_sha256": "baaaa62373ad9bd78db9943e2a355a75de95432cbe63c9ebdb0ffd36d161c494",
+      "ollama_tree_rss_peak_mib": 3148.3359375,
+      "ollama_tree_cpu_pct_one_core": 396.8696941814197,
+      "ollama_tree_cpu_pct_machine": 24.80435588633873,
+      "system_available_min_mib": 4032.06640625,
+      "system_swap_used_max_mib": 1547.11328125,
+      "classification": "correct",
+      "valid_structure": true,
+      "tool_correct": true,
+      "arguments_correct": true,
+      "joint_success": true,
+      "argument_schema_valid": true,
+      "tool_calls": [
+        {
+          "id": "oavJhm31Vmassy7fGfADJ5C9xaf0PoDz",
+          "function": {
+            "index": 0,
+            "name": "disk_usage",
+            "arguments": {
+              "path": "/"
+            }
+          }
+        }
+      ],
+      "content_chars": 0,
+      "thinking_chars": 0,
+      "content_think_marker": false,
+      "done_reason": "stop",
+      "done": true,
+      "total_duration_s": 2.33988593,
+      "load_duration_s": 0.000713258,
+      "prompt_eval_duration_s": 0.76607,
+      "eval_duration_s": 1.561823,
+      "prompt_eval_count": 622,
+      "eval_count": 19,
+      "tokens_per_second": 12.165270968605277,
+      "baseline_256": {
+        "joint_success": false,
+        "classification": "text_only",
+        "wall_latency_s": 25.27150841799812,
+        "eval_count": 256,
+        "done_reason": "length"
+      }
+    },
+    {
+      "case_id": "S4",
+      "case_name": "Nginx port conflict",
+      "repetition": 1,
+      "think_request": "omitted",
+      "seed": 42,
+      "started_at": "2026-11-01T17:01:32.712958+00:00",
+      "wall_latency_s": 3.358271164001053,
+      "response_received": true,
+      "expected": {
+        "name": "listening_ports",
+        "arguments": {
+          "port": 80,
+          "protocol": "tcp"
+        }
+      },
+      "request_sha256": "f3e02492e1251edcee4e363934faa55dee45a68811a1bb3905a45af325d52cd7",
+      "ollama_tree_rss_peak_mib": 3148.3359375,
+      "ollama_tree_cpu_pct_one_core": 398.09983820779405,
+      "ollama_tree_cpu_pct_machine": 24.881239887987128,
+      "system_available_min_mib": 4050.3203125,
+      "system_swap_used_max_mib": 1547.11328125,
+      "classification": "correct",
+      "valid_structure": true,
+      "tool_correct": true,
+      "arguments_correct": true,
+      "joint_success": true,
+      "argument_schema_valid": true,
+      "tool_calls": [
+        {
+          "id": "Hh7mNG9p9AdGBoOCZqKhNoo5SZOT3gwR",
+          "function": {
+            "index": 0,
+            "name": "listening_ports",
+            "arguments": {
+              "port": 80,
+              "protocol": "tcp"
+            }
+          }
+        }
+      ],
+      "content_chars": 0,
+      "thinking_chars": 0,
+      "content_think_marker": false,
+      "done_reason": "stop",
+      "done": true,
+      "total_duration_s": 3.297358507,
+      "load_duration_s": 0.000916395,
+      "prompt_eval_duration_s": 0.944933,
+      "eval_duration_s": 2.341102,
+      "prompt_eval_count": 630,
+      "eval_count": 27,
+      "tokens_per_second": 11.533030171261228,
+      "baseline_256": {
+        "joint_success": false,
+        "classification": "text_only",
+        "wall_latency_s": 25.456236146001174,
+        "eval_count": 256,
+        "done_reason": "length"
+      }
+    },
+    {
+      "case_id": "S5",
+      "case_name": "Failed SSH logins",
+      "repetition": 1,
+      "think_request": "omitted",
+      "seed": 42,
+      "started_at": "2026-11-01T17:01:36.113418+00:00",
+      "wall_latency_s": 7.251648172001296,
+      "response_received": true,
+      "expected": {
+        "name": "failed_logins",
+        "arguments": {
+          "since": "2026-11-01T15:00:00Z",
+          "until": "2026-11-01T15:15:00Z"
+        }
+      },
+      "request_sha256": "570c717e31c827ee6dd7c30487f729808f04970399713ba556f0958589514cee",
+      "ollama_tree_rss_peak_mib": 3148.3359375,
+      "ollama_tree_cpu_pct_one_core": 398.7554956800336,
+      "ollama_tree_cpu_pct_machine": 24.9222184800021,
+      "system_available_min_mib": 3993.23828125,
+      "system_swap_used_max_mib": 1547.640625,
+      "classification": "correct",
+      "valid_structure": true,
+      "tool_correct": true,
+      "arguments_correct": true,
+      "joint_success": true,
+      "argument_schema_valid": true,
+      "tool_calls": [
+        {
+          "id": "77AIrVoCjSE6J7g8FLLAvNfYUWhi6lxo",
+          "function": {
+            "index": 0,
+            "name": "failed_logins",
+            "arguments": {
+              "since": "2026-11-01T15:00:00Z",
+              "until": "2026-11-01T15:15:00Z"
+            }
+          }
+        }
+      ],
+      "content_chars": 0,
+      "thinking_chars": 0,
+      "content_think_marker": false,
+      "done_reason": "stop",
+      "done": true,
+      "total_duration_s": 7.15474978,
+      "load_duration_s": 0.000961272,
+      "prompt_eval_duration_s": 1.527867,
+      "eval_duration_s": 5.614659,
+      "prompt_eval_count": 662,
+      "eval_count": 65,
+      "tokens_per_second": 11.57683841529824,
+      "baseline_256": {
+        "joint_success": false,
+        "classification": "text_only",
+        "wall_latency_s": 25.301280406998558,
+        "eval_count": 256,
+        "done_reason": "length"
+      }
+    },
+    {
+      "case_id": "S6",
+      "case_name": "Nginx syntax error",
+      "repetition": 1,
+      "think_request": "omitted",
+      "seed": 42,
+      "started_at": "2026-11-01T17:01:43.409216+00:00",
+      "wall_latency_s": 2.592720086002373,
+      "response_received": true,
+      "expected": {
+        "name": "check_config",
+        "arguments": {
+          "profile": "nginx"
+        }
+      },
+      "request_sha256": "e9beb9046f4d31617c84ce41848b37b384f4bf4d63e9a2aa1f1bc260fda2648e",
+      "ollama_tree_rss_peak_mib": 3148.4609375,
+      "ollama_tree_cpu_pct_one_core": 397.68733014468086,
+      "ollama_tree_cpu_pct_machine": 24.855458134042554,
+      "system_available_min_mib": 3970.98046875,
+      "system_swap_used_max_mib": 1547.640625,
+      "classification": "correct",
+      "valid_structure": true,
+      "tool_correct": true,
+      "arguments_correct": true,
+      "joint_success": true,
+      "argument_schema_valid": true,
+      "tool_calls": [
+        {
+          "id": "p73bx6ZxNXW7TU80xlgHBveca3JNzhQ3",
+          "function": {
+            "index": 0,
+            "name": "check_config",
+            "arguments": {
+              "profile": "nginx"
+            }
+          }
+        }
+      ],
+      "content_chars": 0,
+      "thinking_chars": 0,
+      "content_think_marker": false,
+      "done_reason": "stop",
+      "done": true,
+      "total_duration_s": 2.510004321,
+      "load_duration_s": 0.000887376,
+      "prompt_eval_duration_s": 0.921594,
+      "eval_duration_s": 1.575955,
+      "prompt_eval_count": 629,
+      "eval_count": 20,
+      "tokens_per_second": 12.690717691812265,
+      "baseline_256": {
+        "joint_success": false,
+        "classification": "text_only",
+        "wall_latency_s": 26.28923293400294,
+        "eval_count": 256,
+        "done_reason": "length"
+      }
+    }
+  ]
+}
