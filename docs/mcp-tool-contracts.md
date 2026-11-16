@@ -238,7 +238,7 @@ The mock implementation must never perform a real restart.
 | service_status | unit | none | ok; unit/active_state/sub_state/load_state/description; synthetic evidence | no |
 | list_failed_units | none | limit, cursor | ok; failed_units/count/limit | yes |
 | disk_usage | none | filesystem, include_inodes | ok; filesystem/mount_point/used_percent/available_bytes/inodes_included | no |
-| memory_oom_events | since, until | limit, cursor | ok/partial; events/count/limit/coverage; safe error if no source readable | yes |
+| memory_oom_events | since, until | limit, cursor | ok/partial; events/count/limit/coverage; safe error if no source readable | no (real collector; mock paginates) |
 | failed_logins | since, until | limit, cursor | ok/partial; events/count/limit/coverage; safe error if no source readable | yes |
 | listening_ports | none | protocol, port, unit | ok; ports/count | no |
 | check_config | profile | unit | ok; profile/unit/valid/issues/message | no |

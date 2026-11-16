@@ -22,7 +22,7 @@ MAX_WINDOW = timedelta(hours=24)
 DEFAULT_LIMIT = 100
 MAX_BYTES = 4 * 1024 * 1024      # stdout read per command
 MAX_MESSAGE = 2048
-DEDUPE_SECONDS = 60
+INCIDENT_US = 1000000           # lines of ONE kill are printed within a second of each other
 BUDGET_SECONDS = 8.0             # whole call; the server allows 10 s
 # The server sends the result twice (text + structuredContent) inside one 64 KiB frame.
 MAX_RESPONSE_BYTES = 28000
@@ -34,8 +34,7 @@ DENIED_HINTS = ("not seeing messages from other users", "permission denied",
 
 _TS = re.compile(r"^(\d{4})-(\d\d)-(\d\d)[Tt](\d\d):(\d\d):(\d\d)(?:\.(\d+))?"
                  r"(?:[Zz]|([+-])(\d\d):(\d\d))$")
-_DMESG_LINE = re.compile(r"^(\d{4})-(\d\d)-(\d\d)T(\d\d):(\d\d):(\d\d)(?:[,.](\d{1,9}))?"
-                         r"([+-])(\d\d):?(\d\d)\s+(.*)$")
+_DMESG_LINE = re.compile(r"^\[\s*(\d+)\.(\d{1,9})\]\s?(.*)$")      # [  471.301396] message
 _KILL = re.compile(r"^(?:(?:Memory cgroup out of memory|Out of memory(?: \(\w+\))?): )?"
                    r"Kill(?:ed)? process (\d+) \((.{1,64}?)\)")
 _OOMKILL = re.compile(r"\boom-kill:.*?,task=([^,]{1,64}),pid=(\d+)")
@@ -102,6 +101,27 @@ def safe_name(raw):
     if name in ALLOWED:
         return name, False
     return REDACTED, True
+
+
+def _norm_boot(value):
+    value = value.strip().replace("-", "").lower() if isinstance(value, str) else ""
+    return value if re.fullmatch(r"[0-9a-f]{32}", value) else None
+
+
+def current_boot_id(path="/proc/sys/kernel/random/boot_id"):
+    try:
+        with open(path, encoding="ascii") as handle:
+            return _norm_boot(handle.read(64))
+    except (OSError, UnicodeError):
+        return None
+
+
+def default_boot_wall():
+    """Wall-clock time of the kernel's time zero (what dmesg timestamps count from), or None."""
+    try:
+        return datetime.fromtimestamp(time.time() - time.clock_gettime(time.CLOCK_MONOTONIC), UTC)
+    except (AttributeError, OSError, OverflowError, ValueError):
+        return None
 
 
 def find_exe(candidates):
@@ -223,13 +243,13 @@ def parse_oom_message(message):
     return None
 
 
-def _event(source, dt, fields, key):
+def _event(source, dt, fields, key, boot, mono):
     text = render(fields)
     digest = hashlib.sha1("|".join((source, str(key), fmt_ts(dt), str(fields["pid"]), text))
                           .encode("utf-8", "replace")).hexdigest()[:16]
     score = ((fields["total_vm_kb"] is not None) * 4 + (fields["anon_rss_kb"] is not None) * 2
              + (fields["process"] is not None) + (0.5 if source == SOURCES[0] else 0))
-    return {"_dt": dt, "_src": source, "_score": score, "message": text,
+    return {"_dt": dt, "_src": source, "_score": score, "_boot": boot, "_mono": mono, "message": text,
             "evidence_id": "oom-" + digest, **fields}
 
 
@@ -254,44 +274,50 @@ def parse_journal(text, since, until, truncated=False):
         dt = EPOCH + timedelta(microseconds=us)
         fields = parse_oom_message(msg)
         if fields and since <= dt < until:
-            events.append(_event(SOURCES[0], dt, fields, rec.get("__CURSOR", us)))
+            try:
+                mono = int(rec["_SOURCE_MONOTONIC_TIMESTAMP"])
+            except (KeyError, ValueError, TypeError):
+                mono = None
+            events.append(_event(SOURCES[0], dt, fields, rec.get("__CURSOR", us),
+                                 _norm_boot(rec.get("_BOOT_ID")), mono))
     return events, records
 
 
-def parse_dmesg(text, since, until, truncated=False):
-    """Return (events in window, oldest timestamp in the ring buffer or None)."""
+def parse_dmesg(text, boot_wall, boot, since, until, truncated=False):
+    """Return (events in window, wall time of the oldest line or None).
+
+    dmesg counts seconds since the kernel started; the wall time is boot_wall + that offset.
+    """
     lines = text.split("\n")
     if truncated:
         lines = lines[:-1]
     events, oldest = [], None
-    for number, line in enumerate(lines):
+    for line in lines:
         m = _DMESG_LINE.match(line)
         if not m:
             continue
-        try:
-            y, mo, d, h, mi, s = (int(m.group(i)) for i in range(1, 7))
-            micro = int((m.group(7) or "0")[:6].ljust(6, "0"))
-            offset = timedelta(hours=int(m.group(9)), minutes=int(m.group(10)))
-            dt = datetime(y, mo, d, h, mi, s, micro, tzinfo=UTC)
-            dt = dt - offset if m.group(8) == "+" else dt + offset
-        except ValueError:
-            continue
+        mono = int(m.group(1)) * 1000000 + int(m.group(2)[:6].ljust(6, "0"))
+        dt = boot_wall + timedelta(microseconds=mono)
         oldest = oldest or dt
-        fields = parse_oom_message(m.group(11))
+        fields = parse_oom_message(m.group(3))
         if fields and since <= dt < until:
-            events.append(_event(SOURCES[1], dt, fields, number))
+            events.append(_event(SOURCES[1], dt, fields, mono, boot, mono))
     return events, oldest
 
 
 def _same_kill(a, b):
-    """Same pid, same process name (or one is unknown) and within DEDUPE_SECONDS."""
-    return (a["pid"] is not None and a["pid"] == b["pid"]
-            and (a["name_key"] == b["name_key"] or a["name_key"] is None or b["name_key"] is None)
-            and abs((a["_dt"] - b["_dt"]).total_seconds()) <= DEDUPE_SECONDS)
+    """One kill, shown by several records. Only provable from identity: same boot, same pid,
+    compatible process name and kernel timestamps within one second. Wall-clock time alone, or a
+    pid/name match across boots, is never enough: those are independent kills."""
+    return (a["_boot"] is not None and a["_boot"] == b["_boot"]
+            and a["_mono"] is not None and b["_mono"] is not None
+            and abs(a["_mono"] - b["_mono"]) <= INCIDENT_US
+            and a["pid"] is not None and a["pid"] == b["pid"]
+            and (a["name_key"] == b["name_key"] or a["name_key"] is None or b["name_key"] is None))
 
 
 def dedupe(events):
-    """One kill can appear in several lines and in both sources; keep the most informative."""
+    """Keep the most informative record of each kill; without identity, keep everything."""
     kept = []
     for e in sorted(events, key=lambda x: (-x["_score"], x["_dt"])):
         if not any(_same_kill(k, e) for k in kept):
@@ -343,19 +369,18 @@ def read_journal(run, find, lacks_access, since, until, remaining):
     return _source(SOURCES[0], "ok", oldest, events, truncated)
 
 
-def read_dmesg(run, find, since, until, remaining):
+def read_dmesg(run, find, since, until, remaining, boot_wall, boot):
     exe = find(DMESG)
-    if exe is None or remaining() <= 0:
+    if exe is None or boot_wall is None or remaining() <= 0:
         return _source(SOURCES[1], "unavailable")
-    rc, out, err, truncated, timed_out = run([exe, "--time-format", "iso"],
-                                             min(3.0, remaining()), MAX_BYTES, None)
+    rc, out, err, truncated, timed_out = run([exe], min(3.0, remaining()), MAX_BYTES, None)
     if timed_out:
         return _source(SOURCES[1], "unavailable")
     if _denied(err, out):
         return _source(SOURCES[1], "permission_denied")
     if rc != 0 and not truncated:
         return _source(SOURCES[1], "unavailable")
-    events, oldest = parse_dmesg(out.decode("utf-8", "replace"), since, until, truncated)
+    events, oldest = parse_dmesg(out.decode("utf-8", "replace"), boot_wall, boot, since, until, truncated)
     return _source(SOURCES[1], "ok", oldest, events, truncated)
 
 
@@ -391,7 +416,7 @@ def _size(response):
 
 
 def collect(req, run=run_cmd, find=find_exe, lacks_access=lacks_journal_access, clock=time.monotonic,
-            allow_file=OPERATOR_ALLOWLIST):
+            allow_file=OPERATOR_ALLOWLIST, boot_id=current_boot_id, boot_wall=default_boot_wall):
     global ALLOWED
     ALLOWED = DEFAULT_ALLOWED | load_operator_names(allow_file)
     start = clock()
@@ -412,7 +437,7 @@ def collect(req, run=run_cmd, find=find_exe, lacks_access=lacks_journal_access, 
         return _invalid(req, "window must satisfy 0 < until - since <= 24h")
 
     journal = read_journal(run, find, lacks_access, since, until, remaining)
-    dmesg = read_dmesg(run, find, since, until, remaining)
+    dmesg = read_dmesg(run, find, since, until, remaining, boot_wall(), boot_id())
     sources = [journal, dmesg]
     coverage = _coverage(sources)
     readable = [s for s in sources if s["status"] == "ok"]

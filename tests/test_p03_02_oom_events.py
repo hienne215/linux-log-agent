@@ -29,14 +29,23 @@ FIXTURE = "Out of memory: Killed process 4242 (lab-oom) total-vm:409600kB, anon-
 NOISE = "EXT4-fs (sda5): re-mounted. Opts: errors=remount-ro"
 
 
-def jline(iso, message, cursor="c"):
-    us = (oom.parse_ts(iso) - oom.EPOCH) // oom.timedelta(microseconds=1)
-    return json.dumps({"__REALTIME_TIMESTAMP": str(us), "__CURSOR": cursor + iso,
-                       "MESSAGE": message, "_TRANSPORT": "kernel"})
+BOOT_WALL = oom.parse_ts("2026-11-13T22:00:00Z")      # wall time of the kernel's time zero in these tests
+BOOT = "0123456789abcdef0123456789abcdef"             # the "current" boot id
+OTHER_BOOT = "fedcba9876543210fedcba9876543210"
+
+
+def jline(iso, message, cursor="c", boot=BOOT, mono=True):
+    dt = oom.parse_ts(iso)
+    record = {"__REALTIME_TIMESTAMP": str((dt - oom.EPOCH) // oom.timedelta(microseconds=1)),
+              "__CURSOR": cursor + iso, "MESSAGE": message, "_TRANSPORT": "kernel", "_BOOT_ID": boot}
+    if mono:
+        record["_SOURCE_MONOTONIC_TIMESTAMP"] = str((dt - BOOT_WALL) // oom.timedelta(microseconds=1))
+    return json.dumps(record)
 
 
 def dline(iso, message):
-    return "%s %s" % (iso.replace("Z", ",000000+00:00"), message)
+    """A dmesg line: seconds since the kernel started, as the real command prints it."""
+    return "[%12.6f] %s" % ((oom.parse_ts(iso) - BOOT_WALL).total_seconds(), message)
 
 
 def ok(out, err=b""):
@@ -54,10 +63,11 @@ def fake(journal, oldest, dmesg):
 NO_FILE = "/nonexistent/oom-process-allowlist"
 
 
-def go(req=None, journal=None, oldest=None, dmesg=None, found=True, lacks=False, allow_file=NO_FILE):
+def go(req=None, journal=None, oldest=None, dmesg=None, found=True, lacks=False, allow_file=NO_FILE,
+       boot=BOOT, boot_wall=BOOT_WALL):
     find = (lambda names: names[0]) if found else (lambda names: None)
     return oom.collect(dict(REQ, **(req or {})), fake(journal, oldest, dmesg), find, lambda: lacks,
-                       allow_file=allow_file)
+                       allow_file=allow_file, boot_id=lambda: boot, boot_wall=lambda: boot_wall)
 
 
 QUIET_OLDEST = ok(jline("2026-11-02T02:12:54Z", NOISE))
@@ -127,6 +137,7 @@ def test_journal_denied_but_dmesg_readable_is_partial_and_keeps_dmesg_events():
     assert r["status"] == "partial" and r["error_code"] is None
     assert [c["status"] for c in r["data"]["coverage"]] == ["permission_denied", "ok"]
     assert r["data"]["events"][0]["pid"] == 4242 and r["evidence"][0]["source"] == "dmesg"
+    assert r["data"]["events"][0]["timestamp"] == "2026-11-14T23:53:00Z"      # boot time + kernel offset
 
 
 def test_missing_group_with_silent_journalctl_is_denied_not_empty():
@@ -154,7 +165,7 @@ def test_history_gap_makes_empty_result_partial():
 
 def test_same_kill_in_journal_and_dmesg_is_counted_once():
     r = go(journal=ok(jline("2026-11-14T09:00:00Z", KILL_MODERN)), oldest=QUIET_OLDEST,
-           dmesg=ok(dline("2026-11-14T09:00:07Z", KILL_MODERN)))
+           dmesg=ok(dline("2026-11-14T09:00:00Z", KILL_MODERN)))
     assert r["data"]["count"] == 1 and r["evidence"][0]["source"] == "journal.kernel"
 
 
@@ -206,14 +217,15 @@ def test_huge_result_is_trimmed_to_fit_budget():
 def test_invalid_requests_are_rejected_before_any_command(change):
     def boom(*args, **kwargs):
         raise AssertionError("command must not run")
-    r = oom.collect(dict(REQ, **change), boom, lambda n: n[0], lambda: False, allow_file=NO_FILE)
+    r = oom.collect(dict(REQ, **change), boom, lambda n: n[0], lambda: False, allow_file=NO_FILE,
+                    boot_id=lambda: BOOT, boot_wall=lambda: BOOT_WALL)
     assert r["status"] == "error" and r["error_code"] == "INVALID_INPUT"
 
 
 def test_budget_exhaustion_means_unavailable_not_empty():
     ticks = iter([0.0] + [100.0] * 50)
     r = oom.collect(REQ, fake(QUIET_JOURNAL, QUIET_OLDEST, QUIET_DMESG), lambda n: n[0], lambda: False,
-                    lambda: next(ticks), allow_file=NO_FILE)
+                    lambda: next(ticks), allow_file=NO_FILE, boot_id=lambda: BOOT, boot_wall=lambda: BOOT_WALL)
     assert r["error_code"] == "UNSUPPORTED"
 
 
@@ -313,18 +325,62 @@ def test_a_partial_that_is_not_cut_has_no_error_code():
     assert r["status"] == "partial" and r["error_code"] is None and not r["truncated"]
 
 
-def test_dedupe_requires_compatible_process_names():
-    a = "Out of memory: Killed process 500 (alpha) total-vm:1kB"
-    b = "Out of memory: Killed process 500 (beta) total-vm:1kB"      # pid reuse inside 60 s
-    r = go(journal=ok("\n".join([jline("2026-11-14T09:00:00Z", a), jline("2026-11-14T09:00:30Z", b)])),
+ALPHA = "Out of memory: Killed process 500 (alpha) total-vm:1kB"
+BETA = "Out of memory: Killed process 500 (beta) total-vm:1kB"
+
+
+def count(journal, dmesg=QUIET_DMESG, **kwargs):
+    return go(journal=ok("\n".join(journal)), oldest=QUIET_OLDEST, dmesg=dmesg, **kwargs)["data"]["count"]
+
+
+def test_same_pid_and_name_in_different_boots_are_two_kills():
+    assert count([jline("2026-11-14T09:00:00Z", ALPHA, boot=OTHER_BOOT), jline("2026-11-14T09:00:30Z", ALPHA)]) == 2
+    assert count([jline("2026-11-14T09:00:00Z", ALPHA, boot=OTHER_BOOT), jline("2026-11-14T09:00:00Z", ALPHA)]) == 2
+
+
+def test_same_pid_and_name_30_seconds_apart_in_one_boot_are_two_kills():
+    assert count([jline("2026-11-14T09:00:00Z", ALPHA), jline("2026-11-14T09:00:30Z", ALPHA)]) == 2
+
+
+def test_two_lines_of_one_kill_in_one_boot_are_one_event():
+    assert count([jline("2026-11-14T09:00:00Z", ALPHA), jline("2026-11-14T09:00:00.500Z", ALPHA)]) == 1
+
+
+def test_different_pids_or_names_are_never_merged():
+    other_pid = "Out of memory: Killed process 501 (alpha) total-vm:1kB"
+    assert count([jline("2026-11-14T09:00:00Z", ALPHA), jline("2026-11-14T09:00:00Z", other_pid)]) == 2
+    r = go(journal=ok("\n".join([jline("2026-11-14T09:00:00Z", ALPHA), jline("2026-11-14T09:00:00Z", BETA)])),
            oldest=QUIET_OLDEST, dmesg=QUIET_DMESG)
     assert [e["process"] for e in r["data"]["events"]] == [oom.REDACTED, oom.REDACTED]   # two different names
-    same = go(journal=ok(jline("2026-11-14T09:00:00Z", a)), oldest=QUIET_OLDEST,
-              dmesg=ok(dline("2026-11-14T09:00:40Z", a)))
-    assert same["data"]["count"] == 1
-    far = go(journal=ok(jline("2026-11-14T09:00:00Z", a)), oldest=QUIET_OLDEST,
-             dmesg=ok(dline("2026-11-14T09:05:00Z", a)))
-    assert far["data"]["count"] == 2             # outside 60 s: kept (documented limit)
+
+
+def test_the_same_record_seen_by_journal_and_dmesg_is_one_event():
+    assert count([jline("2026-11-14T09:00:00Z", ALPHA)], dmesg=ok(dline("2026-11-14T09:00:00Z", ALPHA))) == 1
+
+
+def test_a_journal_event_of_an_older_boot_is_not_merged_with_the_current_dmesg():
+    assert count([jline("2026-11-14T09:00:00Z", ALPHA, boot=OTHER_BOOT)],
+                 dmesg=ok(dline("2026-11-14T09:00:00Z", ALPHA))) == 2
+
+
+@pytest.mark.parametrize("journal_kwargs,boot", [({"mono": False}, BOOT), ({"boot": ""}, BOOT), ({}, None)])
+def test_without_identity_nothing_is_merged(journal_kwargs, boot):
+    assert count([jline("2026-11-14T09:00:00Z", ALPHA, **journal_kwargs)],
+                 dmesg=ok(dline("2026-11-14T09:00:00Z", ALPHA)), boot=boot) == 2
+
+
+def test_dmesg_is_unavailable_when_the_kernel_start_time_is_unknown():
+    r = go(journal=QUIET_JOURNAL, oldest=QUIET_OLDEST, dmesg=QUIET_DMESG, boot_wall=None)
+    assert [c["status"] for c in r["data"]["coverage"]] == ["ok", "unavailable"] and r["status"] == "partial"
+
+
+def test_boot_id_is_read_and_normalised(tmp_path):
+    good, bad = tmp_path / "good", tmp_path / "bad"
+    good.write_text("01234567-89AB-cdef-0123-456789abcdef\n", encoding="ascii")
+    bad.write_text("not a boot id", encoding="ascii")
+    assert oom.current_boot_id(str(good)) == "0123456789abcdef0123456789abcdef"
+    assert oom.current_boot_id(str(bad)) is None and oom.current_boot_id(str(tmp_path / "missing")) is None
+
 
 # ---------------------------------------------------------------- contract (needs P00-03 code)
 def test_responses_match_the_published_schema():

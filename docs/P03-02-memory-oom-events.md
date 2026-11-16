@@ -11,7 +11,7 @@ The tool answers one question: *did the kernel kill a process because of memory 
 | Source (`coverage.source`) | How it is read | What "readable" means |
 |---|---|---|
 | `journal.kernel` | `journalctl -o json _TRANSPORT=kernel` for the window (all boots, not `-k`, which only shows the current boot) | The reader can see the system journal |
-| `dmesg` | `dmesg --time-format iso` | The kernel ring buffer is readable (VM-specific: `dmesg_restrict` is off) |
+| `dmesg` | `dmesg` (default format: seconds since the kernel started). Wall time = kernel start time + that offset | The kernel ring buffer is readable (VM-specific: `dmesg_restrict` is off) and the kernel start time is known |
 
 Commands use absolute paths, a fixed argv, no shell and a fixed environment (the scaffold gives the worker no `PATH`).
 
@@ -38,7 +38,12 @@ Coverage is judged **per source** (R3). `dmesg` only reaches back to the last bo
 
 **Events.** One event per kill. The line `Out of memory: Killed process <pid> (<name>) total-vm:..kB, anon-rss:..kB` (also the cgroup form and the old two-line form) gives pid, process and sizes. The `oom-kill:...task=..,pid=..` line is used only when no kill line exists for that kill. "invoked oom-killer" lines are context and are not counted. Events are sorted by time; if there are more than `limit`, the most recent are kept and the result is `partial` + `truncated`.
 
-**De-duplication (settled).** Two records are one kill only if they have the **same pid**, a **compatible process name** (equal, or one of them unknown) and are within **60 s** of each other. The richer record wins; the journal wins ties. A reused pid with another name is kept as a separate event. Known limit: after a VM pause the `dmesg` clock can drift by more than 60 s, and then the same kill appears twice.
+**De-duplication (identity, not time).** One kill is printed as several kernel lines (an `oom-kill:` summary and a `Killed process` line, or the old two-line form) and can be seen by both sources. Two records are treated as one kill **only when their identity proves it**: the same boot (`_BOOT_ID` for the journal; the current `/proc/sys/kernel/random/boot_id` for `dmesg`), kernel timestamps (`_SOURCE_MONOTONIC_TIMESTAMP` / the `dmesg` offset) within one second, the same pid and a compatible process name. The richer record wins; the journal wins ties. Consequences:
+
+- The same pid and name in **different boots** are two kills, whatever the wall-clock gap.
+- The same pid and name 30 s apart in **one boot** are two kills.
+- If identity is missing (no boot id, no kernel timestamp, boot id unreadable) nothing is merged: a kill may then appear twice, but never disappears.
+- A journal event from an older boot is never merged with `dmesg`, which only covers the current boot.
 
 **Cursor (checked against R3, `docs/mcp-tool-contracts.md` sections 7, 10.1 and 10.4).**
 
@@ -93,16 +98,16 @@ Run the tests: `python -m pytest -q tests/test_p03_02_oom_events.py`
 ## 4. Decisions taken in review
 
 1. **RAM status** stays out of the OOM schema (contract unchanged). The smoke only shows `/proc/meminfo` as evidence.
-2. **Wiring:** operator-owned `--linux-oom` flag, default off (not implemented here).
+2. **Wiring:** operator-owned `--linux-oom` flag, default off, fixed argv (implemented, section 2).
 3. **Coverage:** judged per source.
-4. **De-duplication:** same pid, same name (or one unknown), within 60 s (section 1).
+4. **De-duplication:** by identity (boot id + kernel timestamp), section 1. Review `163079a` showed that pid/name/time alone merges independent kills.
 5. **Cursor:** proposal in section 1; Thuy asked for it to be aligned with R3 before it counts as settled.
 6. Resolved by scaffold `5b73a50`: for log-source tools the server now keeps `coverage` for `PERMISSION_DENIED` / `UNSUPPORTED` errors (rebuilt from schema enums, worker text is never forwarded). It requires every source to be non-`ok` and the correlation IDs to be echoed, which this worker does.
 
 ## 5. Known limits
 
 - `journalctl` permission detection relies on the systemd 245 hint text plus a group check; another systemd version may word it differently (the group check still avoids a false "no OOM").
-- `dmesg` times are derived from boot time and can drift after a VM pause; the journal time wins when both report the same kill.
+- `dmesg` wall times are the kernel start time plus the printed offset, so they can drift after a VM or host pause. The journal time wins when both sources report the same kill. If the kernel runs with `printk.time=0`, `dmesg` lines carry no offset: the source then has no usable lines and the result is `partial`.
 - Only kernel OOM kills are reported, not user-space killers such as `systemd-oomd`.
 - Not tested on a real OOM; not tested with other kernel versions.
 
