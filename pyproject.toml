@@ -1,0 +1,18 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "linux-log-agent"
+version = "0.1.0"
+description = "Read-only synthetic Agent coordinator and MCP foundation"
+requires-python = ">=3.12"
+dependencies = ["jsonschema==4.26.0", "referencing==0.37.0"]
+
+[project.optional-dependencies]
+mcp = ["mcp==2.3.0"]
+
+[tool.setuptools.packages.find]
+where = ["src"]
+include = ["agent*"]
+namespaces = false
