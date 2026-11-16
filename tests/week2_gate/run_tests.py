@@ -18,11 +18,16 @@ os.environ['PYTHONPATH']=str(ROOT/'src')
 os.environ['PYTHONDONTWRITEBYTECODE']='1'
 import test_gate
 
+def complete(result):
+    """A support run is complete only when tests actually ran without skips."""
+    return result.testsRun > 0 and result.wasSuccessful() and not result.skipped
+
+
 if __name__=='__main__':
     test_gate.RECORDS.clear()
     suite=unittest.defaultTestLoader.loadTestsFromModule(test_gate)
     result=unittest.TextTestRunner(stream=sys.stderr,verbosity=2).run(suite)
-    if not result.wasSuccessful():raise SystemExit(1)
+    if not complete(result):raise SystemExit(1)
     probes_hash=hashlib.sha256(Path(test_gate.__file__).read_bytes()).hexdigest()
     runner_hash=hashlib.sha256(Path(__file__).read_bytes()).hexdigest()
     revision=subprocess.check_output(['git','rev-parse','HEAD'],cwd=ROOT).decode().strip()

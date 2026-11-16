@@ -80,3 +80,35 @@ class GateTraceTests(unittest.IsolatedAsyncioTestCase):
     async def test_permission_denied_terminal_uncertainty(self):await self.check_trace('permission-denied')
     async def test_tool_budget_preserves_evidence_without_second_dispatch(self):
         await self.check_trace('port-conflict',tool_cap=1)
+
+
+class RunnerStatusTests(unittest.TestCase):
+    """Runner success must not promote skipped/failed/unexecuted tests to PASS."""
+    def test_completed_run_is_accepted(self):
+        from run_tests import complete
+        result=unittest.TestResult()
+        case=unittest.FunctionTestCase(lambda:None)
+        result.startTest(case);result.addSuccess(case);result.stopTest(case)
+        self.assertTrue(complete(result))
+
+    def test_skipped_run_is_not_complete(self):
+        from run_tests import complete
+        result=unittest.TestResult()
+        case=unittest.FunctionTestCase(lambda:None)
+        result.startTest(case);result.addSkip(case,'synthetic prerequisite missing');result.stopTest(case)
+        self.assertTrue(result.wasSuccessful())
+        self.assertFalse(complete(result))
+
+    def test_failed_or_errored_run_is_not_complete(self):
+        from run_tests import complete
+        for method in ('addFailure','addError'):
+            result=unittest.TestResult()
+            case=unittest.FunctionTestCase(lambda:None)
+            result.startTest(case)
+            getattr(result,method)(case,(AssertionError,AssertionError('synthetic failure'),None))
+            result.stopTest(case)
+            self.assertFalse(complete(result))
+
+    def test_no_executed_tests_is_not_complete(self):
+        from run_tests import complete
+        self.assertFalse(complete(unittest.TestResult()))

@@ -24,7 +24,7 @@ were only read, not copied/committed or claimed present on main. Source SHA-256:
 | ROADMAP.md | 716603ccb6c546b6a55a40eecf4230a09f42edbd2aef04ccaa50ab5a91135d7e |
 | JIRA_ISSUE_MAPPING.json | 9a334432381d618f3969c6c8e29c577277e6ea82b49d5ee91ae79212822e2aed |
 
-## Fresh offline evidence
+## Historical offline evidence — original 2026-11-15 run
 
 Base PR #12: `440c2004a7742f75550765b9db339734740d80f3`. Python 3.12.16 / MCP 2.3.0.
 Four new probes use existing MockHTTP/worker, Coordinator, ToolBridge and **actual
@@ -86,7 +86,7 @@ Existing code/tests were reused, not duplicated or extended into a new loop:
 - #15/#16/#17/#18 are independent anomaly/verify/UI/evaluator work and are not
   included in this base's fresh regression count. No claim of revalidation here.
 
-## New execution totals
+## Historical execution totals — original 2026-11-15 run
 
 Fresh targeted: **4 PASS**. Fresh regression: **352 PASS** (57 Adapter, 46 Client,
 50 Boundary, 4 acceptance fixtures, 60 Coordinator/report, 35 CLI, 33 async Adapter,
@@ -113,3 +113,27 @@ restart, contract/permission change, Jira or old PR/worktree modification.
   week-3 work. Approval/helper/security remain separate gates; no signoff invented.
 
 Offline support can be reviewed as Draft. Formal gate is **BLOCKED**, not PASS.
+
+
+## Main synchronization and runner correction — 2026-11-17
+
+Base now main `8767d44e2d2161ae8eb601592bf51ece380a3c5c`, after #12 squash.
+All existing production source is preserved; no collector, policy or contract
+change. Original OBSERVATIONS.json remains unchanged and historical; source/hash
+claims are not independent signoff. Planning-source hashes were checked separately;
+new observations are written only outside Git with the current source revision.
+
+Confirmed runner defect: `wasSuccessful()` alone includes skipped tests, while
+`testsRun` counted them as tests_passed. A synthetic skipped-result reproduction
+exported one PASS with zero observations. Minimal correction rejects skipped,
+failed/errored or zero-test runs before success JSON. Four focused runner-status
+regressions are added; the original four SDK probes remain unchanged. New targeted
+validation comprises eight tests, not a new 356-test foundation run. Historical
+counts above are not accuracy or evidence of fresh execution.
+
+This PR produces offline support observations and a documented gate matrix, not
+an automated formal acceptance decision or validator for arbitrary imported JSON.
+Edited/missing-provenance artifacts require source/execution comparison and
+independent review; their self-declared status is not trusted. Real Linux/VM,
+S1/S2/S4, fixed-model/ground-truth, all 11 R and manual trace-review requirements
+remain BLOCKED/PARTIAL exactly as listed; no new criteria or approval invented.
