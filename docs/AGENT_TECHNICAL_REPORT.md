@@ -2,7 +2,7 @@
 
 **SCRUM-44 / P04-08 — English report draft**
 
-**Evidence and repository snapshot: 15 November 2026**
+**Repository/status review: 16 November 2026; experimental evidence retains its original dates**
 
 ## Abstract
 
@@ -17,6 +17,48 @@ Live Ollama + Synthetic MCP active-service smoke test. It does not establish rea
 Linux diagnostic accuracy, successful remediation, VM acceptance or production
 readiness. This document brings together implementation and existing evidence;
 **no tests, inference, benchmarks or experiments were rerun for this writing task**.
+
+## Executive Summary
+
+The Agent foundation is implemented across the main branch and pending Draft PRs,
+as distinguished below. The historical live v2 smoke completed **two model requests,
+one synthetic MCP dispatch and an incident report in 28.188 seconds**, for the
+active scenario only. It does not demonstrate real Linux diagnostics.
+
+SCRUM-39 records **356 offline tests PASS, 0 FAIL/SKIP**, while **formal Week 2
+acceptance remains BLOCKED**. The missing evidence comprises S1/S2/S4 runs on the
+accepted VM using one fixed model, frozen ground truth, all 11 read-only tools
+available in the target runtime, and independent manual trace review. Offline
+orchestration tests establish controlled behavior, not diagnostic correctness.
+
+PR #6 currently publishes candidate contract revision **2026-11-15-R3** at
+`fd737fbc1a6fe991e55af27b0554c342a818022a`; it is **not finalized**. Hiền's recorded
+integration acceptance covers R1 only. R3 has not been established as accepted by
+the Agent integration evidence reviewed here. Server-side test success and
+partial-scope security review do not substitute for that acceptance.
+
+### Implementation status at the reviewed repository snapshot
+
+The table was checked against current GitHub head/base/state metadata and the
+corresponding source trees on 16 November 2026. All Draft entries below remain
+Open/Draft; their code is not present in `main@990f41f`. Implementation and formal
+acceptance are separate states.
+
+| Status | Component | Verified repository location | Acceptance limit |
+|---|---|---|---|
+| Implemented in main | Architecture and security design documents | [Main][main-tree], `990f41f`; [ARCHITECTURE][architecture], [SECURITY][security] | Design documentation, not deployed hardening or VM acceptance |
+| Implemented in main | SCRUM-14 benchmark harness and archived results | Merge commit `ba9b2a5`; artifacts retained in [main][main-tree] | Local tool-selection experiment with mock definitions, not Linux accuracy |
+| Implemented in main | Synchronous Ollama Adapter | Merge commit `990f41f` / [Adapter][adapter] | Validates proposals; performs no tool execution |
+| Implemented in Draft PR | MCP Client and ToolBridge | [#7](https://github.com/hienne215/linux-log-agent/pull/7), `9c7fbc14` | Contract-independent transport/boundary, not a production binder |
+| Implemented in Draft PR | Coordinator and Incident Report renderer | [#8](https://github.com/hienne215/linux-log-agent/pull/8), `61cdff0d` | Synthetic orchestration and reporting |
+| Implemented in Draft PR | Synthetic diagnostic CLI | [#9](https://github.com/hienne215/linux-log-agent/pull/9), `ab05df01` | Three fixtures, not real diagnostics |
+| Implemented in Draft PR | Async Ollama Adapter | [#10](https://github.com/hienne215/linux-log-agent/pull/10), `4cb5ab66` | Owned worker lifecycle; no provider cancellation guarantee |
+| Implemented in Draft PR | Integration demo and trusted backend/first-tool policy | [#11](https://github.com/hienne215/linux-log-agent/pull/11), `a7d5e945`; [#12](https://github.com/hienne215/linux-log-agent/pull/12), `440c2004` | Mock pipeline plus one historical live-LLM/synthetic-MCP smoke |
+| Implemented in Draft PR | Canonical mock anomaly/verification bindings | [#15](https://github.com/hienne215/linux-log-agent/pull/15), `2e1698eb`; [#16](https://github.com/hienne215/linux-log-agent/pull/16), `fbbc6c29` | Pinned R1 snapshots, not R3 integration acceptance or collectors |
+| Implemented in Draft PR | Action confirmation UI | [#17](https://github.com/hienne215/linux-log-agent/pull/17), `264626cc` | Local UI decision only; no execution authority |
+| Implemented in Draft PR | Metrics toolkit and offline gate evidence | [#18](https://github.com/hienne215/linux-log-agent/pull/18), `2ae801f`; [#19](https://github.com/hienne215/linux-log-agent/pull/19), `4ae61dd1` | Provisional metrics; formal gate remains BLOCKED |
+| Planned / Blocked | Final contract adoption and production MCP binder | [PR #6 R3][contracts-r3], `fd737fb` | Mock contracts/runtime exist in an Open, non-Draft PR; finalization and Agent R3 revalidation remain pending |
+| Planned / Blocked | Real collectors, accepted VM/topology, S1/S2/S4 evaluation and protected write plane | [Gate handoff][gate], [security design][security] | Not established by these inspected sources; no successful Linux diagnosis or remediation claimed |
 
 ## 1. Project overview and objectives
 
@@ -34,9 +76,10 @@ These are evaluation requirements, not completed experiments. The Week 2 gate
 specifically requires S1/S2/S4 and manual review. [The gate report][gate] preserves
 the planning references and their hashes.
 
-Implementation is distributed across branches. At this snapshot, PRs #7–#12 and
-#15–#19 are Open/Draft. Main at `990f41f` contains the architecture/security documents
-and synchronous Adapter; it does not contain the complete pending Agent stack.
+Implementation is distributed across branches. At the refreshed snapshot, PRs
+#7–#12 and #15–#19 are Open/Draft. Main at `990f41f` contains the architecture/security
+documents, benchmark artifacts and synchronous Adapter; it does not contain the
+complete pending Agent stack.
 This documentation PR is based on main and references the separate implementations
 at immutable commits. Reading this report does not require merging their branches.
 
@@ -136,6 +179,35 @@ attempt IDs and full input/output validation. Provider call IDs, logical IDs,
 attempt IDs and SDK JSON-RPC IDs have different roles. The generic Client does not
 manufacture business metadata or evidence. Candidate contract use does not confer
 final contract or security signoff.
+
+### Contract revision boundary: accepted R1 versus candidate R3
+
+The current PR #6 manifest still declares schema_version **1.0.0**, Python 3.12,
+MCP SDK 2.3.0 and stdio. The unchanged version string is not proof of compatibility:
+the [R1-to-R3 comparison][contract-diff] includes schema and runtime changes.
+
+| Revision / source | Evidence actually available | Agent integration status |
+|---|---|---|
+| R1: docs `d442479493d94c54a2d35698d3f920e7758b7744`, audited runtime `917d9f0cc49f9793a5a23072818c59116a7678e9` | [Hiền's explicit acceptance][integration-r1] covers input/output, status/isError, correlation, evidence/time and transport/cleanup mapping; #15/#16 retain these exact schema snapshots | Accepted **Integration Contract R1 only**; canonical mock binding evidence is scoped to those snapshots |
+| R2/R3: current HEAD `fd737fbc1a6fe991e55af27b0554c342a818022a`, revision `2026-11-15-R3` | [R2 changes][contracts-r2] and [R3 handoff][contracts-r3]; author-reported tests; [Trang's R3 confirmation][security-r3] covers three tools at mock level and explicitly excludes detailed result schemas, transport, the other nine tools and real collectors | **PENDING Agent integration revalidation and finalization**; no R3 acceptance inferred from server tests or R1 signoff |
+
+The reviewed changes include error coverage/correlation for accepted requests,
+log-source enums and retention semantics, per-event evidence, restart lifecycle
+fields with `execution_unknown` requiring `executed=null`, and a 60-second proposal
+TTL. Whole-result schemas also change for read tools, including service_status,
+detect_anomaly and verify_fix: status restrictions, bounded message/excerpt fields,
+error coverage and truncated/partial rules must be checked against the consumer.
+R3 is not a documentation-only update to R1. A schema_version match alone must not
+silently upgrade the pinned Agent registry or validation snapshots.
+
+Before adopting R3, Hiền and Thủy must compare the exact full input/result schemas,
+discovery and structuredContent mapping; test changed errors, correlation,
+partial/unknown and evidence handling through the Agent boundary; and record a
+revision-specific integration decision. Trang must confirm the remaining security/
+transport scope separately. The R3 handoff explicitly says **NOT finalized; no
+merge**. No acceptance or tests are created by this report. In particular, live v2
+used the integration demo's synthetic fixture contract, not the canonical R1 or
+R3 server, and therefore validates neither canonical revision end to end.
 
 ## 5. Agent Coordinator and reasoning loop
 
@@ -255,6 +327,11 @@ are NOT_EVALUABLE from that archive. Semantic correctness requires independent
 rubric/ground-truth assessment. The evaluator separates modes/protocol/config/
 revision/latency scopes, deduplicates stable run identities and exposes denominators.
 A valid hash reference is provenance, not authentication of a submitted claim.
+The refreshed [metrics README][metrics-policy] at `2ae801f` explicitly keeps
+assessment and official-report eligibility UNVERIFIED. Coverage uses eligible
+runs divided by protocol-required/planned runs; absent gates remain pending.
+`citation_validity` means reference resolution only, not semantic correctness.
+These clarifications do not change the archived 18/18 or latency figures.
 
 ### 9.2 Historical live integrated smoke v2 — 14 November 2026
 
@@ -319,6 +396,37 @@ never accuracy denominators. No execution was repeated for this report.
 
 ## 11. Future work and conclusion
 
+### Final report handoff and responsibilities
+
+| Owner | Required handoff / verification responsibility | Current unresolved condition |
+|---|---|---|
+| Hiền — Agent/application | Pin Agent commits and consumed contract revision; verify normalized records against original artifacts; reproduce metric arithmetic; preserve mode, provenance, citations and unknown outcomes; submit traces for independent review | Agent R3 revalidation, production binder and approved Linux integration evidence remain pending |
+| Thủy — MCP/contracts/collectors | Supply revision-specific authoritative schemas/registry, runtime/dependency hashes, launch topology, error/evidence semantics and reproducible read-only collector evidence; identify changes since accepted R1 | PR #6 remains unfinalized; mock/server test results do not establish Agent compatibility or Linux collector acceptance |
+| Trang — lab/security | Supply accepted VM/snapshot/restore and least-privilege conditions; prepare S1/S2/S4 lab conditions with frozen ground truth; review privacy, transport and write-plane restrictions within an explicit scope | Three-tool mock review is not full contract/transport, VM or Linux-runtime signoff |
+| Hiền, Thủy and Trang — final submission | Reconcile exact source/evidence revisions, ground truth, counts and scope; retain named, dated independent review decisions and artifact references | Formal Week 2 gate remains BLOCKED; no final experimental acceptance inferred |
+
+Before this draft is used as an **acceptance report**, the team must:
+
+1. Resolve every relevant source/evidence link to the retained commit/artifact and
+   verify content and hashes. Metadata supplied by the artifact producer is not
+   independent authentication. Record which reviewer checked which revision.
+2. Freeze the evaluation protocol, fixed model/configuration, lab state, expected
+   cases/repetitions and ground-truth rubric before scoring. Independently compare
+   normalized records with original traces and review conclusions against that
+   ground truth; citation membership and offline PASS counts cannot replace this.
+3. Recompute figures with explicit eligible/expected denominators, reconcile
+   duplicates and omissions, and keep synthetic, live-LLM/synthetic-MCP and real
+   Linux results separate. Do not add overlapping regression totals.
+4. Retain an independent review record covering the actual evidence and limits.
+   Missing source verification, ground truth, runs or reviewer confirmation stays
+   **PENDING / UNVERIFIED / NOT_EVALUABLE**, as applicable. Leave unavailable values
+   unknown; do not fill them with estimates, favorable fixtures or presumed approval.
+
+These are handoff requirements, not claims that the checks have been completed.
+The recorded numbers remain historical observations within their stated scopes.
+
+### Next implementation and evaluation steps
+
 Thủy's handoff should provide reviewed contracts/registry, read-only collector
 behavior, launch topology and provenance/error semantics. Trang's handoff should
 provide accepted VM/snapshot/least-privilege conditions and S1/S2/S4 labs with frozen
@@ -338,8 +446,9 @@ formal integration/evaluation acceptance remains unfinished.
 
 ## Appendix: source and revision ledger
 
-All listed PRs were Open/Draft when read on 15 November 2026. Short SHAs identify
-the snapshot; links below resolve immutable full commits. PR status may change
+PRs #7–#12 and #15–#19 were rechecked as Open/Draft on 16 November 2026; PR #6 is
+Open/non-Draft and explicitly unfinalized at R3. Main is still `990f41f`.
+Short SHAs identify the snapshot; links below resolve immutable full commits. PR status may change
 later without changing the evidence cited here. Documentation review checked
 source links, terminology, numerical consistency and the separation of evidence
 levels. It did not rerun any experiment or constitute an independent security signoff.
@@ -347,6 +456,8 @@ levels. It did not rerun any experiment or constitute an independent security si
 | Source | Snapshot | Material used |
 |---|---|---|
 | Main | 990f41f | Architecture/security and synchronous Adapter |
+| PR #6 R1 | d442479 / runtime 917d9f0 | Historical accepted integration mapping; pinned mock binding schemas |
+| PR #6 R3 | fd737fb | Current candidate schema/runtime changes and pending integration handoff |
 | PR #7 | 9c7fbc14 | MCP Client, ToolBridge and lifecycle documentation |
 | PR #8 | 61cdff0d | Coordinator, evidence projection and renderer |
 | PR #9 | ab05df01 | Original CLI, report storage and fixtures |
@@ -356,7 +467,7 @@ levels. It did not rerun any experiment or constitute an independent security si
 | PR #15 | 2e1698eb | Canonical mock anomaly binding |
 | PR #16 | fbbc6c29 | Canonical mock verification binding |
 | PR #17 | 264626cc | Synthetic action confirmation UI |
-| PR #18 | 2706a15d | Metrics definitions and historical benchmark recomputation |
+| PR #18 | 2ae801f | Current provenance/coverage/citation policy and unchanged historical recomputation |
 | PR #19 | 4ae61dd1 | Offline gate matrix and actual observation artifact |
 
 The implementation commands in linked READMEs require their corresponding source
@@ -379,7 +490,14 @@ unmerged modules. No figures extrapolate beyond the recorded measurements.
 [anomaly]: https://github.com/hienne215/linux-log-agent/blob/2e1698eb58150db78d1ff3d3ab16de041cbfa389/tests/anomaly/README.md
 [verify]: https://github.com/hienne215/linux-log-agent/blob/fbbc6c29d54b50441647852d39546ed0b6d4a147/tests/verify_fix/README.md
 [actions]: https://github.com/hienne215/linux-log-agent/blob/264626ccee510ff95b3a58cb7ef9c29c7fba9e41/tests/action_cli/README.md
-[metrics]: https://github.com/hienne215/linux-log-agent/blob/2706a15de002334ecb46c049d3b997255a3446d2/tests/evaluation/EXAMPLE_BENCHMARK.md
+[metrics]: https://github.com/hienne215/linux-log-agent/blob/2ae801f4774f5db26f4ffc9b6abc253a00767765/tests/evaluation/EXAMPLE_BENCHMARK.md
+[metrics-policy]: https://github.com/hienne215/linux-log-agent/blob/2ae801f4774f5db26f4ffc9b6abc253a00767765/tests/evaluation/README.md
 [gate]: https://github.com/hienne215/linux-log-agent/blob/4ae61dd1df8d551d3d996db0d575d79f3ce8353c/docs/SCRUM39_OFFLINE_GATE.md
 [observations]: https://github.com/hienne215/linux-log-agent/blob/4ae61dd1df8d551d3d996db0d575d79f3ce8353c/tests/week2_gate/OBSERVATIONS.json
 [demo]: https://github.com/hienne215/linux-log-agent/blob/a7d5e94503a44f57781e3fd8ff54f5f6009d3730/docs/INTEGRATION_SYNTHETIC_DEMO.md
+[main-tree]: https://github.com/hienne215/linux-log-agent/tree/990f41f68c8ef13218bf825bd57ff233a8c82f1c
+[contracts-r2]: https://github.com/hienne215/linux-log-agent/blob/fd737fbc1a6fe991e55af27b0554c342a818022a/docs/SCRUM-12-review-R2-2026-11-15.md
+[contracts-r3]: https://github.com/hienne215/linux-log-agent/blob/fd737fbc1a6fe991e55af27b0554c342a818022a/docs/SCRUM-12-review-R3-2026-11-15.md
+[contract-diff]: https://github.com/hienne215/linux-log-agent/compare/d442479493d94c54a2d35698d3f920e7758b7744...fd737fbc1a6fe991e55af27b0554c342a818022a
+[integration-r1]: https://github.com/hienne215/linux-log-agent/pull/6#issuecomment-6888584230
+[security-r3]: https://github.com/hienne215/linux-log-agent/pull/6#pullrequestreview-5909961762
