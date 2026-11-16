@@ -1,0 +1,546 @@
+{
+  "metadata": {
+    "started_at": "2026-11-01T16:48:14.698924+00:00",
+    "model": "qwen3:4b",
+    "planned_trials": 6,
+    "think": true,
+    "options": {
+      "temperature": 0,
+      "num_ctx": 4096,
+      "num_predict": 512,
+      "num_thread": 4,
+      "seed": 42
+    },
+    "timeout_s": 90,
+    "total_budget_s": 600,
+    "base_url": "http://127.0.0.1:11434",
+    "suite_sha256": "a1c55728a3d614f2c9f8eca7c165999967ad9069ffb680cf2b2425a9ebc0d90a",
+    "script_sha256": "be8973f3170906a993c144154bd95d62242f3a4fe086667ae482e43925e23f85",
+    "reused_harness_sha256": "d5b2011ff3f7ad704a387f4d8fc2058e8a518eda06c4c73218469fac53dcea19",
+    "baseline_result_sha256": "5fd71390fb061f0b3da150c38aa3ea11e706cb9be42edf1b374e65d1b4fa6a4f",
+    "baseline": "results/20261101T162601152976Z/results.json",
+    "baseline_comparison": "think=true, repetition=1, seed=42, same six cases/tools/prompts/order",
+    "changed_generation_option": {
+      "num_predict": [
+        256,
+        512
+      ]
+    },
+    "changed_deadline_s": [
+      45,
+      90
+    ],
+    "gate": "unchanged; quick six trials cannot qualify 18-trial gate",
+    "warmup": "none; cold/warm status and load duration retained; no warmup inference",
+    "ollama_version": "0.40.13",
+    "model_digest": "359d7dd4bcdab3d86b87d73ac27966f4dbb9f5efdfcc75d34a8764a09474fae7",
+    "loaded_before": {
+      "models": []
+    },
+    "thinking": {
+      "values": [
+        true
+      ],
+      "default": true
+    },
+    "capabilities": [
+      "completion",
+      "tools",
+      "thinking"
+    ],
+    "model_identity": {
+      "general.architecture": "qwen3",
+      "general.basename": "Qwen3",
+      "general.file_type": 15,
+      "general.finetune": "Thinking",
+      "general.license": "apache-2.0",
+      "general.license.link": "https://huggingface.co/Qwen/Qwen3-4B-Thinking-2507/blob/main/LICENSE",
+      "general.parameter_count": 4022468096,
+      "general.quantization_version": 2,
+      "general.size_label": "4B",
+      "general.tags": [
+        "text-generation"
+      ],
+      "general.type": "model",
+      "general.version": "2507"
+    },
+    "model_parameters": "repeat_penalty                 1\nstop                           \"<|im_start|>\"\nstop                           \"<|im_end|>\"\ntemperature                    0.6\ntop_k                          20\ntop_p                          0.95",
+    "template_sha256": "2d54db2b9bb29ce7db54fea63a891f5859603813c555b1f88b5e0994652897f9",
+    "template_always_opens_think": true,
+    "system_mem_before": {
+      "MemTotal": 15935508480,
+      "MemFree": 4312272896,
+      "MemAvailable": 6905528320,
+      "Buffers": 78213120,
+      "Cached": 4212486144,
+      "SwapCached": 28676096,
+      "Active": 5635776512,
+      "Inactive": 4303171584,
+      "Active(anon)": 4796706816,
+      "Inactive(anon)": 2294853632,
+      "Active(file)": 839069696,
+      "Inactive(file)": 2008317952,
+      "Unevictable": 603127808,
+      "Mlocked": 16384,
+      "SwapTotal": 4294963200,
+      "SwapFree": 3330424832,
+      "Zswap": 0,
+      "Zswapped": 0,
+      "Dirty": 6160384,
+      "Writeback": 0,
+      "AnonPages": 6236254208,
+      "Mapped": 1407807488,
+      "Shmem": 1443614720,
+      "KReclaimable": 328118272,
+      "Slab": 673554432,
+      "SReclaimable": 328118272,
+      "SUnreclaim": 345436160,
+      "KernelStack": 32833536,
+      "PageTables": 123777024,
+      "SecPageTables": 9437184,
+      "NFS_Unstable": 0,
+      "Bounce": 0,
+      "WritebackTmp": 0,
+      "CommitLimit": 12262715392,
+      "Committed_AS": 40238460928,
+      "VmallocTotal": 35184372087808,
+      "VmallocUsed": 81895424,
+      "VmallocChunk": 0,
+      "Percpu": 20054016,
+      "HardwareCorrupted": 0,
+      "AnonHugePages": 0,
+      "ShmemHugePages": 715128832,
+      "ShmemPmdMapped": 0,
+      "FileHugePages": 260046848,
+      "FilePmdMapped": 253755392,
+      "CmaTotal": 0,
+      "CmaFree": 0,
+      "Unaccepted": 0,
+      "Balloon": 0,
+      "HugePages_Total": 0,
+      "HugePages_Free": 0,
+      "HugePages_Rsvd": 0,
+      "HugePages_Surp": 0,
+      "Hugepagesize": 2097152,
+      "Hugetlb": 0,
+      "DirectMap4k": 333709312,
+      "DirectMap2M": 5819596800,
+      "DirectMap1G": 10737418240
+    },
+    "finished_at": "2026-11-01T16:52:31.808957+00:00",
+    "elapsed_s": 257.1098816479971,
+    "system_mem_after": {
+      "MemTotal": 15935508480,
+      "MemFree": 816656384,
+      "MemAvailable": 3837173760,
+      "Buffers": 53739520,
+      "Cached": 4594458624,
+      "SwapCached": 30986240,
+      "Active": 7659044864,
+      "Inactive": 6037123072,
+      "Active(anon)": 6863708160,
+      "Inactive(anon)": 3556868096,
+      "Active(file)": 795336704,
+      "Inactive(file)": 2480254976,
+      "Unevictable": 347504640,
+      "Mlocked": 16384,
+      "SwapTotal": 4294963200,
+      "SwapFree": 2860888064,
+      "Zswap": 0,
+      "Zswapped": 0,
+      "Dirty": 5849088,
+      "Writeback": 0,
+      "AnonPages": 9380274176,
+      "Mapped": 1372270592,
+      "Shmem": 1372925952,
+      "KReclaimable": 326234112,
+      "Slab": 671649792,
+      "SReclaimable": 326234112,
+      "SUnreclaim": 345415680,
+      "KernelStack": 32882688,
+      "PageTables": 130928640,
+      "SecPageTables": 9342976,
+      "NFS_Unstable": 0,
+      "Bounce": 0,
+      "WritebackTmp": 0,
+      "CommitLimit": 12262715392,
+      "Committed_AS": 43948195840,
+      "VmallocTotal": 35184372087808,
+      "VmallocUsed": 81940480,
+      "VmallocChunk": 0,
+      "Percpu": 20054016,
+      "HardwareCorrupted": 0,
+      "AnonHugePages": 0,
+      "ShmemHugePages": 652214272,
+      "ShmemPmdMapped": 0,
+      "FileHugePages": 260046848,
+      "FilePmdMapped": 253755392,
+      "CmaTotal": 0,
+      "CmaFree": 0,
+      "Unaccepted": 0,
+      "Balloon": 0,
+      "HugePages_Total": 0,
+      "HugePages_Free": 0,
+      "HugePages_Rsvd": 0,
+      "HugePages_Surp": 0,
+      "Hugepagesize": 2097152,
+      "Hugetlb": 0,
+      "DirectMap4k": 333709312,
+      "DirectMap2M": 5819596800,
+      "DirectMap1G": 10737418240
+    }
+  },
+  "status": "complete_quick_check",
+  "summary": {
+    "true": {
+      "attempted": 6,
+      "joint_success_count": 3,
+      "valid_structure_rate": 0.5,
+      "tool_correct_rate": 0.5,
+      "arguments_correct_rate": 0.5,
+      "joint_success_rate": 0.5,
+      "latency_mean_s_all_attempts": 42.81006849233321,
+      "latency_median_s_all_attempts": 46.37857856050141,
+      "latency_mean_s_responses_only": 42.81006849233321,
+      "tokens_per_second_weighted": 10.196752225939951,
+      "token_metrics_samples": 6,
+      "classifications": {
+        "correct": 3,
+        "text_only": 3
+      },
+      "content_nonempty_count": 0,
+      "thinking_nonempty_count": 6,
+      "content_think_marker_count": 0,
+      "ollama_tree_rss_peak_mib": 3440.8046875,
+      "ollama_tree_cpu_pct_machine_mean": 24.68185788633012,
+      "system_available_min_mib": 3264.9921875
+    }
+  },
+  "rows": [
+    {
+      "case_id": "S1",
+      "case_name": "Nginx failed",
+      "repetition": 1,
+      "think": true,
+      "seed": 42,
+      "started_at": "2026-11-01T16:48:14.756043+00:00",
+      "wall_latency_s": 40.47428984100043,
+      "response_received": true,
+      "expected": {
+        "name": "service_status",
+        "arguments": {
+          "unit": "nginx.service"
+        }
+      },
+      "request_sha256": "9b42863e3a25b060c891a13459e409e86f9de31b4f2eae5f512afac95c8549fe",
+      "ollama_tree_rss_peak_mib": 3143.53125,
+      "ollama_tree_cpu_pct_one_core": 370.1780240697054,
+      "ollama_tree_cpu_pct_machine": 23.136126504356586,
+      "system_available_min_mib": 3717.13671875,
+      "system_swap_used_max_mib": 1356.3203125,
+      "classification": "correct",
+      "valid_structure": true,
+      "tool_correct": true,
+      "arguments_correct": true,
+      "joint_success": true,
+      "argument_schema_valid": true,
+      "tool_calls": [
+        {
+          "id": "call_lcws8y1u",
+          "function": {
+            "index": 0,
+            "name": "service_status",
+            "arguments": {
+              "unit": "nginx.service"
+            }
+          }
+        }
+      ],
+      "content_chars": 0,
+      "thinking_chars": 1308,
+      "content_think_marker": false,
+      "done_reason": "stop",
+      "done": true,
+      "total_duration_s": 40.407591481,
+      "load_duration_s": 4.057600814,
+      "prompt_eval_duration_s": 9.838371,
+      "eval_duration_s": 26.505835,
+      "prompt_eval_count": 499,
+      "eval_count": 300,
+      "tokens_per_second": 11.31826256369588,
+      "baseline_256": {
+        "joint_success": true,
+        "classification": "correct",
+        "wall_latency_s": 21.466991048000637,
+        "eval_count": 236,
+        "done_reason": "stop"
+      }
+    },
+    {
+      "case_id": "S2",
+      "case_name": "Read Nginx journal",
+      "repetition": 1,
+      "think": true,
+      "seed": 42,
+      "started_at": "2026-11-01T16:48:55.258223+00:00",
+      "wall_latency_s": 52.543638551000186,
+      "response_received": true,
+      "expected": {
+        "name": "query_journal",
+        "arguments": {
+          "unit": "nginx.service",
+          "since": "2026-11-01T15:00:00Z",
+          "until": "2026-11-01T15:15:00Z"
+        }
+      },
+      "request_sha256": "f53de6f41e7bff09becb16a64a98efcc83e34c6235b1b1dad3d7a208a27f8819",
+      "ollama_tree_rss_peak_mib": 3143.78125,
+      "ollama_tree_cpu_pct_one_core": 399.8964837767277,
+      "ollama_tree_cpu_pct_machine": 24.99353023604548,
+      "system_available_min_mib": 3642.47265625,
+      "system_swap_used_max_mib": 1356.3203125,
+      "classification": "text_only",
+      "valid_structure": false,
+      "tool_correct": false,
+      "arguments_correct": false,
+      "joint_success": false,
+      "argument_schema_valid": false,
+      "tool_calls": null,
+      "content_chars": 0,
+      "thinking_chars": 1499,
+      "content_think_marker": false,
+      "done_reason": "length",
+      "done": true,
+      "total_duration_s": 52.445327324,
+      "load_duration_s": 0.000816001,
+      "prompt_eval_duration_s": 1.689786,
+      "eval_duration_s": 50.748624,
+      "prompt_eval_count": 542,
+      "eval_count": 512,
+      "tokens_per_second": 10.088943495295558,
+      "baseline_256": {
+        "joint_success": false,
+        "classification": "text_only",
+        "wall_latency_s": 26.39892725000027,
+        "eval_count": 256,
+        "done_reason": "length"
+      }
+    },
+    {
+      "case_id": "S3",
+      "case_name": "Disk nearly full",
+      "repetition": 1,
+      "think": true,
+      "seed": 42,
+      "started_at": "2026-11-01T16:49:47.846885+00:00",
+      "wall_latency_s": 26.452386470999045,
+      "response_received": true,
+      "expected": {
+        "name": "disk_usage",
+        "arguments": {
+          "path": "/"
+        }
+      },
+      "request_sha256": "8c3a1dd7bc0106c40cce6282fa0df37e669fdf60b1845c6223074ddba19ffb85",
+      "ollama_tree_rss_peak_mib": 3292.28125,
+      "ollama_tree_cpu_pct_one_core": 399.75398213797746,
+      "ollama_tree_cpu_pct_machine": 24.98462388362359,
+      "system_available_min_mib": 3545.4296875,
+      "system_swap_used_max_mib": 1360.5859375,
+      "classification": "correct",
+      "valid_structure": true,
+      "tool_correct": true,
+      "arguments_correct": true,
+      "joint_success": true,
+      "argument_schema_valid": true,
+      "tool_calls": [
+        {
+          "id": "call_f55vlip9",
+          "function": {
+            "index": 0,
+            "name": "disk_usage",
+            "arguments": {
+              "path": "/"
+            }
+          }
+        }
+      ],
+      "content_chars": 0,
+      "thinking_chars": 1124,
+      "content_think_marker": false,
+      "done_reason": "stop",
+      "done": true,
+      "total_duration_s": 26.347196775,
+      "load_duration_s": 0.001161849,
+      "prompt_eval_duration_s": 1.025531999,
+      "eval_duration_s": 25.243717,
+      "prompt_eval_count": 497,
+      "eval_count": 262,
+      "tokens_per_second": 10.378820203062805,
+      "baseline_256": {
+        "joint_success": false,
+        "classification": "text_only",
+        "wall_latency_s": 25.27150841799812,
+        "eval_count": 256,
+        "done_reason": "length"
+      }
+    },
+    {
+      "case_id": "S4",
+      "case_name": "Nginx port conflict",
+      "repetition": 1,
+      "think": true,
+      "seed": 42,
+      "started_at": "2026-11-01T16:50:14.319812+00:00",
+      "wall_latency_s": 54.605068053999275,
+      "response_received": true,
+      "expected": {
+        "name": "listening_ports",
+        "arguments": {
+          "port": 80,
+          "protocol": "tcp"
+        }
+      },
+      "request_sha256": "25e0f66d9630fa0165132f3f9af439871e65df81371d1da4afe9cf97556a8229",
+      "ollama_tree_rss_peak_mib": 3292.78125,
+      "ollama_tree_cpu_pct_one_core": 399.93133213641147,
+      "ollama_tree_cpu_pct_machine": 24.995708258525717,
+      "system_available_min_mib": 3627.40234375,
+      "system_swap_used_max_mib": 1360.5859375,
+      "classification": "text_only",
+      "valid_structure": false,
+      "tool_correct": false,
+      "arguments_correct": false,
+      "joint_success": false,
+      "argument_schema_valid": false,
+      "tool_calls": null,
+      "content_chars": 0,
+      "thinking_chars": 2236,
+      "content_think_marker": false,
+      "done_reason": "length",
+      "done": true,
+      "total_duration_s": 54.523170837,
+      "load_duration_s": 0.001068122,
+      "prompt_eval_duration_s": 1.237391,
+      "eval_duration_s": 53.278828,
+      "prompt_eval_count": 505,
+      "eval_count": 512,
+      "tokens_per_second": 9.60982099681322,
+      "baseline_256": {
+        "joint_success": false,
+        "classification": "text_only",
+        "wall_latency_s": 25.456236146001174,
+        "eval_count": 256,
+        "done_reason": "length"
+      }
+    },
+    {
+      "case_id": "S5",
+      "case_name": "Failed SSH logins",
+      "repetition": 1,
+      "think": true,
+      "seed": 42,
+      "started_at": "2026-11-01T16:51:08.954227+00:00",
+      "wall_latency_s": 52.28286728000239,
+      "response_received": true,
+      "expected": {
+        "name": "failed_logins",
+        "arguments": {
+          "since": "2026-11-01T15:00:00Z",
+          "until": "2026-11-01T15:15:00Z"
+        }
+      },
+      "request_sha256": "10bc30338a19dcd181c9dd8acc8b6c50b9b5e535dccd7d04d60f7ae55cb27a50",
+      "ollama_tree_rss_peak_mib": 3436.03125,
+      "ollama_tree_cpu_pct_one_core": 399.9895233501578,
+      "ollama_tree_cpu_pct_machine": 24.999345209384863,
+      "system_available_min_mib": 3264.9921875,
+      "system_swap_used_max_mib": 1367.734375,
+      "classification": "text_only",
+      "valid_structure": false,
+      "tool_correct": false,
+      "arguments_correct": false,
+      "joint_success": false,
+      "argument_schema_valid": false,
+      "tool_calls": null,
+      "content_chars": 0,
+      "thinking_chars": 1602,
+      "content_think_marker": false,
+      "done_reason": "length",
+      "done": true,
+      "total_duration_s": 52.210150526,
+      "load_duration_s": 0.001127746,
+      "prompt_eval_duration_s": 2.057572999,
+      "eval_duration_s": 50.069521,
+      "prompt_eval_count": 537,
+      "eval_count": 512,
+      "tokens_per_second": 10.225781868374574,
+      "baseline_256": {
+        "joint_success": false,
+        "classification": "text_only",
+        "wall_latency_s": 25.301280406998558,
+        "eval_count": 256,
+        "done_reason": "length"
+      }
+    },
+    {
+      "case_id": "S6",
+      "case_name": "Nginx syntax error",
+      "repetition": 1,
+      "think": true,
+      "seed": 42,
+      "started_at": "2026-11-01T16:52:01.282902+00:00",
+      "wall_latency_s": 30.50216075699791,
+      "response_received": true,
+      "expected": {
+        "name": "check_config",
+        "arguments": {
+          "profile": "nginx"
+        }
+      },
+      "request_sha256": "e667bfaca221707c9a6804135d0c11361d735063d01c1fdd9f50b2faca7bbecb",
+      "ollama_tree_rss_peak_mib": 3440.8046875,
+      "ollama_tree_cpu_pct_one_core": 399.70901161671196,
+      "ollama_tree_cpu_pct_machine": 24.981813226044498,
+      "system_available_min_mib": 3395.203125,
+      "system_swap_used_max_mib": 1367.671875,
+      "classification": "correct",
+      "valid_structure": true,
+      "tool_correct": true,
+      "arguments_correct": true,
+      "joint_success": true,
+      "argument_schema_valid": true,
+      "tool_calls": [
+        {
+          "id": "call_4kx3u9td",
+          "function": {
+            "index": 0,
+            "name": "check_config",
+            "arguments": {
+              "profile": "nginx"
+            }
+          }
+        }
+      ],
+      "content_chars": 0,
+      "thinking_chars": 1383,
+      "content_think_marker": false,
+      "done_reason": "stop",
+      "done": true,
+      "total_duration_s": 30.402490544,
+      "load_duration_s": 0.001147724,
+      "prompt_eval_duration_s": 1.075687,
+      "eval_duration_s": 29.228325,
+      "prompt_eval_count": 504,
+      "eval_count": 299,
+      "tokens_per_second": 10.229802768376224,
+      "baseline_256": {
+        "joint_success": false,
+        "classification": "text_only",
+        "wall_latency_s": 26.28923293400294,
+        "eval_count": 256,
+        "done_reason": "length"
+      }
+    }
+  ]
+}
