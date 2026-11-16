@@ -101,3 +101,7 @@ The tool statuses below refer to real Linux collection/execution, not the existi
 ## P00-03 review revision R3
 
 [R3 review response](SCRUM-12-review-R3-2026-11-15.md) addresses Trang's second review. Pending independent confirmation; NOT finalized. Trang's proposed signoff scope is security/privacy of three tools, not all nine remaining tools or the complete transport/deployment.
+
+## Dependency audit — 16/11/2026
+
+[PR #6/#14 review readiness](dependency-review-readiness.md): scoped confirmations recorded; current integration, detailed schemas/transport and independent scaffold review remain pending. Not finalized or Done.
