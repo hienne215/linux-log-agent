@@ -89,6 +89,8 @@ def test_worker_faults_safe_and_schema_valid(mode, code, capfd):
         response = validate(await app.call_tool(SimpleNamespace(request_id=1),
             CallToolRequestParams(name="service_status", arguments=ARGS)))
         assert response["error_code"] == code
+        if code == "OUTPUT_LIMIT":
+            assert response["status"] == "error" and response["truncated"] is False
         assert response["session_id"] is None and response["trace_id"] == "invalid-input"
         assert runner.process is None and runner.spawn is None
     asyncio.run(exercise())
@@ -202,7 +204,7 @@ def test_infinite_output_confirms_child_exit_and_pipe_eof(monkeypatch, capfd):
 def test_schema_valid_partial_keeps_whole_records_and_metadata():
     async def exercise():
         app = ServerScaffold(backends={"query_journal": argv("partial")})
-        args = {**ARGS, "since":"2026-11-01T00:00:00Z", "until":"2026-11-05T00:00:00Z"}
+        args = {**ARGS, "since":"2026-11-02T00:00:00Z", "until":"2026-11-03T00:00:00Z"}
         response = validate(await app.call_tool(SimpleNamespace(request_id="X" * 126),
             CallToolRequestParams(name="query_journal", arguments=args)), "query_journal")
         assert response["status"] == "partial" and response["truncated"]
@@ -232,7 +234,7 @@ def test_sdk_handshake_discovery_default_and_fixture_paths(capfd, actual_sdk_fra
                     assert response["error_code"] == "UNSUPPORTED"
                 bad = validate(await client.call_tool("service_status", {**ARGS, "trace_id": SECRET, "approved": True}))
                 assert bad["error_code"] == "INVALID_INPUT"
-                restart = await client.call_tool("restart_service", {**{k:v for k,v in ARGS.items()}, "mode":"propose", "reason":"test"})
+                restart = await client.call_tool("restart_service", {**{k:v for k,v in ARGS.items()}, "mode":"propose", "reason":"test", "evidence_ids":["ev-fixture"]})
                 assert validate(restart, "restart_service")["error_code"] == "UNSUPPORTED"
     asyncio.run(exercise())
     captured = capfd.readouterr()
@@ -248,6 +250,8 @@ def test_sdk_fault_responses_and_connection_survives(mode, code, capfd, actual_s
         async with Client(params, read_timeout_seconds=15) as client:
             response = validate(await client.call_tool("service_status", {**ARGS, "trace_id": SECRET}))
             assert response["error_code"] == code
+            if code == "OUTPUT_LIMIT":
+                assert response["status"] == "error" and response["truncated"] is False
             assert len((await client.list_tools()).tools) == 12
     asyncio.run(exercise())
     captured = capfd.readouterr()
@@ -261,6 +265,58 @@ def test_sdk_inprocess_mock_client_uses_same_contract():
             assert len((await client.list_tools()).tools) == 12
             response = validate(await client.call_tool("service_status", ARGS))
             assert response["error_code"] == "UNSUPPORTED"
+    asyncio.run(exercise())
+
+
+@pytest.mark.parametrize("mode,tool,code", [("oom_denied","memory_oom_events","PERMISSION_DENIED"),
+    ("login_unavailable","failed_logins","UNSUPPORTED"), ("oom_wrong_ids","memory_oom_events","EXECUTION_UNKNOWN"),
+    ("oom_bad_source","memory_oom_events","EXECUTION_UNKNOWN")])
+def test_r3_worker_coverage_preserves_only_validated_correlation(mode, tool, code, capfd):
+    async def exercise():
+        args = {k:v for k,v in ARGS.items() if k != "unit"}
+        args.update(since="2026-11-02T00:00:00Z",until="2026-11-03T00:00:00Z")
+        app = ServerScaffold(backends={tool:argv(mode)})
+        response = validate(await app.call_tool(SimpleNamespace(request_id=1),
+            CallToolRequestParams(name=tool,arguments=args)),tool)
+        assert response["error_code"] == code
+        if code != "EXECUTION_UNKNOWN":
+            for key in ("session_id","trace_id","logical_tool_call_id","attempt_id"):
+                assert response[key] == args[key]
+            assert response["data"]["coverage"]
+            assert not {"field","rule"} & response["data"].keys()
+        else:
+            assert response["session_id"] is None
+    asyncio.run(exercise())
+    output = capfd.readouterr()
+    assert SECRET not in output.out + output.err
+
+
+@pytest.mark.parametrize("mode,tool", [("oom_denied","memory_oom_events"),("login_unavailable","failed_logins")])
+def test_r3_coverage_through_official_stdio_worker(mode, tool, capfd, actual_sdk_frames):
+    async def exercise():
+        args = {k:v for k,v in ARGS.items() if k != "unit"}
+        args.update(since="2026-11-02T00:00:00Z",until="2026-11-03T00:00:00Z")
+        async with Client(StdioServerParameters(command=sys.executable,args=[str(ROOT/"tests/p01_stdio_server.py"),mode])) as client:
+            response = validate(await client.call_tool(tool,args),tool)
+            assert response["session_id"] == args["session_id"]
+            assert response["trace_id"] == args["trace_id"]
+            assert response["data"]["coverage"]
+    asyncio.run(exercise())
+    assert SECRET not in capfd.readouterr().err
+
+
+@pytest.mark.parametrize("until", ["2026-11-02T00:00:00Z","2026-11-03T00:00:01Z"])
+def test_r3_window_rejects_before_worker(until):
+    class NeverRun:
+        async def run(self,*args):
+            raise AssertionError("Invalid window reached worker")
+    async def exercise():
+        args={k:v for k,v in ARGS.items() if k != "unit"}
+        args.update(since="2026-11-02T00:00:00Z",until=until)
+        app=ServerScaffold(backends={"memory_oom_events":argv("oom_denied")},runner=NeverRun())
+        response=validate(await app.call_tool(SimpleNamespace(request_id=1),
+            CallToolRequestParams(name="memory_oom_events",arguments=args)),"memory_oom_events")
+        assert response["error_code"] == "INVALID_INPUT" and response["session_id"] is None
     asyncio.run(exercise())
 
 

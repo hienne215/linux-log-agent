@@ -752,6 +752,15 @@ def log_coverage(name):
              'oldest_available_at': '2026-11-02T00:00:00Z'} for source in sources]
 
 
+def coverage_error(name, metadata, coverage):
+    """Rebuild an accepted source-access failure from validated fixed source names."""
+    code = 'PERMISSION_DENIED' if all(source['status'] == 'permission_denied' for source in coverage) else 'UNSUPPORTED'
+    descriptions = [source['source'] + (': permission denied' if source['status'] == 'permission_denied'
+                     else ': source unavailable') for source in coverage]
+    return make_response(tool=name, **metadata, status='error', error_code=code,
+                         data=dict(message='; '.join(descriptions), coverage=coverage))
+
+
 def event_page(name, metadata, since, until, limit, cursor, events):
     filters = dict(since=since, until=until, limit=limit)
     offset = 0
@@ -762,11 +771,7 @@ def event_page(name, metadata, since, until, limit, cursor, events):
     coverage = log_coverage(name)
     states = [source['status'] for source in coverage]
     if all(state != 'ok' for state in states):
-        code = 'PERMISSION_DENIED' if all(state == 'permission_denied' for state in states) else 'UNSUPPORTED'
-        descriptions = [source['source'] + (': permission denied' if source['status'] == 'permission_denied'
-                         else ': source unavailable') for source in coverage]
-        return make_response(tool=name, **metadata, status='error', error_code=code,
-                             data=dict(message='; '.join(descriptions), coverage=coverage))
+        return coverage_error(name, metadata, coverage)
     # Fixed synthetic events belong to the journal source, never to unreadable sources.
     available = within_window(events, since, until) if coverage[0]['status'] == 'ok' else []
     if coverage[0]['oldest_available_at'] is not None:

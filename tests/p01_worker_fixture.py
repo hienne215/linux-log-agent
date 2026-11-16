@@ -26,8 +26,19 @@ elif mode == "failure":
 elif mode == "malformed":
     sys.stdout.write("SYNTHETIC_CHILD_SECRET")
 else:
-    response = (contracts.query_journal(**arguments) if mode == "partial"
-                else contracts.service_status(**arguments))
+    if mode.startswith(("oom_", "login_")):
+        tool = "memory_oom_events" if mode.startswith("oom_") else "failed_logins"
+        state = "unavailable" if mode.endswith("unavailable") else "permission_denied"
+        contracts.log_coverage = lambda name: [dict(source=contracts.LOG_SOURCES[name][0], status=state, oldest_available_at=None)]
+        response = contracts.TOOLS[tool][0](**arguments)
+        response["data"]["message"] = "SYNTHETIC_CHILD_SECRET"
+        if mode.endswith("wrong_ids"):
+            response["trace_id"] = "forged-SYNTHETIC_CHILD_SECRET"
+        if mode.endswith("bad_source"):
+            response["data"]["coverage"][0]["source"] = "SYNTHETIC_CHILD_SECRET"
+    else:
+        response = (contracts.query_journal(**arguments) if mode == "partial"
+                    else contracts.service_status(**arguments))
     if mode == "wrong_ids":
         response["trace_id"] = "forged-SYNTHETIC_CHILD_SECRET"
     elif mode in {"semantic", "permission"}:
