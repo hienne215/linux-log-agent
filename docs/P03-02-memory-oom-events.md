@@ -72,7 +72,7 @@ argv = (sys.executable, "-I", str(ROOT / "src/mcp_server/oom_worker.py"))
 ServerScaffold(backends={"memory_oom_events": argv})
 ```
 
-**Wiring decision (Thuy):** the real backend is enabled by an operator-owned flag `--linux-oom`, off by default, with a fixed argv and no command or executable taken from MCP arguments. The flag is **not implemented yet**: it needs the scaffold's `run_mcp_server.py` (commit `5b73a50`, branch `codex/p01-01-mcp-server-scaffold`).
+**Wiring (decision by Thuy, implemented):** `python run_mcp_server.py --linux-oom` enables the real backend. The flag is operator-owned and **off by default**. The worker argv is built in `build_backends()` from `sys.executable`, `-I` and a fixed repository path; no MCP argument can change the executable or the script, and the parser accepts no other option. On Linux the server must run as the reader account (it refuses root).
 
 ## 3. P03-02.3: verification
 
@@ -83,6 +83,7 @@ ServerScaffold(backends={"memory_oom_events": argv})
 | Fixtures: OOM / no OOM / permission denied | Same tests; kernel line formats listed in the test file | Automated |
 | No unlisted process name reaches the response | `test_process_name_with_secret_like_text_never_appears_anywhere` (includes `APIKEY_7D19`, `Z9K2-7D19`), `test_allowlisted_process_names_are_kept`, `test_operator_allowlist_file...`, `test_message_is_rebuilt_from_parsed_fields_only` | Automated |
 | A failed command is never a successful read | `test_failing_journalctl_is_unavailable_even_with_a_valid_record` | Automated |
+| `--linux-oom` is off by default, fixed argv | `test_linux_oom_flag_is_off_by_default_and_the_argv_is_fixed_in_code`, `test_flag_enables_the_backend_through_the_real_stdio_server` | Automated |
 | Smoke, RAM read-only | `scripts/p03-02/smoke.sh` in the VM (section 6) | Run in the VM, output saved |
 
 Kernel message formats in the fixtures follow the Linux kernel source; they were **not captured** from a real OOM on the lab VM. The P03-01 fixture line is a simulated kernel-log line, not a real OOM.
@@ -96,7 +97,7 @@ Run the tests: `python -m pytest -q tests/test_p03_02_oom_events.py`
 3. **Coverage:** judged per source.
 4. **De-duplication:** same pid, same name (or one unknown), within 60 s (section 1).
 5. **Cursor:** proposal in section 1; Thuy asked for it to be aligned with R3 before it counts as settled.
-6. Still open: the scaffold replaces every worker error by `safe_error(code)`, so per-source `coverage` is lost for `PERMISSION_DENIED` / `UNSUPPORTED`. The code survives, which meets the acceptance criterion.
+6. Resolved by scaffold `5b73a50`: for log-source tools the server now keeps `coverage` for `PERMISSION_DENIED` / `UNSUPPORTED` errors (rebuilt from schema enums, worker text is never forwarded). It requires every source to be non-`ok` and the correlation IDs to be echoed, which this worker does.
 
 ## 5. Known limits
 
