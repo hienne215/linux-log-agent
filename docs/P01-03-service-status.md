@@ -127,7 +127,8 @@ venv as the reader (this command has **not** been executed on Linux here):
 python - <<'PY'
 import asyncio, json, sys
 from pathlib import Path
-from mcp import Client, StdioServerParameters
+from mcp import ClientSession, StdioServerParameters
+from mcp.client.stdio import stdio_client
 from jsonschema import Draft202012Validator, FormatChecker
 
 async def main():
@@ -136,14 +137,17 @@ async def main():
     validator = Draft202012Validator(json.loads(
         Path('schemas/tools/service_status.result.schema.json').read_text()),
         format_checker=FormatChecker())
-    async with Client(params) as client:
-        result = await client.call_tool('service_status', dict(
-            schema_version='1.0.0', session_id='linux-read-smoke', trace_id='trace-1',
-            logical_tool_call_id='service-read-1', attempt_id='attempt-1', unit='nginx.service'))
-        validator.validate(result.structured_content)
-        assert json.loads(result.content[0].text) == result.structured_content
-        assert result.is_error == (result.structured_content['status'] == 'error')
-        print(json.dumps(result.structured_content, indent=2))
+    async with asyncio.timeout(30), stdio_client(params) as (read, write):
+        async with ClientSession(read, write, read_timeout_seconds=10) as session:
+            await session.initialize()
+            result = await session.call_tool('service_status', dict(
+                schema_version='1.0.0', session_id='linux-read-smoke', trace_id='trace-1',
+                logical_tool_call_id='service-read-1', attempt_id='attempt-1', unit='nginx.service'),
+                read_timeout_seconds=10)
+            validator.validate(result.structured_content)
+            assert json.loads(result.content[0].text) == result.structured_content
+            assert result.is_error == (result.structured_content['status'] == 'error')
+            print(json.dumps(result.structured_content, indent=2))
 asyncio.run(main())
 PY
 ```
