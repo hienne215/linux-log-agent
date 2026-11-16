@@ -15,8 +15,16 @@ ROOT = Path(__file__).resolve().parents[1]
 SCHEMA = json.loads((ROOT / 'schemas/tools/list_failed_units.response.schema.json').read_text())
 
 
+def item(name='nginx.service', description='Synthetic example', **extra):
+    return dict(unit=name, load='loaded', active='failed', sub='failed', description=description, **extra)
+
+
+def listing(records):
+    return json.dumps(records, ensure_ascii=False).encode('utf-8')
+
+
 def row(name='nginx.service', description='Synthetic example'):
-    return f'{name} loaded failed failed {description}\n'.encode()
+    return listing([item(name, description)])
 
 
 class Pipe:
@@ -35,7 +43,7 @@ class Pipe:
 
 
 class Process:
-    def __init__(self, stdout=b'', stderr=b'', code=0, block=False):
+    def __init__(self, stdout=b'[]', stderr=b'', code=0, block=False):
         self.stdout, self.stderr = Pipe(stdout, block), Pipe(stderr, block)
         self.code, self.returncode, self.killed, self.waited = code, None, False, False
 
@@ -68,7 +76,7 @@ def rejected(call, code):
 
 @pytest.mark.parametrize('count', [0, 1, 3, 100, 200])
 def test_success_and_canonical_shape(spawn, count):
-    process = Process(b''.join(row(f'unit{i}.service') for i in range(count)))
+    process = Process(listing([item(f'unit{i}.service') for i in range(count)]))
     spawn.return_value = process
     data = asyncio.run(core.collect_failed_units(limit=max(1, count)))
     assert data['count'] == count
@@ -83,7 +91,7 @@ def test_fixed_read_command_and_clean_environment(spawn):
     asyncio.run(core.collect_failed_units())
     args, kwargs = spawn.call_args
     assert args == ('/usr/bin/systemctl', '--system', '--no-pager', '--no-ask-password',
-        '--no-legend', '--plain', '--full', '--all', '--state=failed', 'list-units')
+        '--no-legend', '--plain', '--full', '--all', '--state=failed', '--output=json', 'list-units')
     assert kwargs == dict(stdin=asyncio.subprocess.DEVNULL, stdout=asyncio.subprocess.PIPE,
         stderr=asyncio.subprocess.PIPE, shell=False, cwd='/', env=core.ENV, limit=4096)
     assert not any(item in args for item in ('sudo', 'restart', 'stop', 'enable', 'disable'))
@@ -97,7 +105,7 @@ def test_invalid_limits_fail_before_spawn(spawn, limit):
 
 @pytest.mark.parametrize('limit', [1, 100, 200])
 def test_no_fake_complete_page(spawn, limit):
-    spawn.return_value = Process(b''.join(row(f'u{i}.service') for i in range(limit + 1)))
+    spawn.return_value = Process(listing([item(f'u{i}.service') for i in range(limit + 1)]))
     rejected(lambda: asyncio.run(core.collect_failed_units(limit)), 'OUTPUT_LIMIT')
 
 
@@ -120,10 +128,10 @@ def test_supported_canonical_names_are_preserved(name):
 
 @pytest.mark.parametrize('payload', [b'\xff\n', b'UNIT LOAD ACTIVE SUB DESCRIPTION\n',
     b'0 loaded units listed.\n', b'nginx.service charge echec echec description\n',
-    row().rstrip(b'\n'), row().replace(b'failed failed', b'active running'),
+    row()[:-1], row().replace(b'"active": "failed"', b'"active": "active"'),
     row().replace(b'loaded', b'unknown'), row(description='unsafe\x1b[31m'),
     row(description='unsafe\x00'), row(description='hidden\u200btext'),
-    row(description='truncated…'), row(description='truncated...'), b'\n', row() + row()])
+    b'', b'{}', b'null', b'\n', listing([item(), item()]), row() + row()])
 def test_malformed_localized_unsafe_or_truncated_output(payload):
     rejected(lambda: core.parse_failed_units(payload), 'EXECUTION_UNKNOWN')
 
@@ -131,7 +139,7 @@ def test_malformed_localized_unsafe_or_truncated_output(payload):
 def test_size_and_description_caps():
     rejected(lambda: core.parse_failed_units(b'x' * (core.STDOUT_LIMIT + 1)), 'OUTPUT_LIMIT')
     rejected(lambda: core.parse_failed_units(row(description='x' * 2049)), 'OUTPUT_LIMIT')
-    rejected(lambda: core.parse_failed_units(b''.join(row(f'u{i}.service') for i in range(201)), 200), 'OUTPUT_LIMIT')
+    rejected(lambda: core.parse_failed_units(listing([item(f'u{i}.service') for i in range(201)]), 200), 'OUTPUT_LIMIT')
 
 
 @pytest.mark.parametrize('stdout,stderr,code,expected', [
@@ -231,3 +239,41 @@ def test_pending_spawn_cancellation_still_reaps(spawn):
             await task
         assert process.killed and process.waited
     asyncio.run(exercise())
+
+
+def test_pending_job_is_not_part_of_description(spawn):
+    spawn.return_value = Process(listing([item(job='start'), item('other.service', '', job='')]))
+    data = asyncio.run(core.collect_failed_units())
+    assert data['failed_units'][0]['description'] == 'Synthetic example'
+    assert data['failed_units'][1]['description'] == ''
+    assert all('job' not in unit for unit in data['failed_units'])
+    Draft202012Validator(SCHEMA).validate(data)
+
+
+def test_ambiguous_legacy_job_column_is_rejected():
+    rejected(lambda: core.parse_failed_units(
+        b'nginx.service loaded failed failed start Actual description\n'), 'EXECUTION_UNKNOWN')
+
+
+@pytest.mark.parametrize('suffix', [b',"unit":"duplicate"}]', b',"job":NaN}]',
+    b',"job":Infinity}]', b',"job":1e999}]', b',"job":"\\ud800"}]'])
+def test_invalid_json_values_on_complete_record(suffix):
+    payload = row()[:-2] + suffix
+    rejected(lambda: core.parse_failed_units(payload), 'EXECUTION_UNKNOWN')
+
+
+@pytest.mark.parametrize('field', ['unit', 'load', 'active', 'sub', 'description'])
+def test_missing_json_field(field):
+    record = item()
+    del record[field]
+    rejected(lambda: core.parse_failed_units(listing([record])), 'EXECUTION_UNKNOWN')
+
+
+@pytest.mark.parametrize('extra', [{'unexpected': 'value'}, {'job': 1}, {'job': ['start']}, {'job': '\x1b'}])
+def test_unknown_or_unsafe_metadata(extra):
+    rejected(lambda: core.parse_failed_units(listing([item(**extra)])), 'EXECUTION_UNKNOWN')
+
+
+def test_json_literal_ellipsis_preserved_and_no_placeholder_description():
+    assert core.parse_failed_units(row(description='Progress...'))['failed_units'][0]['description'] == 'Progress...'
+    assert core.parse_failed_units(row(description=''))['failed_units'][0]['description'] == ''

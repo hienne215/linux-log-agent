@@ -10,13 +10,13 @@ P01-03, not a complete ticket or MCP integration delivery.
 
 `await collect_failed_units(limit=100)` returns exactly canonical data or raises
 `FailedUnitsError(code)`. `parse_failed_units(bytes, limit)` is the isolated parser;
-empty bytes alone do not establish command success. The collector checks exit and
-stderr before allowing an empty observation.
+only a JSON [] listing is empty; empty bytes are malformed. The collector checks
+exit and stderr before allowing an empty observation.
 
 The sole trusted executable/profile is:
 
 ```text
-/usr/bin/systemctl --system --no-pager --no-ask-password --no-legend --plain --full --all --state=failed list-units
+/usr/bin/systemctl --system --no-pager --no-ask-password --no-legend --plain --full --all --state=failed --output=json list-units
 ```
 
 The system manager is queried read-only; no unit pattern, executable, path, shell,
@@ -24,25 +24,42 @@ sudo/helper or environment values are accepted from callers. No service action.
 Only LC_ALL=C, LANG=C, SYSTEMD_COLORS=0 and empty SYSTEMD_PAGER are passed, with
 stdin DEVNULL and cwd=/. No inherited environment secrets or arbitrary file reads.
 
-The baseline targets the systemd 245/247 family of the lab. A JSON list-units
-interface is not assumed for that baseline. Instead use a strictly validated fixed
-format as documented in the [systemctl 247 manual](https://www.freedesktop.org/software/systemd/man/247/systemctl.html):
-no legend/header/footer, full unellipsized names/descriptions, no bullets/colors,
-C-locale load/active/sub tokens. Actual compatibility needs a Linux smoke.
+The JSON profile was checked against upstream systemd v247 source:
+[argument parsing](https://github.com/systemd/systemd/blob/v247/src/systemctl/systemctl.c),
+[list-units fields](https://github.com/systemd/systemd/blob/v247/src/systemctl/systemctl-list-units.c),
+[JSON table output](https://github.com/systemd/systemd/blob/v247/src/systemctl/systemctl-util.c).
+This is source-level evidence, not a Linux smoke or proof for the lab's actual
+binary/version. An older/different build without this JSON profile is unsupported;
+there is no fallback to human columns or synthetic success.
 
-Every line must contain unit, known load state, failed active state, failed substate
-and optional description. Only literal ASCII canonical names up to 255 characters
-with known systemd suffixes are supported, including nonempty @ instances. No
-case-folding, guessed unescaping or synthesized name. Escaped names, templates,
-duplicates, unknown states, localized/header output, invalid UTF-8, controls and
-ellipsis markers fail closed. Nonempty output must end in newline; no partial line
-is accepted. Printable Unicode descriptions are preserved, with outer ASCII spaces
-removed; length >2048 rejects. No fabricated description or generic replacement.
+Parse exactly one JSON array of records with unit, load, active, sub, description
+and optional job. Reject missing/extra fields, duplicate JSON keys, NaN/Infinity,
+exponent-overflow numeric values, non-string fields, invalid UTF-8, unpaired
+surrogates, controls, malformed/truncated JSON or concatenated documents. Known
+load tokens and active=sub=failed are required. Optional job is validated printable
+text <=64 characters but never forwarded into description or canonical data.
+
+Only literal ASCII canonical names up to 255 characters with known systemd suffixes
+are supported, including nonempty @ instances. No case-folding, guessed unescaping
+or synthesized name. Escaped names, templates, duplicate units and unknown states
+fail closed. Printable Unicode descriptions are preserved, removing outer ASCII
+spaces; length >2048 rejects. Empty descriptions stay empty; no '-' placeholder is
+invented. Literal ellipsis in a complete JSON description is data, not truncation.
 
 Descriptions/unit names remain untrusted and this formatting validation is NOT a
 secret redactor. There is no MCP/evidence/log/LLM sink here; exposure requires later
-reviewed privacy/provenance integration. A literal ellipsis in valid description or
-unsupported escaped name can cause conservative rejection, never silent omission.
+reviewed privacy/provenance integration. Unsupported escaped names may cause
+conservative rejection, never silent omission.
+
+## Final source audit correction
+
+The original ed4f3b text parser assumed five columns. Upstream v247 conditionally
+adds a JOB column when any listed unit has a pending job. The original parser
+accepted `nginx.service loaded failed failed start Actual description` and returned
+`start Actual description`, incorrectly folding JOB into the description. Human
+format also uses display placeholders for empty text. This follow-up uses fixed
+JSON output to preserve distinct job/description fields, rejects ambiguous legacy
+text, and adds regression fixtures. Only the three core task files are changed.
 
 ## Bounds and lifecycle
 
@@ -77,7 +94,7 @@ output, unknown diagnostics or nonzero unexpected command exit. Messages contain
 only the fixed code, never stderr, arbitrary output or exception text.
 
 Even exit 0 with any stderr is rejected. Only exit 0, empty stderr and a completely
-validated listing can yield zero failed units. This observes the current system
+validated JSON listing can yield zero failed units. This observes the current system
 manager's visible in-memory units, not every installed unit/other namespace or an
 independent proof of a bus policy's completeness. Silent policy filtering cannot be
 detected by this core alone; deployment reader policy still requires verification.
@@ -101,3 +118,7 @@ claimed by synthetic fixtures. No dependency branch is modified or declared fina
 Local verification: Windows / Python 3.12.7, **66 PASS, 0 FAIL, 0 ERROR,
 0 SKIP** in the targeted suite, including canonical data schema checks. All
 command/pipe/process observations are test doubles, not Linux smoke evidence.
+
+Fresh final-audit verification after the JSON correction: Windows / Python 3.12.7,
+**85 PASS, 0 FAIL, 0 ERROR, 0 SKIP**. The earlier 66-PASS report above describes
+the original text-profile revision. Linux smoke remains NOT RUN.

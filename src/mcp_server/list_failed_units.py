@@ -1,11 +1,12 @@
 """Bounded read-only systemctl core, without MCP, evidence or cursor state."""
 
 import asyncio
+import json
 import re
 
 
 ARGV = ('/usr/bin/systemctl', '--system', '--no-pager', '--no-ask-password',
-        '--no-legend', '--plain', '--full', '--all', '--state=failed', 'list-units')
+        '--no-legend', '--plain', '--full', '--all', '--state=failed', '--output=json', 'list-units')
 ENV = {'LC_ALL': 'C', 'LANG': 'C', 'SYSTEMD_COLORS': '0', 'SYSTEMD_PAGER': ''}
 TIMEOUT = 5.0
 STDOUT_LIMIT = 65536
@@ -13,7 +14,6 @@ STDERR_LIMIT = 4096
 RECORD_LIMIT = 200
 DESCRIPTION_LIMIT = 2048
 _UNIT = re.compile(r'[A-Za-z0-9][A-Za-z0-9:_.@-]*\.(?:service|socket|target|mount|automount|swap|timer|path|slice|scope|device)\Z')
-_ROW = re.compile(r' *([^ ]+) +(loaded|not-found|bad-setting|error|masked) +failed +failed(?: +(.*))?\Z')
 
 
 class FailedUnitsError(Exception):
@@ -29,11 +29,24 @@ def _limit(limit):
         raise FailedUnitsError('INVALID_INPUT')
 
 
-def parse_failed_units(payload: bytes, limit: int = 100) -> dict:
-    """Parse the fixed C-locale full/plain/no-legend output, atomically.
+def _object(pairs):
+    result = {}
+    for key, value in pairs:
+        if key in result:
+            raise FailedUnitsError('EXECUTION_UNKNOWN')
+        result[key] = value
+    return result
 
-    An empty byte stream is only meaningful after a successful, diagnostic-free
-    command. collect_failed_units owns that check. No description redaction is
+
+def _constant(_value):
+    raise FailedUnitsError('EXECUTION_UNKNOWN')
+
+
+def parse_failed_units(payload: bytes, limit: int = 100) -> dict:
+    """Parse the fixed systemctl JSON array format atomically.
+
+    Only [] is an empty listing; empty bytes are invalid. collect_failed_units
+    checks command exit and diagnostics first. No description redaction is
     claimed: these data remain untrusted and are not connected to MCP/LLM output.
     """
     _limit(limit)
@@ -42,27 +55,33 @@ def parse_failed_units(payload: bytes, limit: int = 100) -> dict:
     if len(payload) > STDOUT_LIMIT:
         raise FailedUnitsError('OUTPUT_LIMIT')
     try:
-        text = payload.decode('utf-8', errors='strict')
-    except UnicodeError:
+        records = json.loads(payload.decode('utf-8', errors='strict'),
+                             object_pairs_hook=_object, parse_constant=_constant)
+    except (ValueError, UnicodeError, RecursionError):
         raise FailedUnitsError('EXECUTION_UNKNOWN') from None
-    if text and not text.endswith('\n'):
+    if not isinstance(records, list):
         raise FailedUnitsError('EXECUTION_UNKNOWN')
-    lines = text[:-1].split('\n') if text else []
-    if len(lines) > RECORD_LIMIT:
+    if len(records) > RECORD_LIMIT:
         raise FailedUnitsError('OUTPUT_LIMIT')
     rows, names = [], set()
-    for line in lines:
-        if not line.isprintable() or '…' in line or '...' in line:
+    required = {'unit', 'load', 'active', 'sub', 'description'}
+    for record in records:
+        if (not isinstance(record, dict) or not required <= record.keys()
+                or record.keys() - required - {'job'}):
             raise FailedUnitsError('EXECUTION_UNKNOWN')
-        match = _ROW.fullmatch(line)
-        if match is None:
+        if any(not isinstance(value, str) or (value and not value.isprintable())
+               for value in record.values()):
             raise FailedUnitsError('EXECUTION_UNKNOWN')
-        unit, _load, description = match.groups()
+        if (record['load'] not in {'loaded', 'not-found', 'bad-setting', 'error', 'masked'}
+                or record['active'] != 'failed' or record['sub'] != 'failed'
+                or len(record.get('job', '')) > 64):
+            raise FailedUnitsError('EXECUTION_UNKNOWN')
+        unit, description = record['unit'], record['description']
         if (len(unit) > 255 or not _UNIT.fullmatch(unit) or unit.count('@') > 1
                 or ('@' in unit and not all(unit.rsplit('.', 1)[0].split('@')))
                 or unit in names):
             raise FailedUnitsError('EXECUTION_UNKNOWN')
-        description = (description or '').strip(' ')
+        description = description.strip(' ')
         if len(description) > DESCRIPTION_LIMIT:
             raise FailedUnitsError('OUTPUT_LIMIT')
         names.add(unit)
