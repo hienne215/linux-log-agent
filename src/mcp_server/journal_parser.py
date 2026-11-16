@@ -6,6 +6,7 @@ until a separately reviewed access/redaction/provenance policy has been applied.
 
 from datetime import datetime, timedelta, timezone
 import json
+import math
 import re
 
 
@@ -34,6 +35,22 @@ def _invalid_constant(_value):
     raise JournalParseError("Invalid journal record.")
 
 
+def _validate_decoded(value):
+    """Validate all decoded metadata before selecting canonical entry fields."""
+    if isinstance(value, str):
+        value.encode("utf-8", errors="strict")
+    elif isinstance(value, float):
+        if not math.isfinite(value):
+            raise ValueError
+    elif isinstance(value, dict):
+        for key, item in value.items():
+            _validate_decoded(key)
+            _validate_decoded(item)
+    elif isinstance(value, list):
+        for item in value:
+            _validate_decoded(item)
+
+
 def parse_journal_json(payload: bytes) -> list[dict]:
     """Parse journalctl JSON lines into canonical entry-shaped, untrusted data.
 
@@ -60,6 +77,7 @@ def parse_journal_json(payload: bytes) -> list[dict]:
             record = json.loads(line.decode("utf-8", errors="strict"),
                                 object_pairs_hook=_object,
                                 parse_constant=_invalid_constant)
+            _validate_decoded(record)
             if not isinstance(record, dict):
                 raise ValueError
             stamp = record["__REALTIME_TIMESTAMP"]

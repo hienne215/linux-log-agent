@@ -66,8 +66,8 @@ def test_unsupported_message_representation(message):
 
 
 @pytest.mark.parametrize('payload', [b'\xff', b'{', b'[]', b'null', b'"text"', b'\n',
-    wire() + b'\n\n' + wire(), b'{"MESSAGE":"first","MESSAGE":"second"}',
-    b'{"MESSAGE":NaN}', b'{"MESSAGE":"\\ud800"}',
+    wire() + b'\n\n' + wire(), wire()[:-1] + b',"MESSAGE":"second"}',
+    wire()[:-1] + b',"EXTRA":NaN}', b'{"MESSAGE":"\\ud800"}',
     b'{"__REALTIME_TIMESTAMP":"1","PRIORITY":"3","MESSAGE":"\\udfff"}'])
 def test_malformed_wire_and_ambiguous_json(payload):
     with pytest.raises(JournalParseError):
@@ -114,3 +114,50 @@ def test_bad_tail_rejects_entire_batch_and_errors_do_not_echo_content(capsys):
 def test_non_bytes_input():
     with pytest.raises(JournalParseError):
         parse_journal_json('text')
+
+
+@pytest.mark.parametrize('extra', [
+    b'1e999', b'-1e999', b'"\\ud800"', b'"\\udfff"',
+    b'{"nested":[0,{"value":1e999}]}',
+    b'[{"value":-1e999}]',
+    b'{"nested":[0,{"value":"\\ud800"}]}',
+    b'[{"value":"\\udfff"}]',
+    b'{"\\ud800":"value"}',
+    b'[{"deep":{"\\udfff":"value"}}]',
+])
+def test_recursive_metadata_rejects_invalid_values(extra, capsys):
+    # All required fields are valid; only EXTRA can cause this rejection.
+    payload = wire()[:-1] + b',"EXTRA":' + extra + b'}'
+    for batch in (payload, wire() + b'\n' + payload):
+        with pytest.raises(JournalParseError, match=r'^Invalid journal record\.$') as caught:
+            parse_journal_json(batch)
+        assert caught.value.__suppress_context__
+    assert capsys.readouterr() == ('', '')
+
+
+def test_top_level_surrogate_key_is_rejected():
+    payload = wire()[:-1] + b',"\\ud800":"value"}'
+    with pytest.raises(JournalParseError, match=r'^Invalid journal record\.$'):
+        parse_journal_json(payload)
+
+
+@pytest.mark.parametrize('suffix', [
+    b',"MESSAGE":"duplicate"}',
+    b',"EXTRA":{"key":1,"key":2}}',
+    b',"EXTRA":NaN}', b',"EXTRA":Infinity}', b',"EXTRA":-Infinity}',
+    b',"EXTRA":[{"value":NaN}]}',
+])
+def test_duplicate_keys_and_constants_with_complete_record(suffix):
+    payload = wire()[:-1] + suffix
+    with pytest.raises(JournalParseError, match=r'^Invalid or oversized journal record\.$'):
+        parse_journal_json(payload)
+
+
+def test_valid_nested_metadata_is_accepted_but_not_forwarded():
+    metadata = {'nested': [None, True, False, 42, -1, 1.25, 1e308,
+                           {'Tiếng Việt 🌍': ['value', {'empty': ''}]}]}
+    payload = wire(dict(RECORD, EXTRA=metadata))
+    assert parse_journal_json(payload) == parse_journal_json(wire())
+    # JSON escaped surrogate PAIRS are valid Unicode, not unpaired surrogates.
+    escaped = wire()[:-1] + b',"EXTRA":{"\\ud83c\\udf0d":"\\ud83c\\udf0d"}}'
+    assert parse_journal_json(escaped) == parse_journal_json(wire())
