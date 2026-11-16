@@ -111,3 +111,7 @@ The tool statuses below refer to real Linux collection/execution, not the existi
 ## Dependency audit — 16/11/2026
 
 [PR #6/#14 review readiness](dependency-review-readiness.md): scoped confirmations recorded; current integration, detailed schemas/transport and independent scaffold review remain pending. Not finalized or Done.
+
+## P01-03 service_status collector
+
+[Read-only service_status handoff](P01-03-service-status.md): separate opt-in Linux backend on scaffold 656f8c3. Local injected-API/SDK tests are not Linux smoke or independent acceptance; no other collector is included.
