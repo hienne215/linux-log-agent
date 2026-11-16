@@ -89,6 +89,10 @@ class ServerScaffold:
         elif params.name not in self.backends:
             response = contracts.safe_error(params.name, {}, "UNSUPPORTED", rule="backend_unavailable")
         else:
+            # Snapshot caller-owned provenance before handing arguments to the worker.
+            # Canonical verify_fix input treats omitted/null baseline refs as [].
+            expected_baseline_refs = (list(arguments.get("baseline_evidence_refs") or [])
+                                      if params.name == "verify_fix" else None)
             try:
                 raw = await self.runner.run(self.backends[params.name], arguments)
                 response = json.loads(raw.decode("utf-8"))
@@ -110,6 +114,9 @@ class ServerScaffold:
                         response = contracts.safe_error(params.name, {}, response["error_code"], rule="worker")
                 elif any(response[key] != arguments[key] for key in
                          ("session_id", "trace_id", "logical_tool_call_id", "attempt_id")):
+                    raise WorkerFailure("EXECUTION_UNKNOWN")
+                if (params.name == "verify_fix" and response["status"] != "error"
+                        and response["data"]["baseline_evidence_refs"] != expected_baseline_refs):
                     raise WorkerFailure("EXECUTION_UNKNOWN")
                 if response["status"] != "error" and not valid_evidence_links(response):
                     raise WorkerFailure("EXECUTION_UNKNOWN")

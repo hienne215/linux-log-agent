@@ -118,6 +118,109 @@ def test_verify_worker_external_baseline_is_distinct_from_observation_refs(dangl
     asyncio.run(exercise())
 
 
+@pytest.mark.parametrize("fault", ["match", "replace", "append", "remove", "reverse",
+                                  "missing", "wrong_type", "null", "empty"])
+def test_verify_worker_baseline_must_match_validated_request(fault):
+    from test_contract_audit import arguments
+    requested = ["external-baseline-first", "external-baseline-second"]
+    class BaselineRunner:
+        async def run(self, profile, args):
+            response = contracts.verify_fix(**args)
+            data = response["data"]
+            data["baseline_evidence_refs"] = list(requested)
+            if fault == "replace":
+                data["baseline_evidence_refs"][0] = SECRET
+            elif fault == "append":
+                data["baseline_evidence_refs"].append(SECRET)
+            elif fault == "remove":
+                data["baseline_evidence_refs"].pop()
+            elif fault == "reverse":
+                data["baseline_evidence_refs"].reverse()
+            elif fault == "missing":
+                data.pop("baseline_evidence_refs")
+            elif fault == "wrong_type":
+                data["baseline_evidence_refs"] = {SECRET: "forged"}
+            elif fault == "null":
+                data["baseline_evidence_refs"] = None
+            elif fault == "empty":
+                data["baseline_evidence_refs"] = []
+            return json.dumps(response).encode("utf-8")
+    async def exercise():
+        args = {**arguments("verify_fix"), "baseline_evidence_refs": list(requested)}
+        assert contracts.TOOLS["verify_fix"][3].is_valid(args)
+        app = ServerScaffold(backends={"verify_fix": argv("small")}, runner=BaselineRunner())
+        native = await app.call_tool(SimpleNamespace(request_id=1),
+            CallToolRequestParams(name="verify_fix", arguments=args))
+        response = validate(native, "verify_fix")
+        assert args["baseline_evidence_refs"] == requested
+        if fault == "match":
+            assert not native.is_error and response["status"] == "partial"
+            assert response["data"]["baseline_evidence_refs"] == requested
+            assert response["evidence"] == []  # External baseline need not be a new observation.
+        else:
+            assert native.is_error and response["error_code"] == "EXECUTION_UNKNOWN"
+            assert "baseline_evidence_refs" not in response["data"]
+            assert response["evidence"] == [] and response["session_id"] is None
+    asyncio.run(exercise())
+
+
+@pytest.mark.parametrize("request_form", ["omitted", "null", "empty"])
+@pytest.mark.parametrize("forged", [False, True])
+def test_verify_worker_cannot_invent_baseline_for_empty_request(request_form, forged):
+    from test_contract_audit import arguments
+    class EmptyRunner:
+        async def run(self, profile, args):
+            response = contracts.verify_fix(**args)
+            if forged:
+                response["data"]["baseline_evidence_refs"] = [SECRET]
+            return json.dumps(response).encode("utf-8")
+    async def exercise():
+        args = arguments("verify_fix")
+        args.pop("baseline_evidence_refs", None)
+        if request_form != "omitted":
+            args["baseline_evidence_refs"] = None if request_form == "null" else []
+        assert contracts.TOOLS["verify_fix"][3].is_valid(args)
+        app = ServerScaffold(backends={"verify_fix": argv("small")}, runner=EmptyRunner())
+        native = await app.call_tool(SimpleNamespace(request_id=1),
+            CallToolRequestParams(name="verify_fix", arguments=args))
+        response = validate(native, "verify_fix")
+        if forged:
+            assert native.is_error and response["error_code"] == "EXECUTION_UNKNOWN"
+        else:
+            assert not native.is_error and response["data"]["baseline_evidence_refs"] == []
+            assert response["evidence"] == []
+    asyncio.run(exercise())
+
+
+@pytest.mark.parametrize("fault", ["valid", "dangling", "duplicate"])
+def test_verify_baseline_matching_does_not_bypass_observed_evidence_checks(fault):
+    from test_contract_audit import arguments
+    class ObservedRunner:
+        async def run(self, profile, args):
+            response = contracts.verify_fix(**args)
+            evidence = contracts.service_status(**ARGS)["evidence"][0]
+            response["evidence"] = [evidence]
+            response["data"]["checks"][0]["evidence_refs"] = [
+                SECRET if fault == "dangling" else evidence["evidence_id"]]
+            if fault == "duplicate":
+                response["evidence"].append(dict(evidence))
+            assert contracts.TOOLS["verify_fix"][4].is_valid(response)
+            return json.dumps(response).encode("utf-8")
+    async def exercise():
+        args = {**arguments("verify_fix"), "baseline_evidence_refs": ["external-baseline"]}
+        app = ServerScaffold(backends={"verify_fix": argv("small")}, runner=ObservedRunner())
+        native = await app.call_tool(SimpleNamespace(request_id=1),
+            CallToolRequestParams(name="verify_fix", arguments=args))
+        response = validate(native, "verify_fix")
+        if fault == "valid":
+            assert not native.is_error and len(response["evidence"]) == 1
+            assert response["data"]["baseline_evidence_refs"] == ["external-baseline"]
+        else:
+            assert native.is_error and response["error_code"] == "EXECUTION_UNKNOWN"
+            assert response["evidence"] == []
+    asyncio.run(exercise())
+
+
 def test_root_identity_is_rejected_without_privilege_change(monkeypatch):
     monkeypatch.setattr(server_module, "os", SimpleNamespace(name="posix", geteuid=lambda: 0))
     with pytest.raises(RuntimeError, match="Refusing root"):
