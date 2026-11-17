@@ -31,6 +31,7 @@ It also tracks the status of project features, so planned work is never presente
 | Evaluation scenarios and answer keys | `docs/evaluation-scenarios.md` | C | Planned |
 | Setup and install guide | `docs/setup-guide.md` | C | Proposed |
 | Test report | `docs/test-report.md` | C | Planned |
+| P03-03 failed-logins design, fixtures and validation | `docs/P03-03-failed-logins.md` | Trang; Thủy review | In Progress |
 | Final report (English) | `docs/report/` | Team | Planned |
 | Slides (English) | `docs/report/` | Team | Planned |
 
@@ -51,7 +52,7 @@ The tool statuses below refer to real Linux collection/execution, not the existi
 | `list_failed_units` | Core (read) | A | Planned |
 | `disk_usage` | Core (read) | A | Planned |
 | `memory_oom_events` | Core (read) | A | Planned |
-| `failed_logins` | Core (read) | A | Planned |
+| `failed_logins` | Core (read) | Trang; Thủy review | In Progress |
 | `listening_ports` | Core (read) | A | Planned |
 | `check_config` | Core (read) | A | Planned |
 | `detect_anomaly` | Core (read) | A | Planned |

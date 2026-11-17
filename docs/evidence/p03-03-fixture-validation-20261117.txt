@@ -1,0 +1,24 @@
+P03-03 / SCRUM-32 — author-run synthetic fixture evidence
+Date: 2026-11-17
+Executor: Codex on behalf of Trang, not an independent reviewer
+Platform: Windows, Python 3.12.7
+Base: main f9adf8f46dec32759be558a5b45bb229e64a3208
+Local branch: feature/P03-03-failed-logins
+
+Command:
+python -m pytest -q tests/test_p03_03_failed_logins.py tests/test_tool_schemas.py tests/test_response_schema.py --basetemp=.p03-03-final-tmp2
+
+Observed output:
+........................................................................ [ 60%]
+................................................                         [100%]
+120 passed in 2.27s
+Exit code: 0
+
+66 task-specific cases and 54 existing schema cases. Source command tests run
+synthetic Python subprocesses only; Linux source reads are mocked. No real host
+authentication attempts, VM commands, key provisioning, group changes or service
+changes were performed. No SDK registration/end-to-end or VM PASS is claimed.
+Canonical contract/schema files and shared runtime were not changed.
+
+Evidence remains author-run, with Thuy/Hien review and prerequisite/integration
+gates open. No Jira Done, merge or GitHub publication implied.
