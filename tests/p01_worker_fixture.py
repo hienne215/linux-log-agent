@@ -45,7 +45,12 @@ else:
         response.update(status="error", error_code="INVALID_INPUT" if mode == "semantic" else "PERMISSION_DENIED",
                         data={"message": "SYNTHETIC_CHILD_SECRET"})
     elif mode == "large_atomic":
-        response["data"]["description"] = "漢🙂" * 6000
+        # Schema-valid atomic payload: exceed the serialized frame cap without
+        # violating the new 2048-character description bound or raw worker cap.
+        response["data"]["description"] = "Bounded synthetic atomic fixture."
+        template = response["evidence"][0]
+        response["evidence"] = [dict(template, evidence_id=f"atomic-{i:02}", excerpt="漢" * 700)
+                                for i in range(16)]
     elif mode == "partial":
         response["data"]["entries"] = [{"timestamp": "2026-11-02T09:30:00Z", "priority": 3,
                                            "message": "whole-record-" + "漢" * 150} for _ in range(100)]
