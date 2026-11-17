@@ -1,0 +1,15 @@
+##### P03-02 smoke B-journal - 2026-11-16T20:55:53+07:00 - linux-log-lab
+uid=129(mcp-log-reader) gid=135(mcp-log-reader) groups=135(mcp-log-reader),101(systemd-journal)
+=== worker (window 2026-11-15T13:55:53Z .. 2026-11-16T13:55:53Z)
+worker exit code: 0
+status=partial error_code=None truncated=False
+coverage: journal.kernel  ok                 oldest=2026-11-01T19:12:54Z
+coverage: dmesg           ok                 oldest=2026-11-16T13:52:57Z
+message: None
+event: 2026-11-15T17:32:27Z pid=4242 process=lab-oom total_vm_kb=409600
+events=1 evidence=1
+=== RAM facts readable by mcp-log-reader (read-only)
+MemTotal:        2010968 kB
+MemAvailable:    1677196 kB
+SwapTotal:       1190340 kB
+SwapFree:        1190340 kB
