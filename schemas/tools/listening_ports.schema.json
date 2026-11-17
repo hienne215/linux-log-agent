@@ -20,7 +20,7 @@
     },
     "unit": {
       "type": "string",
-      "pattern": "^[a-zA-Z0-9][a-zA-Z0-9_.-]*\\.service$",
+      "pattern": "^[a-zA-Z0-9][a-zA-Z0-9_.-]*\\.service(?![\\s\\S])",
       "description": "Optional service unit filter.",
       "maxLength": 128
     },
