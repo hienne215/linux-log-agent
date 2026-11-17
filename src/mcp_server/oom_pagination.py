@@ -94,7 +94,8 @@ class OomPaginator:
                 if raw['status']=='error':
                     coverage=raw['data'].get('coverage')
                     if coverage and raw['error_code'] in ('PERMISSION_DENIED','UNSUPPORTED') and all(c['status']!='ok' for c in coverage):
-                        return contracts.coverage_error(TOOL,req,coverage)
+                        metadata={k:req[k] for k in ('session_id','trace_id','logical_tool_call_id','attempt_id')}
+                        return contracts.coverage_error(TOOL,metadata,coverage)
                     return self._error(raw['error_code'])
                 refs={e['evidence_id']:e for e in raw['evidence']}
                 events=raw['data']['events']

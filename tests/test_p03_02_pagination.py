@@ -149,3 +149,13 @@ def test_source_exception_and_cache_budget_fail_closed():
     pager=OomPaginator(response,'s',lambda:True)
     pager.MAX_TOKENS=0
     assert checked(pager.call({**REQ,'limit':1}))['error_code']=='OUTPUT_LIMIT'
+
+
+@pytest.mark.parametrize('status,code',[('permission_denied','PERMISSION_DENIED'),('unavailable','UNSUPPORTED')])
+def test_no_readable_source_preserves_ids_and_reconstructs_safe_coverage(status,code):
+    coverage=[dict(source=s,status=status,oldest_available_at=None) for s in oom.SOURCES]
+    def denied(req):
+        return oom._envelope(req,'error',dict(message='PRIVATE',coverage=coverage),error_code=code)
+    result=checked(OomPaginator(denied,'s',lambda:True).call(REQ))
+    assert result['error_code']==code and result['session_id']=='s'
+    assert result['data']['coverage']==coverage and 'PRIVATE' not in str(result)
