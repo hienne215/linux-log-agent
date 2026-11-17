@@ -49,11 +49,15 @@ def _endpoint(value, peer=False):
     if not (0 <= port <= 65535 if peer else 1 <= port <= 65535):
         raise ValueError
     if host.startswith('['):
-        if not host.endswith(']'):
+        closing = host.find(']')
+        if closing < 0:
             raise ValueError
-        host = host[1:-1]
-        if ':' not in host:
+        enclosed, suffix = host[1:closing], host[closing + 1:]
+        if (':' not in enclosed or (suffix and not suffix.startswith('%'))
+                or ('%' in enclosed and suffix)):
             raise ValueError
+        # iproute2 prints the interface suffix after the IPv6 closing bracket.
+        host = enclosed + suffix
     elif '[' in host or ']' in host:
         raise ValueError
     zone = ''
@@ -62,9 +66,7 @@ def _endpoint(value, peer=False):
         if not _SCOPE.fullmatch(zone):
             raise ValueError
     if host == '*':
-        if zone:
-            raise ValueError
-        address, unspecified = '*', True
+        address, unspecified = '*' + ('%' + zone if zone else ''), True
     else:
         parsed = ipaddress.ip_address(host)
         address, unspecified = str(parsed), parsed.is_unspecified

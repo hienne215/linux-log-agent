@@ -27,11 +27,19 @@ addresses and local ports 1..65535; malformed, truncated or localized output rej
 the whole observation even if a bad record would be filtered out. Nonempty input
 must end in newline. Empty bytes alone are only a parsed list; collection additionally
 requires exit 0 and empty stderr. Any diagnostic/nonzero exit is a safe typed error.
-Actual ss version/grammar/permissions still require Linux validation.
+Source-level audit is limited to upstream iproute2 **v5.5.0**:
+[ss.c](https://github.com/iproute2/iproute2/blob/v5.5.0/misc/ss.c), specifically
+sock_state_print, inet_addr_print, sock_addr_print and final column selection.
+With both TCP/UDP and LISTEN/UNCONN selected, Netid/State columns stay enabled;
+no -p/-e/-i/-o options add trailing metadata. This supports the fixed profile only,
+not every distribution build/version. Actual ss binary/grammar/permissions still
+require Linux smoke; unsupported layouts reject rather than guessing fields.
 
 IPv4, bracketed/unbracketed IPv6, mapped IPv6 and wildcard '*' are supported. IPs
 are normalized with ipaddress; '%' interface scope is validated and preserved,
-including IPv4 interface labels. '*' stays '*': do not guess its address family or
+including IPv4 interface labels. Accept both [fe80::1]%eth0 and
+[fe80::1%eth0], normalizing to fe80::1%eth0; ambiguous duplicate scopes reject.
+'*' and '*%eth0' retain wildcard/interface meaning: do not guess address family or
 dual-stack behavior. Local wildcard IPs 0.0.0.0 and :: retain their distinct meaning.
 Peers must be unspecified address/'*' and wildcard/zero port. No hostnames or service
 name lookup. Queues are not forwarded. Sorting by protocol/address/port makes
@@ -103,3 +111,15 @@ Local verification: Windows / Python 3.12.7, **83 PASS, 0 FAIL, 0 ERROR,
 0 SKIP**. Canonical data schema checks are in the targeted suite; three additional
 empty/TCP/UDP samples validated against the exact PR #6 dc53ff6 schema. Linux smoke
 NOT RUN; all byte/process/pipe observations are synthetic fixtures/doubles.
+
+## Final source audit follow-up
+
+The original 9fb0250 parser rejected the external-bracket scope and interface-bound
+wildcard rendered by iproute2 v5.5.0. A normal follow-up fixes only endpoint parsing,
+adds three source-format positive regressions and five negative scope cases, and
+preserves the command, attribution policy, bounds and fail-closed behavior.
+Regression before fix: 3 FAIL / 5 PASS; after fix: all targeted cases pass.
+
+Fresh Windows / Python 3.12.7 validation: **91 PASS, 0 FAIL, 0 ERROR, 0 SKIP**,
+separate from the historical 83 PASS above. Six empty/IPv4/IPv6/TCP/UDP/scoped
+samples passed the exact PR #6 dc53ff6 response-data schema. Linux smoke NOT RUN.

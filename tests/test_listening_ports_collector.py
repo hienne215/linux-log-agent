@@ -131,7 +131,7 @@ def test_connected_sockets_are_not_listener_evidence(payload):
 
 
 @pytest.mark.parametrize('address', ['localhost:80', '999.0.0.1:80', '1.2.3.4:0', '*:65536',
-    '*:-1', '*:http', '[::1:80', '[127.0.0.1]:80', '[::1%bad/scope]:80', '*%eth0:80'])
+    '*:-1', '*:http', '[::1:80', '[127.0.0.1]:80', '[::1%bad/scope]:80', '*%bad/scope:80'])
 def test_bad_address_or_port(address):
     rejected(lambda: core.parse_listening_ports(row(address=address)), 'EXECUTION_UNKNOWN')
 
@@ -250,3 +250,16 @@ def test_pending_spawn_timeout_reaps(spawn, monkeypatch):
     monkeypatch.setattr(core, 'TIMEOUT', 0.005)
     rejected(lambda: asyncio.run(core.collect_listening_ports()), 'TIMEOUT')
     assert process.killed and process.waited
+
+
+@pytest.mark.parametrize('address,expected', [('[fe80::1]%eth0:5353', 'fe80::1%eth0'),
+    ('[::]%12:80', '::%12'), ('*%eth0:80', '*%eth0')])
+def test_iproute2_external_scope_and_interface_wildcard(address, expected):
+    data = canonical(core.parse_listening_ports(row(address=address)))
+    assert data['ports'][0]['address'] == expected
+
+
+@pytest.mark.parametrize('address', ['[fe80::1]suffix:80', '[fe80::1]%:80',
+    '[fe80::1%eth0]%eth1:80', '[fe80::1]%bad/scope:80', '*%eth0%eth1:80'])
+def test_ambiguous_or_invalid_external_scope_rejected(address):
+    rejected(lambda: core.parse_listening_ports(row(address=address)), 'EXECUTION_UNKNOWN')
