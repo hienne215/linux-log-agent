@@ -7,7 +7,7 @@
 **Python:** 3.12  
 **Transport:** stdio  
 **Contract version:** 1.0.0  
-**Status:** Contracts 1.0.0 R3 plus 2026-11-17 schema-hardening candidate; pending reviewer confirmation; NOT finalized
+**Status:** Canonical contract 1.0.0 from PR #6 merged into main at `f9adf8f46dec32759be558a5b45bb229e64a3208`; PR #14 adoption remains under independent review.
 
 **Current review entry point:** [R3 review response and handoff](SCRUM-12-review-R3-2026-11-15.md). R3 supersedes conflicting R2/R1 details; accepted coverage errors preserve IDs, execution_unknown requires executed=null, and proposals expire after 60 seconds. [R1 historical review](SCRUM-12-contract-review-2026-11-14.md) was accepted by Hiền for Integration R1 only.
 
@@ -15,6 +15,15 @@
 This candidate tightens accepted inputs/data bounds without changing mock runtime,
 correlation, errors, transport or R3 lifecycle/coverage behavior. Prior scoped
 approvals are not approval of the new schema candidate.
+
+**17/11/2026 adoption record:** Approved schema revision `2502d44e803db9082581581659964450da6b46d9`
+was squash merged through PR #6. [Trang accepted findings 1–5, optional bounds and
+both restart result-unit anchors](https://github.com/hienne215/linux-log-agent/pull/6#pullrequestreview-5938306480);
+[Hiền accepted the integration-mapping delta](https://github.com/hienne215/linux-log-agent/pull/6#issuecomment-6947807969).
+These are scoped confirmations, not production/Linux/binder acceptance. Earlier
+candidate/pending wording below records the historical review stages. PR #14
+preserves its native_builder/coverage_error integration; its new HEAD still needs
+independent review. No real collector or restart execution is enabled.
 
 ---
 
