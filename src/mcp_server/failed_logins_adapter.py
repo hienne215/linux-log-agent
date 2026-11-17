@@ -39,8 +39,11 @@ class FailedLoginsAdapter:
     # Conservative payload budget, not a replacement for the SDK's exact frame cap.
     PAGE_BYTES = 24000
 
-    def __init__(self, provider, clock=time.monotonic):
+    def __init__(self, provider, clock=time.monotonic, duration_clock=time.monotonic,
+                 wall_clock=None):
         self._provider, self._clock = provider, clock
+        self._duration_clock = duration_clock
+        self._wall_clock = wall_clock or (lambda: datetime.now(timezone.utc))
         self._states, self._lock = {}, threading.RLock()
         directory = ROOT / 'schemas' / 'tools'
         def validator(suffix):
@@ -116,10 +119,13 @@ class FailedLoginsAdapter:
 
     def call(self, request):
         """Return the canonical complete envelope; caller owns native SDK wrapping."""
+        started, tick = self._wall_clock(), self._duration_clock()
         with self._lock:
             result = self._call(request)
             if not self._output.is_valid(result):
-                return self._response({}, 'error', dict(message='Output rejected.', field='', rule='output_validation'), code='EXECUTION_UNKNOWN')
+                result = self._response({}, 'error', dict(message='Output rejected.', field='', rule='output_validation'), code='EXECUTION_UNKNOWN')
+            result.update(started_at=timestamp(started), completed_at=timestamp(self._wall_clock()),
+                          duration_ms=max(0, int((self._duration_clock() - tick) * 1000)))
             return result
 
     def _call(self, request):

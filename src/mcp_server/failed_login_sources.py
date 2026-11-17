@@ -123,8 +123,10 @@ class LinuxLoginSources:
         result = SourceSnapshot('journal.auth', 'unavailable')
         try:
             rc, data, err, cut, timeout = bounded_command(JOURNAL, remaining)
-            hints = (err + b'\n' + data[:2048]).lower()
-            if any(x in hints for x in (b'permission denied', b'not seeing messages from other users', b'access denied')):
+            # stdout is untrusted log data, never an execution diagnostic.
+            hints = err.lower()
+            if (not timeout and rc != 0 and any(x in hints for x in
+                    (b'permission denied', b'not seeing messages from other users', b'access denied'))):
                 result.status = 'permission_denied'
                 return result
             if timeout or (rc != 0 and not cut):

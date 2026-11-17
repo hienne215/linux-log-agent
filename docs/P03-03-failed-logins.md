@@ -1,5 +1,8 @@
 # P03-03 / SCRUM-32: failed_logins
 
+Latest review follow-up: [journal permission classification and measured call
+timing](evidence/p03-03-review-fixes-20261118.md), 165 author-run tests PASS.
+
 Status: In Progress, design/implementation candidate, not accepted or deployed.
 Owner: Trang. Support/review: Thủy; Hiền reviews Agent integration mapping.
 Jira: https://vku-team-etxjrjs2.atlassian.net/browse/SCRUM-32

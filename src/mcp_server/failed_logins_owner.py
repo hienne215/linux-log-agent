@@ -7,8 +7,10 @@ import os
 import stat
 import sys
 import threading
+import time
+from datetime import datetime, timezone
 
-from .failed_login_events import Privacy
+from .failed_login_events import Privacy, timestamp
 from .failed_logins_adapter import FailedLoginsAdapter
 
 KEY_COMPONENTS = ('etc', 'linux-log-agent', 'failed-logins')
@@ -85,6 +87,14 @@ class FailedLoginsOwner:
         return FailedLoginsAdapter(self._factory(privacy), **options)
 
     def call(self, request, principal):
+        # The public owner measures policy/queue/acquisition/validation together.
+        started, tick = datetime.now(timezone.utc), time.monotonic()
+        result = self._call(request, principal)
+        result.update(started_at=timestamp(started), completed_at=timestamp(datetime.now(timezone.utc)),
+                      duration_ms=max(0, int((time.monotonic() - tick) * 1000)))
+        return result
+
+    def _call(self, request, principal):
         with self._lock:
             if (self._closed or principal != self._principal or not isinstance(request, dict)
                     or request.get('session_id') != self._session):
