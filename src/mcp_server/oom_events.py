@@ -26,6 +26,8 @@ INCIDENT_US = 1000000           # lines of ONE kill are printed within a second 
 BUDGET_SECONDS = 8.0             # whole call; the server allows 10 s
 # The server sends the result twice (text + structuredContent) inside one 64 KiB frame.
 MAX_RESPONSE_BYTES = 28000
+MAX_SNAPSHOT_BYTES = 1024 * 1024
+MAX_SNAPSHOT_EVENTS = 2000
 JOURNALCTL = ("/usr/bin/journalctl", "/bin/journalctl")
 DMESG = ("/usr/bin/dmesg", "/bin/dmesg")
 CHILD_ENV = {"PATH": "/usr/bin:/bin", "LC_ALL": "C", "LANG": "C", "SYSTEMD_COLORS": "0"}
@@ -416,7 +418,8 @@ def _size(response):
 
 
 def collect(req, run=run_cmd, find=find_exe, lacks_access=lacks_journal_access, clock=time.monotonic,
-            allow_file=OPERATOR_ALLOWLIST, boot_id=current_boot_id, boot_wall=default_boot_wall):
+            allow_file=OPERATOR_ALLOWLIST, boot_id=current_boot_id, boot_wall=default_boot_wall,
+            snapshot=False):
     global ALLOWED
     ALLOWED = DEFAULT_ALLOWED | load_operator_names(allow_file)
     start = clock()
@@ -448,8 +451,9 @@ def collect(req, run=run_cmd, find=find_exe, lacks_access=lacks_journal_access, 
                          error_code="PERMISSION_DENIED" if denied_only else "UNSUPPORTED")
 
     events = sorted(dedupe(journal["events"] + dmesg["events"]), key=lambda e: e["_dt"])
-    truncated = any(s["truncated"] for s in readable) or len(events) > limit
-    events = events[-limit:]                       # keep the most recent events
+    retained_limit = MAX_SNAPSHOT_EVENTS if snapshot else limit
+    truncated = any(s["truncated"] for s in readable) or len(events) > retained_limit
+    events = events[-retained_limit:]              # trusted internal snapshot is not a wire page
     # R3: judge every source on its own. A source that starts after "since" (dmesg only reaches
     # back to the last boot) leaves a history gap even when the other source covers the window.
     gap = any(s["status"] != "ok" or s["oldest"] is None or s["oldest"] > since for s in sources)
@@ -468,7 +472,8 @@ def collect(req, run=run_cmd, find=find_exe, lacks_access=lacks_journal_access, 
         return _envelope(req, status, data, evidence, "OUTPUT_LIMIT" if trunc else None, trunc)
 
     response = build(events, truncated)
-    while _size(response) > MAX_RESPONSE_BYTES and events:
+    output_budget = MAX_SNAPSHOT_BYTES if snapshot else MAX_RESPONSE_BYTES
+    while _size(response) > output_budget and events:
         events, truncated = events[1:], True        # drop the oldest whole record
         response = build(events, truncated)
     return response
