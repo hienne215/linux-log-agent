@@ -1,0 +1,163 @@
+{
+  "live_inference": "NOT_RUN",
+  "mcp": "2.3.0",
+  "mode": "OFFLINE_GATE_SUPPORT_ONLY",
+  "probe_sha256": "deb470e200c40b1d3088d36a750b6ffe5ddb62f1ccf4a4f751832754411b45dd",
+  "python": "3.12.16",
+  "real_linux": "NOT_RUN",
+  "recorded_at": "2026-11-15T06:10:42.944267+00:00",
+  "records": [
+    {
+      "all_owners_cleared": true,
+      "citations": [
+        "active-service_status"
+      ],
+      "cleanup_pending": false,
+      "conclusion_verified": false,
+      "evidence": [
+        {
+          "id": "active-service_status",
+          "source": "synthetic:integration-demo-v1/active/service_status"
+        }
+      ],
+      "llm_turns": 2,
+      "mcp_returncodes": [
+        0
+      ],
+      "mock_llm_requests": 2,
+      "mode": "mock_http_synthetic_mcp",
+      "rendered_report_sha256": "58db09c22a4df6dc6886f9d306e34da9596088efe081d63a47e63af279a602b6",
+      "scenario": "active",
+      "status": "concluded",
+      "tool_cap": null,
+      "tool_dispatches": 1,
+      "trace": [
+        "RECEIVED",
+        "ANALYZING",
+        "COLLECTING",
+        "ANALYZING",
+        "CONCLUDED",
+        "REPORTED"
+      ],
+      "worker_returncode": 0
+    },
+    {
+      "all_owners_cleared": true,
+      "citations": [
+        "permission-denied-service_status",
+        "permission-denied-query_journal"
+      ],
+      "cleanup_pending": false,
+      "conclusion_verified": false,
+      "evidence": [
+        {
+          "id": "permission-denied-service_status",
+          "source": "synthetic:integration-demo-v1/permission-denied/service_status"
+        },
+        {
+          "id": "permission-denied-query_journal",
+          "source": "synthetic:integration-demo-v1/permission-denied/query_journal"
+        }
+      ],
+      "llm_turns": 3,
+      "mcp_returncodes": [
+        0
+      ],
+      "mock_llm_requests": 3,
+      "mode": "mock_http_synthetic_mcp",
+      "rendered_report_sha256": "e58f2a50a7a558590dd6da3c7ffb19c979acd39695e2fef4625458cd95bda371",
+      "scenario": "permission-denied",
+      "status": "limited",
+      "tool_cap": null,
+      "tool_dispatches": 2,
+      "trace": [
+        "RECEIVED",
+        "ANALYZING",
+        "COLLECTING",
+        "ANALYZING",
+        "COLLECTING",
+        "ANALYZING",
+        "CONCLUDED",
+        "REPORTED"
+      ],
+      "worker_returncode": 0
+    },
+    {
+      "all_owners_cleared": true,
+      "citations": [],
+      "cleanup_pending": false,
+      "conclusion_verified": false,
+      "evidence": [
+        {
+          "id": "port-conflict-service_status",
+          "source": "synthetic:integration-demo-v1/port-conflict/service_status"
+        }
+      ],
+      "llm_turns": 2,
+      "mcp_returncodes": [
+        0
+      ],
+      "mock_llm_requests": 2,
+      "mode": "mock_http_synthetic_mcp",
+      "rendered_report_sha256": "844bcfcbf407cefbc850bdf2e878f1f953e9c24f9998eedcab1a33e899109dec",
+      "scenario": "port-conflict",
+      "status": "budget_exhausted",
+      "tool_cap": 1,
+      "tool_dispatches": 1,
+      "trace": [
+        "RECEIVED",
+        "ANALYZING",
+        "COLLECTING",
+        "ANALYZING",
+        "BUDGET_EXHAUSTED",
+        "REPORTED"
+      ],
+      "worker_returncode": 0
+    },
+    {
+      "all_owners_cleared": true,
+      "citations": [
+        "port-conflict-service_status",
+        "port-conflict-listening_ports"
+      ],
+      "cleanup_pending": false,
+      "conclusion_verified": false,
+      "evidence": [
+        {
+          "id": "port-conflict-service_status",
+          "source": "synthetic:integration-demo-v1/port-conflict/service_status"
+        },
+        {
+          "id": "port-conflict-listening_ports",
+          "source": "synthetic:integration-demo-v1/port-conflict/listening_ports"
+        }
+      ],
+      "llm_turns": 3,
+      "mcp_returncodes": [
+        0
+      ],
+      "mock_llm_requests": 3,
+      "mode": "mock_http_synthetic_mcp",
+      "rendered_report_sha256": "68b2745cc8d765484679e7645de6da058b6314c7ca00b70306f9659f5c5fd151",
+      "scenario": "port-conflict",
+      "status": "concluded",
+      "tool_cap": null,
+      "tool_dispatches": 2,
+      "trace": [
+        "RECEIVED",
+        "ANALYZING",
+        "COLLECTING",
+        "ANALYZING",
+        "COLLECTING",
+        "ANALYZING",
+        "CONCLUDED",
+        "REPORTED"
+      ],
+      "worker_returncode": 0
+    }
+  ],
+  "runner_sha256": "3a5b8882fba6510a7f592c31589b09ac089f37cdb74bce8b446d90466463f41b",
+  "semantic_diagnostic_accuracy": "NOT_EVALUABLE",
+  "source_revision": "440c2004a7742f75550765b9db339734740d80f3",
+  "tests_passed": 4
+}
