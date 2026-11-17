@@ -1,0 +1,81 @@
+{
+  "schema_version": "1.0.0",
+  "python": "3.12",
+  "sdk": "mcp==2.3.0",
+  "transport": "stdio",
+  "output_schema_scope": "complete structuredContent envelope",
+  "tools": [
+    {
+      "name": "check_config",
+      "input": "tools/check_config.schema.json",
+      "data": "tools/check_config.response.schema.json",
+      "output": "tools/check_config.result.schema.json"
+    },
+    {
+      "name": "detect_anomaly",
+      "input": "tools/detect_anomaly.schema.json",
+      "data": "tools/detect_anomaly.response.schema.json",
+      "output": "tools/detect_anomaly.result.schema.json"
+    },
+    {
+      "name": "disk_usage",
+      "input": "tools/disk_usage.schema.json",
+      "data": "tools/disk_usage.response.schema.json",
+      "output": "tools/disk_usage.result.schema.json"
+    },
+    {
+      "name": "failed_logins",
+      "input": "tools/failed_logins.schema.json",
+      "data": "tools/failed_logins.response.schema.json",
+      "output": "tools/failed_logins.result.schema.json"
+    },
+    {
+      "name": "list_failed_units",
+      "input": "tools/list_failed_units.schema.json",
+      "data": "tools/list_failed_units.response.schema.json",
+      "output": "tools/list_failed_units.result.schema.json"
+    },
+    {
+      "name": "listening_ports",
+      "input": "tools/listening_ports.schema.json",
+      "data": "tools/listening_ports.response.schema.json",
+      "output": "tools/listening_ports.result.schema.json"
+    },
+    {
+      "name": "memory_oom_events",
+      "input": "tools/memory_oom_events.schema.json",
+      "data": "tools/memory_oom_events.response.schema.json",
+      "output": "tools/memory_oom_events.result.schema.json"
+    },
+    {
+      "name": "query_journal",
+      "input": "tools/query_journal.schema.json",
+      "data": "tools/query_journal.response.schema.json",
+      "output": "tools/query_journal.result.schema.json"
+    },
+    {
+      "name": "restart_service",
+      "input": "tools/restart_service.schema.json",
+      "data": "tools/restart_service.response.schema.json",
+      "output": "tools/restart_service.result.schema.json"
+    },
+    {
+      "name": "search_log",
+      "input": "tools/search_log.schema.json",
+      "data": "tools/search_log.response.schema.json",
+      "output": "tools/search_log.result.schema.json"
+    },
+    {
+      "name": "service_status",
+      "input": "tools/service_status.schema.json",
+      "data": "tools/service_status.response.schema.json",
+      "output": "tools/service_status.result.schema.json"
+    },
+    {
+      "name": "verify_fix",
+      "input": "tools/verify_fix.schema.json",
+      "data": "tools/verify_fix.response.schema.json",
+      "output": "tools/verify_fix.result.schema.json"
+    }
+  ]
+}
