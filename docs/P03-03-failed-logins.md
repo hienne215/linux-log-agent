@@ -13,8 +13,11 @@ avoid duplicate counting, make fallback explicit, keep raw IPs local and never
 generate host brute-force attempts. Deliver the tool implementation and fixtures;
 verify journal/auth fixtures, duplicate records, rotation and stable pseudonyms.
 P03-01 and P01-01 must be accepted before final task acceptance. This candidate
-starts from main `f9adf8f`, with merged canonical PR #6 schemas. It does not merge
-unfinished OOM #21 or scaffold #14 into the branch.
+started from main `f9adf8f`, with merged canonical PR #6 schemas. After Thủy's
+design-direction response supplied by Trang, main `f2a8f71` was adopted through
+normal merge `5030183` without conflict or history rewrite. That main includes
+scaffold #14 squash `a0206a1` and permission task #13. No unfinished OOM #21
+history is imported. Merged prerequisites do not certify this collector's binding.
 
 New isolated modules:
 
@@ -186,7 +189,7 @@ Resource rejection uses canonical OUTPUT_LIMIT errors, without claiming success.
 
 ## Verification and remaining acceptance
 
-Latest author-run execution by Codex on Trang's behalf, Windows/Python 3.12.7
+Pre-main-adoption author-run execution by Codex on Trang's behalf, Windows/Python 3.12.7
 (not independent reviewer signoff):
 
 ```text
@@ -209,8 +212,39 @@ permission revocation between pages, modelled EOF/close and inode reuse witnesse
 They use synthetic keys and mocked OS metadata, not actual VM key provisioning
 or real ACL revocation. Evidence: `evidence/p03-03-owner-policy-20261117.txt`.
 
-Still required before acceptance: independent Thủy/Hiền design/runtime review,
-accepted prerequisite tasks, deployment key/reader policy, scaffold registration
+### Post-main adoption validation
+
+Runtime/test source: merge `5030183c118d0d40d356643d03445b7f0089ecd0`, main
+`f2a8f71b209c71349a9ba8d6f00ce5e380fac1dd`. Subsequent review-publication changes
+are documentation/evidence only. Windows/Python 3.12.7, MCP 2.3.0, pinned packages.
+
+- Full selected run from OneDrive: **550 PASS, 1 FAIL**, no errors/skips, 389.24s.
+  Scaffold `oom_bad_source` expected EXECUTION_UNKNOWN but received TIMEOUT.
+- Focused unchanged four-case recheck: **4 PASS**, 21.42s.
+- Separate unchanged scaffold run from OneDrive: **60 PASS, 4 FAIL**, 267.51s;
+  worker timeout-related assertions. These failures are preserved, not hidden.
+- Exported identical committed source to an ASCII directory outside OneDrive;
+  task + entire scaffold: **163 PASS**, no errors/skips, 176.60s. No timeout,
+  assertion, fixture or source change was used to obtain this result.
+- Existing mock SDK stdio: **12/12 PASS**. This does not exercise the unregistered
+  real failed_logins endpoint. Generator check and diff check: PASS.
+
+No claim that a single full 551-case run passed. Path/environment correlation
+is observed; the root cause of the intermittent worker timeouts is not proven
+and no shared scaffold fix is claimed. Source review may proceed as Draft, while
+runtime reliability and real binding/VM acceptance remain open. Durable logs,
+all JUnit files, environment/source blob IDs, summary and integrity manifest are
+under `docs/evidence/p03-03-main-validation/`. These are author-run artifacts,
+not independent attestation or GitHub CI. No real auth records/secrets are used.
+
+Thủy's latest design-direction response was supplied by Trang in chat: retain
+schema 1.0.0, keep attempted/reason in enum-only internal trace, use admin-managed
+HMAC keys and a connection-lifetime persistent owner; publish a separate exact-SHA
+PR for source review. This is not source/SDK/Linux approval. No GitHub comment is
+invented as evidence of that private response.
+
+Still required before acceptance: independent Thủy/Hiền source/runtime review,
+deployment key/reader policy for this tool, scaffold registration
 with exact SDK framing/lifecycle checks, and a reviewed VM smoke under the reader.
 No VM auth reads, password attempts, brute force, sudo/group changes, key
 provisioning, service changes, GitHub publication or Jira Done performed here.

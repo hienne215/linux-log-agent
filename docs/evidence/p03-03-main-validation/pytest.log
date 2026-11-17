@@ -1,0 +1,63 @@
+........................................................................ [ 13%]
+........................................................................ [ 26%]
+.............F.......................................................... [ 39%]
+........................................................................ [ 52%]
+........................................................................ [ 65%]
+........................................................................ [ 78%]
+........................................................................ [ 91%]
+...............................................                          [100%]
+================================== FAILURES ===================================
+_ test_r3_worker_coverage_preserves_only_validated_correlation[oom_bad_source-memory_oom_events-EXECUTION_UNKNOWN] _
+
+mode = 'oom_bad_source', tool = 'memory_oom_events', code = 'EXECUTION_UNKNOWN'
+capfd = <_pytest.capture.CaptureFixture object at 0x0000020C6711CB30>
+
+    @pytest.mark.parametrize("mode,tool,code", [("oom_denied","memory_oom_events","PERMISSION_DENIED"),
+        ("login_unavailable","failed_logins","UNSUPPORTED"), ("oom_wrong_ids","memory_oom_events","EXECUTION_UNKNOWN"),
+        ("oom_bad_source","memory_oom_events","EXECUTION_UNKNOWN")])
+    def test_r3_worker_coverage_preserves_only_validated_correlation(mode, tool, code, capfd):
+        async def exercise():
+            args = {k:v for k,v in ARGS.items() if k != "unit"}
+            args.update(since="2026-11-02T00:00:00Z",until="2026-11-03T00:00:00Z")
+            app = ServerScaffold(backends={tool:argv(mode)})
+            response = validate(await app.call_tool(SimpleNamespace(request_id=1),
+                CallToolRequestParams(name=tool,arguments=args)),tool)
+            assert response["error_code"] == code
+            if code != "EXECUTION_UNKNOWN":
+                for key in ("session_id","trace_id","logical_tool_call_id","attempt_id"):
+                    assert response[key] == args[key]
+                assert response["data"]["coverage"]
+                assert not {"field","rule"} & response["data"].keys()
+            else:
+                assert response["session_id"] is None
+>       asyncio.run(exercise())
+
+tests\test_p01_scaffold.py:451: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+C:\Users\DELL\AppData\Local\Programs\Python\Python312\Lib\asyncio\runners.py:194: in run
+    return runner.run(main)
+           ^^^^^^^^^^^^^^^^
+C:\Users\DELL\AppData\Local\Programs\Python\Python312\Lib\asyncio\runners.py:118: in run
+    return self._loop.run_until_complete(task)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+C:\Users\DELL\AppData\Local\Programs\Python\Python312\Lib\asyncio\base_events.py:687: in run_until_complete
+    return future.result()
+           ^^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+    async def exercise():
+        args = {k:v for k,v in ARGS.items() if k != "unit"}
+        args.update(since="2026-11-02T00:00:00Z",until="2026-11-03T00:00:00Z")
+        app = ServerScaffold(backends={tool:argv(mode)})
+        response = validate(await app.call_tool(SimpleNamespace(request_id=1),
+            CallToolRequestParams(name=tool,arguments=args)),tool)
+>       assert response["error_code"] == code
+E       AssertionError: assert 'TIMEOUT' == 'EXECUTION_UNKNOWN'
+E         
+E         - EXECUTION_UNKNOWN
+E         + TIMEOUT
+
+tests\test_p01_scaffold.py:443: AssertionError
+=========================== short test summary info ===========================
+FAILED tests/test_p01_scaffold.py::test_r3_worker_coverage_preserves_only_validated_correlation[oom_bad_source-memory_oom_events-EXECUTION_UNKNOWN]
+1 failed, 550 passed in 389.24s (0:06:29)

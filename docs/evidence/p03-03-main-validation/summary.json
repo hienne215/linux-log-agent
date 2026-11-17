@@ -1,0 +1,31 @@
+{
+  "scope": "Author-run; not independent review or real collector SDK acceptance",
+  "source_commit": "5030183c118d0d40d356643d03445b7f0089ecd0",
+  "base_main": "f2a8f71b209c71349a9ba8d6f00ce5e380fac1dd",
+  "onedrive_full": {
+    "cases": 551,
+    "failures": 1,
+    "errors": 0,
+    "skipped": 0
+  },
+  "onedrive_focused_recheck": {
+    "cases": 4,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0
+  },
+  "onedrive_scaffold_recheck": {
+    "cases": 64,
+    "failures": 4,
+    "errors": 0,
+    "skipped": 0
+  },
+  "identical_source_ascii_task_and_scaffold": {
+    "cases": 163,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0
+  },
+  "sdk_mock_tools": "12/12 PASS; existing mock only, not new failed_logins binding",
+  "limitation": "Prior timeout failures retained. No claim that one full 551-case run passed. Path/environment correlation is observed, not a proven root cause or fixed defect."
+}
