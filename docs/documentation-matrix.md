@@ -32,6 +32,7 @@ It also tracks the status of project features, so planned work is never presente
 | Evaluation scenarios and answer keys | `docs/evaluation-scenarios.md` | C | Planned |
 | Setup and install guide | `docs/setup-guide.md` | C | Proposed |
 | Test report | `docs/test-report.md` | C | Planned |
+| P03-02 OOM pagination and dependency follow-up | `docs/P03-02-pagination-20261118.md` | Trang; Thủy/Hiền review | In Progress |
 | Final report (English) | `docs/report/` | Team | Planned |
 | Slides (English) | `docs/report/` | Team | Planned |
 
@@ -51,7 +52,7 @@ The tool statuses below refer to real Linux collection/execution, not the existi
 | `service_status` | Core (read) | A | Planned |
 | `list_failed_units` | Core (read) | A | Planned |
 | `disk_usage` | Core (read) | A | Planned |
-| `memory_oom_events` | Core (read) | A | Planned |
+| `memory_oom_events` | Core (read) | Trang; Thủy/Hiền review | In Progress |
 | `failed_logins` | Core (read) | A | Planned |
 | `listening_ports` | Core (read) | A | Planned |
 | `check_config` | Core (read) | A | Planned |

@@ -1,5 +1,10 @@
 # P03-02: `memory_oom_events` collector
 
+**Current revision:** [2026-11-18 pagination/dependency follow-up](P03-02-pagination-20261118.md).
+It supersedes the historical wiring/cursor notes below: the opt-in SDK uses a
+connection-owned pager, while the standalone VM diagnostic worker stays stateless.
+Canonical Pagination remains yes. Older tests/VM evidence are not new binding acceptance.
+
 Status: Draft (review fixes applied, waiting for re-review) | Owner: Trang | Support/review: Thuy
 Depends on: P03-01 (reader permissions), P01-01 (server scaffold, draft), P00-03 (contracts R3, `fd737fb`)
 Scope: one read-only tool. It does not change the contract, the scaffold or any other tool.
