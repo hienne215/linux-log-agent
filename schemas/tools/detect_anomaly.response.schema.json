@@ -10,7 +10,8 @@
         "properties": {
           "id": {
             "type": "string",
-            "minLength": 1
+            "minLength": 1,
+            "maxLength": 128
           },
           "type": {
             "type": "string",
@@ -23,10 +24,16 @@
           },
           "severity": {
             "type": "string",
-            "enum": ["low", "medium", "high", "critical"]
+            "enum": [
+              "low",
+              "medium",
+              "high",
+              "critical"
+            ]
           },
           "summary": {
-            "type": "string"
+            "type": "string",
+            "maxLength": 2048
           },
           "observed_count": {
             "type": "integer",
@@ -46,19 +53,26 @@
                 "pattern": "Z$"
               }
             },
-            "required": ["since", "until"],
+            "required": [
+              "since",
+              "until"
+            ],
             "additionalProperties": false
           },
           "evidence_refs": {
             "type": "array",
             "items": {
               "type": "string",
-              "minLength": 1
-            }
+              "minLength": 1,
+              "maxLength": 128
+            },
+            "maxItems": 32
           },
           "detection_method": {
             "type": "string",
-            "enum": ["rule_based"]
+            "enum": [
+              "rule_based"
+            ]
           }
         },
         "required": [
@@ -72,7 +86,8 @@
           "detection_method"
         ],
         "additionalProperties": false
-      }
+      },
+      "maxItems": 50
     },
     "analyzed_signals": {
       "type": "array",
@@ -84,19 +99,25 @@
           "oom_events",
           "failed_logins"
         ]
-      }
+      },
+      "maxItems": 4
     },
     "insufficient_signals": {
       "type": "array",
       "items": {
-        "type": "string"
-      }
+        "type": "string",
+        "maxLength": 128
+      },
+      "maxItems": 4
     },
     "findings_truncated": {
       "type": "boolean"
     },
     "confidence": {
-      "type": ["number", "null"],
+      "type": [
+        "number",
+        "null"
+      ],
       "minimum": 0,
       "maximum": 1
     }

@@ -1,5 +1,11 @@
+# Local synthetic reports and Python runtime artifacts (never commit).
+/reports/
+/.venv*/
 .venv/
 __pycache__/
 .pytest_cache/
 *.py[cod]
 .env
+*.egg-info/
+/build/
+/dist/

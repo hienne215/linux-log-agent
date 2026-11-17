@@ -1,0 +1,58 @@
+# SYNTHETIC DEMO
+
+Toàn bộ evidence bên dưới là dữ liệu giả lập. Không gọi MCP, Ollama hoặc Linux tools.
+
+Trạng thái: Hoàn tất kịch bản giả lập; nhận định chưa xác minh thực tế.
+
+Trace ứng dụng: RECEIVED → ANALYZING → COLLECTING → ANALYZING → COLLECTING → ANALYZING → COLLECTING → ANALYZING → CONCLUDED → REPORTED
+
+- Bước 1: `service_status` — Đã đọc dữ liệu giả lập; refs: failed-01.
+- Bước 2: `query_journal` — Đã đọc dữ liệu giả lập; refs: failed-02.
+- Bước 3: `listening_ports` — Đã đọc dữ liệu giả lập; refs: failed-03.
+
+# Incident Report — read-only
+
+Báo cáo nội bộ; không xác nhận đã sửa lỗi hoặc thực hiện hành động ghi.
+
+- Status: concluded
+- Tool attempts: 3
+- LLM turns: 4
+- Execution outcome: response_received
+- Cleanup pending: false
+
+## Evidence / provenance
+
+### failed\-01
+Source (untrusted data):
+> synthetic\:service\_status
+
+> nginx\.service\: failed; dữ liệu giả lập\.
+
+### failed\-02
+Source (untrusted data):
+> synthetic\:query\_journal
+
+> bind\(\) to 0\.0\.0\.0\:80 failed\: Address already in use; dữ liệu giả lập\.
+
+### failed\-03
+Source (untrusted data):
+> synthetic\:listening\_ports
+
+> port 80\: synthetic\-other\-process; dữ liệu giả lập\.
+
+
+## Nhận định
+
+Văn bản model chưa được xác minh về ngữ nghĩa.
+
+> Trong kịch bản giả lập, nginx\.service failed với bằng chứng xung đột port 80; chưa xác minh trên Linux thật\.
+
+## Citations
+
+failed\-01, failed\-02, failed\-03
+
+## Limitations
+
+- Citation hợp lệ chỉ chứng minh ID tồn tại, không chứng minh kết luận đúng.
+- Timeout/disconnect không chứng minh tool chưa thực thi hoặc đã rollback.
+- Nguồn evidence và độ bao phủ redaction cần được kiểm chứng riêng.

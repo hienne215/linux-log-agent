@@ -1,6 +1,23 @@
 # Dependency review readiness — 16/11/2026
 
 Scope: P00-03 / SCRUM-12 / PR #6, then P01-01 / SCRUM-15 / PR #14.
+**Current state — 17/11/2026:** PR #6 is merged at `f9adf8f46dec32759be558a5b45bb229e64a3208`,
+with canonical schemas identical to approved `2502d44`. PR #14 is not merged or
+production-ready; its integrated HEAD requires fresh validation and independent review.
+
+- [Trang scoped schema-hardening ACCEPTED](https://github.com/hienne215/linux-log-agent/pull/6#pullrequestreview-5938306480): five fixes, optional bounds and both restart result anchors.
+- [Hiền integration-mapping delta ACCEPTED](https://github.com/hienne215/linux-log-agent/pull/6#issuecomment-6947807969): source/contract scope only.
+- [Hiền adoption-plan review](https://github.com/hienne215/linux-log-agent/pull/14#issuecomment-6947817438): planning only; not independent acceptance of the unpublished audit or new scaffold HEAD.
+
+Current adoption uses a normal merge of the approved main squash commit, preserving
+scaffold helpers and both documentation streams, followed by the owned three-file
+audit patch. Do not merge the old PR #6 topic history or replay its schema overlay.
+
+## Historical readiness record — 16/11/2026
+
+The pending statements below describe that earlier snapshot and are superseded
+by the current scoped record above. No Linux/production acceptance is inferred.
+
 **REVIEW/SIGNOFF PENDING. Not finalized, not production-ready; no merge authorized.**
 
 ## Verified review record

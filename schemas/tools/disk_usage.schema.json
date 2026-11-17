@@ -30,7 +30,8 @@
     "filesystem": {
       "type": "string",
       "minLength": 1,
-      "maxLength": 255
+      "maxLength": 255,
+      "pattern": "^(?:root|/(?:[A-Za-z0-9_][A-Za-z0-9_-]*(?:/[A-Za-z0-9_][A-Za-z0-9_-]*)*)?)(?![\\s\\S])"
     },
     "include_inodes": {
       "type": "boolean",

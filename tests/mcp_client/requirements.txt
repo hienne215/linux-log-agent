@@ -1,0 +1,3 @@
+# Python 3.12 target. Offline unit tests require only the standard library.
+# Optional SDK/mock-stdio smoke (not installed automatically):
+mcp==2.3.0

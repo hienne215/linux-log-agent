@@ -335,11 +335,13 @@
                   "string",
                   "null"
                 ],
-                "minLength": 1
+                "minLength": 1,
+                "maxLength": 128
               },
               "unit": {
                 "type": "string",
-                "minLength": 1
+                "minLength": 1,
+                "maxLength": 128
               },
               "overall_result": {
                 "type": "string",
@@ -371,14 +373,17 @@
                       ]
                     },
                     "summary": {
-                      "type": "string"
+                      "type": "string",
+                      "maxLength": 2048
                     },
                     "evidence_refs": {
                       "type": "array",
                       "items": {
                         "type": "string",
-                        "minLength": 1
-                      }
+                        "minLength": 1,
+                        "maxLength": 128
+                      },
+                      "maxItems": 32
                     }
                   },
                   "required": [
@@ -388,14 +393,17 @@
                     "evidence_refs"
                   ],
                   "additionalProperties": false
-                }
+                },
+                "maxItems": 3
               },
               "baseline_evidence_refs": {
                 "type": "array",
                 "items": {
                   "type": "string",
-                  "minLength": 1
-                }
+                  "minLength": 1,
+                  "maxLength": 128
+                },
+                "maxItems": 32
               },
               "verified_at": {
                 "type": "string",

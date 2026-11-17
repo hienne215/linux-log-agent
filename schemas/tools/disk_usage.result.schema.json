@@ -331,11 +331,13 @@
             "properties": {
               "filesystem": {
                 "type": "string",
-                "minLength": 1
+                "minLength": 1,
+                "maxLength": 255
               },
               "mount_point": {
                 "type": "string",
-                "minLength": 1
+                "minLength": 1,
+                "maxLength": 255
               },
               "used_percent": {
                 "type": "number",
