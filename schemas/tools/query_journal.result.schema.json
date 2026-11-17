@@ -355,7 +355,8 @@
                     "message"
                   ],
                   "additionalProperties": false
-                }
+                },
+                "maxItems": 200
               },
               "count": {
                 "type": "integer",

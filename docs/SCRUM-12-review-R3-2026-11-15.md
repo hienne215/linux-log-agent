@@ -29,3 +29,7 @@ Review: https://github.com/hienne215/linux-log-agent/pull/6#pullrequestreview-59
 Hiền accepted **Integration R1 only**, at d442479 against 917d9f0; R3 needs confirmation of changed mapping. Trang accepted several R2 design points but requested changes; her stated prospective confirmation covers security/privacy of these **three tools only**. It does not establish review of the other nine tools, complete transport, deployment or Linux smoke. Do not treat a partial-scope signoff as full finalization.
 
 128-byte serialized JSON-RPC ID admission, 65,536-byte tools/call frame cap, safe invalid-input errors and EOF/observed-exit-2 cleanup obligations remain. Do not truncate/substitute IDs, auto-retry or auto-reconnect. Binder retains application-owned service_status/nginx.service allowlist and full evidence provenance. Real Linux collectors, production coordinator/binder/permissions and VM smoke are outside this mock PR.
+
+## Current review record
+
+See [dependency review readiness](dependency-review-readiness.md) for Trang's scoped R3 mock acceptance and remaining schema/transport/integration signoffs. Neutral status fixture wording is a follow-up, not a new lifecycle or schema revision.

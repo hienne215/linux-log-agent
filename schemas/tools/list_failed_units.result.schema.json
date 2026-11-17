@@ -336,13 +336,15 @@
                   "properties": {
                     "unit": {
                       "type": "string",
-                      "minLength": 1
+                      "minLength": 1,
+                      "maxLength": 255
                     },
                     "active_state": {
                       "const": "failed"
                     },
                     "description": {
-                      "type": "string"
+                      "type": "string",
+                      "maxLength": 2048
                     }
                   },
                   "required": [
@@ -351,7 +353,8 @@
                     "description"
                   ],
                   "additionalProperties": false
-                }
+                },
+                "maxItems": 200
               },
               "count": {
                 "type": "integer",

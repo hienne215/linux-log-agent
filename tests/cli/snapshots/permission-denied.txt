@@ -1,0 +1,45 @@
+# SYNTHETIC DEMO
+
+Toàn bộ evidence bên dưới là dữ liệu giả lập. Không gọi MCP, Ollama hoặc Linux tools.
+
+Trạng thái: Không đủ bằng chứng; thiếu quyền hoặc dữ liệu.
+
+Trace ứng dụng: RECEIVED → ANALYZING → COLLECTING → ANALYZING → COLLECTING → ANALYZING → CONCLUDED → REPORTED
+
+- Bước 1: `service_status` — Đã đọc dữ liệu giả lập; refs: failed-01.
+- Bước 2: `query_journal` — Không đủ quyền đọc journal (PERMISSION_DENIED, giả lập); refs: không có evidence.
+
+# Incident Report — read-only
+
+Báo cáo nội bộ; không xác nhận đã sửa lỗi hoặc thực hiện hành động ghi.
+
+- Status: limited
+- Tool attempts: 2
+- LLM turns: 3
+- Execution outcome: response_received
+- Cleanup pending: false
+
+## Evidence / provenance
+
+### failed\-01
+Source (untrusted data):
+> synthetic\:service\_status
+
+> nginx\.service\: failed; dữ liệu giả lập\.
+
+
+## Nhận định
+
+Văn bản model chưa được xác minh về ngữ nghĩa.
+
+Không đủ bằng chứng để kết luận; dữ liệu bị giới hạn.
+
+## Citations
+
+failed\-01
+
+## Limitations
+
+- Citation hợp lệ chỉ chứng minh ID tồn tại, không chứng minh kết luận đúng.
+- Timeout/disconnect không chứng minh tool chưa thực thi hoặc đã rollback.
+- Nguồn evidence và độ bao phủ redaction cần được kiểm chứng riêng.

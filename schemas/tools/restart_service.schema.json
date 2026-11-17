@@ -33,7 +33,7 @@
       "type": "string",
       "minLength": 1,
       "description": "Target systemd service unit.",
-      "pattern": "^[a-zA-Z0-9][a-zA-Z0-9_.-]*\\.service$",
+      "pattern": "^[a-zA-Z0-9][a-zA-Z0-9_.-]*\\.service(?![\\s\\S])",
       "maxLength": 128
     },
     "mode": {

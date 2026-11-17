@@ -1,5 +1,6 @@
 """Fault fixtures for SDK integration only; production server has no test switches."""
 import asyncio
+import copy
 import os
 import sys
 from pathlib import Path
@@ -36,13 +37,21 @@ if mode in {'huge','unicode','nested','near'}:
         if mode=='nested': response['evidence'][0]['excerpt']='漢🙂'*30000
         else: response['data']['description']=('漢🙂'*20000 if mode=='unicode' else 'A'*(31000 if mode=='near' else 70000))
         if mode=='near':
-            lo,hi=0,65536
+            # Reach the transport boundary using schema-valid field sizes.
+            # One 31 KiB description no longer satisfies the 2048-character cap.
+            response['data']['description']='A'*2048
+            template=response['evidence'][0]
+            response['evidence']=[dict(copy.deepcopy(template), evidence_id=f'near-{i:02}') for i in range(16)]
+            def distribute(size):
+                for i,item in enumerate(response['evidence']):
+                    item['excerpt']='A'*min(2048,max(0,size-i*2048))
+            lo,hi=0,16*2048
             while lo<hi:
                 mid=(lo+hi+1)//2
-                response['data']['description']='A'*mid
+                distribute(mid)
                 if server.wire_size(server.native_result(response)) <= 65520: lo=mid
                 else: hi=mid-1
-            response['data']['description']='A'*lo
+            distribute(lo)
         return response
     server.TOOLS['service_status']=(oversized,*record[1:])
 server.mcp=server.Server('audit-fault-fixture',on_list_tools=server.list_tools,on_call_tool=injected)
