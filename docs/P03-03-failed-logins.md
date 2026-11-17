@@ -1,5 +1,9 @@
 # P03-03 / SCRUM-32: failed_logins
 
+**Current binding candidate:** [opt-in SDK binding, key epoch and 213-test evidence](P03-03-sdk-binding-20261118.md).
+It supersedes earlier unregistered-candidate notes below. A separate task-owned
+entrypoint is now implemented; shared MCP dispatch and Agent remain unchanged.
+
 Latest review follow-up: [journal permission classification and measured call
 timing](evidence/p03-03-review-fixes-20261118.md), 165 author-run tests PASS.
 
