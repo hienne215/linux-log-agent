@@ -82,17 +82,31 @@ def clean(text, limit):
 
 
 def load_operator_names(path=OPERATOR_ALLOWLIST):
-    """Extra allowed names, one per line. Ignored unless the file is root-owned and not writable by others."""
+    """Root-owned regular file, no symlink, bounded/stable FD read; otherwise ignore."""
+    fd = None
     try:
-        info = os.stat(path)
+        fd = os.open(path, os.O_RDONLY | os.O_NOFOLLOW | os.O_NONBLOCK)
+        info = os.fstat(fd)
         if not stat.S_ISREG(info.st_mode) or info.st_uid != 0 or info.st_mode & 0o022:
             return set()
-        with open(path, encoding="utf-8") as handle:
-            lines = handle.read(8192).splitlines()[:200]
-    except (OSError, UnicodeError):
+        data = bytearray()
+        while len(data) <= 8192:
+            chunk = os.read(fd, min(4096, 8193 - len(data)))
+            if not chunk:
+                break
+            data.extend(chunk)
+        after = os.fstat(fd)
+        identity = lambda s: (s.st_dev, s.st_ino, s.st_uid, s.st_mode, s.st_size, s.st_mtime_ns, s.st_ctime_ns)
+        if len(data) > 8192 or identity(info) != identity(after):
+            return set()
+        lines = data.decode('utf-8').splitlines()[:200]
+    except (AttributeError, OSError, UnicodeError):
         return set()
+    finally:
+        if fd is not None:
+            os.close(fd)
     names = (line.strip() for line in lines)
-    return {n for n in names if n and not n.startswith("#") and _NAME_OK.match(n)}
+    return {n for n in names if n and not n.startswith("#") and _NAME_OK.fullmatch(n)}
 
 
 def safe_name(raw):
