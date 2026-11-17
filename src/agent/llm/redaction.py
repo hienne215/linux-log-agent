@@ -9,16 +9,25 @@ import math
 import re
 import shlex
 import unicodedata
+from urllib.parse import urlsplit
 
 from .interface import AdapterError
 
 _CONTROL = re.compile(r'[\x00-\x08\x0b\x0c\x0e-\x1f\x7f]')
 _PRIVATE = re.compile(r'-----BEGIN [A-Z ]*PRIVATE KEY-----')
 _FIELD = re.compile(
-    r'''(?<![\w.-])(?P<key>"(?:\\.|[^"\\\r\n])*"|'(?:\\.|[^'\\\r\n])*'|(?:--)?\w[\w.-]*)'''
+    r'''(?<![\w.\-\uff3f])(?P<key>"(?:\\.|[^"\\\r\n])*"|'(?:\\.|[^'\\\r\n])*'|(?:--)?[\w\uff3f][\w.\-\uff3f]*)'''
     r'''(?P<separator>[ \t]*[:=][ \t]*|[ \t]+is[ \t]+)''', re.IGNORECASE)
 _AUTH = re.compile(r'(?i)(\bauthorization[ \t]*:[ \t]*)(?:basic|bearer)[ \t]+[^\s,;]+')
 _BEARER = re.compile(r'(?i)(\bbearer[ \t]+)[A-Za-z0-9._~+/=-]+')
+# Authority parsing is local only: no URL is fetched or resolved.
+_URL_PREFIX = r'(?:[a-z][a-z0-9+.-]*://|(?<![\w:/])//)'
+_URL_AUTHORITY = re.compile(
+    r'(?P<prefix>' + _URL_PREFIX + r')(?P<authority>[^/?#\s<>"\'`]+)', re.IGNORECASE)
+_URL_USERINFO = re.compile(
+    r'(?P<prefix>' + _URL_PREFIX + r')(?P<userinfo>[^/\r\n?#<>]*)@', re.IGNORECASE)
+_OBSCURED_URL = re.compile(r'[a-z][a-z0-9+.-]*:(?P<slashes>[\\/]{2,})', re.IGNORECASE)
+_ENCODED_URL = re.compile(r'[a-z][a-z0-9+.-]*%3a(?:%2f){2}', re.IGNORECASE)
 _SHORT_P = re.compile(r'(?<!\S)-p(?=\S)')
 _PASSWORD_COMMANDS = {'mysql', 'mariadb', 'mysqldump', 'mariadb-dump', 'mysqladmin'}
 _NONPASSWORD_COMMANDS = {'curl', 'python', 'python3', 'pytest', 'grep', 'nginx', 'ssh',
@@ -36,7 +45,7 @@ def _is_secret_key(key):
     if set(parts) & {'password', 'passwd', 'secret', 'token', 'authorization'}:
         return True
     compact = ''.join(parts)
-    return ('apikey' in compact or compact.endswith(
+    return ('mysqlpwd' in compact or 'apikey' in compact or compact.endswith(
         ('password', 'passwd', 'secret', 'secretkey', 'token')))
 
 
@@ -153,8 +162,49 @@ def _field_key(token):
     return token[1:-1] if token.startswith("'") else token
 
 
+def _url_credentials(text):
+    """Remove whole URI userinfo, rejecting ambiguous authorities/encodings.
+
+    Do not regex-substitute JSON structure: this runs only on decoded/free-text
+    segments. Passwords may contain percent escapes; the entire userinfo is
+    removed without decoding it into a different URL. Hosts/paths are retained.
+    """
+    if (_ENCODED_URL.search(text)
+            or any('\\' in match.group('slashes') for match in _OBSCURED_URL.finditer(text))):
+        raise AdapterError('DATA_POLICY')
+    for match in _URL_AUTHORITY.finditer(text):
+        authority = match.group('authority')
+        try:
+            parsed = urlsplit(match.group(0))
+            # Accessing port validates it; no connection or DNS occurs.
+            parsed.port
+            if not parsed.hostname or ('@' not in authority and (
+                    authority.endswith(':') or re.search(r'%40|%3a', authority, re.IGNORECASE))):
+                raise ValueError()
+        except ValueError:
+            raise AdapterError('DATA_POLICY') from None
+
+    def redact(match):
+        userinfo = match.group('userinfo')
+        # Spaces, backslashes, or multiple @ delimiters have ambiguous ownership.
+        if (not userinfo or '@' in userinfo or any(char in userinfo for char in '\\"\'`')
+                or any(char.isspace() for char in userinfo)):
+            raise AdapterError('DATA_POLICY')
+        tail = text[match.end():]
+        authority = re.split(r'[/#?\s<>"\'`]', tail, maxsplit=1)[0]
+        try:
+            parsed = urlsplit(match.group('prefix') + 'redacted@' + authority)
+            parsed.port
+            if not parsed.hostname:
+                raise ValueError()
+        except ValueError:
+            raise AdapterError('DATA_POLICY') from None
+        return match.group('prefix') + 'redacted@'
+    return _URL_USERINFO.sub(redact, text)
+
+
 def _plain(text):
-    text = _short_passwords(text)
+    text = _url_credentials(_short_passwords(text))
     text = _AUTH.sub(lambda m: m.group(1) + '[REDACTED]', text)
     text = _BEARER.sub(lambda m: m.group(1) + '[REDACTED]', text)
     chunks, cursor = [], 0
@@ -211,7 +261,7 @@ def _clean(text, depth=0):
         try:
             decoded = json.loads('"' + text + '"')
         except (ValueError, RecursionError):
-            if re.search(r'(?i)password|passwd|secret|token|api[_-]?key', text):
+            if re.search(r'(?i)password|passwd|secret|token|api[_-]?key|mysql[_-]?pwd|://|%3a%2f%2f', text):
                 raise AdapterError('DATA_POLICY') from None
         else:
             filtered = _clean(decoded, depth + 1)
