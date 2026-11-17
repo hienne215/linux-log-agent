@@ -1,0 +1,63 @@
+"""Trusted test-only child faults; never selectable through MCP arguments."""
+import json
+import os
+from pathlib import Path
+import sys
+import time
+
+sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+import mock_mcp_server as contracts
+
+mode = sys.argv[1]
+arguments = json.loads(sys.stdin.buffer.read().decode("utf-8"))
+if mode == "sleep":
+    time.sleep(30)
+elif mode == "stdout_flood":
+    sys.stdout.buffer.write(b"x" * 131072)
+elif mode == "infinite_stdout":
+    while True:
+        sys.stdout.buffer.write(b"x" * 4096)
+        sys.stdout.buffer.flush()
+elif mode == "stderr_flood":
+    sys.stderr.buffer.write(b"SYNTHETIC_CHILD_SECRET" * 4096)
+elif mode == "failure":
+    sys.stderr.write("SYNTHETIC_CHILD_SECRET")
+    raise SystemExit(3)
+elif mode == "malformed":
+    sys.stdout.write("SYNTHETIC_CHILD_SECRET")
+else:
+    if mode.startswith(("oom_", "login_")):
+        tool = "memory_oom_events" if mode.startswith("oom_") else "failed_logins"
+        state = "unavailable" if mode.endswith("unavailable") else "permission_denied"
+        contracts.log_coverage = lambda name: [dict(source=contracts.LOG_SOURCES[name][0], status=state, oldest_available_at=None)]
+        response = contracts.TOOLS[tool][0](**arguments)
+        response["data"]["message"] = "SYNTHETIC_CHILD_SECRET"
+        if mode.endswith("wrong_ids"):
+            response["trace_id"] = "forged-SYNTHETIC_CHILD_SECRET"
+        if mode.endswith("bad_source"):
+            response["data"]["coverage"][0]["source"] = "SYNTHETIC_CHILD_SECRET"
+    else:
+        response = (contracts.query_journal(**arguments) if mode == "partial"
+                    else contracts.service_status(**arguments))
+    if mode == "wrong_ids":
+        response["trace_id"] = "forged-SYNTHETIC_CHILD_SECRET"
+    elif mode in {"semantic", "permission"}:
+        response.update(status="error", error_code="INVALID_INPUT" if mode == "semantic" else "PERMISSION_DENIED",
+                        data={"message": "SYNTHETIC_CHILD_SECRET"})
+    elif mode == "large_atomic":
+        # Schema-valid atomic payload: exceed the serialized frame cap without
+        # violating the new 2048-character description bound or raw worker cap.
+        response["data"]["description"] = "Bounded synthetic atomic fixture."
+        template = response["evidence"][0]
+        response["evidence"] = [dict(template, evidence_id=f"atomic-{i:02}", excerpt="漢" * 700)
+                                for i in range(16)]
+    elif mode == "partial":
+        response["data"]["entries"] = [{"timestamp": "2026-11-02T09:30:00Z", "priority": 3,
+                                           "message": "whole-record-" + "漢" * 150} for _ in range(100)]
+        response["data"]["count"] = 100
+    elif mode == "invalid_output":
+        response["data"] = {"SYNTHETIC_CHILD_SECRET": True}
+    elif mode == "environment":
+        response["data"]["description"] = ("SYNTHETIC_CHILD_SECRET" if os.environ.get("OPENAI_API_KEY")
+                                               else "environment-sanitized")
+    sys.stdout.buffer.write(json.dumps(response, ensure_ascii=False).encode("utf-8"))

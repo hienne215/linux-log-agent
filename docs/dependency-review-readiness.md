@@ -1,6 +1,23 @@
 # Dependency review readiness — 16/11/2026
 
 Scope: P00-03 / SCRUM-12 / PR #6, then P01-01 / SCRUM-15 / PR #14.
+**Current state — 17/11/2026:** PR #6 is merged at `f9adf8f46dec32759be558a5b45bb229e64a3208`,
+with canonical schemas identical to approved `2502d44`. PR #14 is not merged or
+production-ready; its integrated HEAD requires fresh validation and independent review.
+
+- [Trang scoped schema-hardening ACCEPTED](https://github.com/hienne215/linux-log-agent/pull/6#pullrequestreview-5938306480): five fixes, optional bounds and both restart result anchors.
+- [Hiền integration-mapping delta ACCEPTED](https://github.com/hienne215/linux-log-agent/pull/6#issuecomment-6947807969): source/contract scope only.
+- [Hiền adoption-plan review](https://github.com/hienne215/linux-log-agent/pull/14#issuecomment-6947817438): planning only; not independent acceptance of the unpublished audit or new scaffold HEAD.
+
+Current adoption uses a normal merge of the approved main squash commit, preserving
+scaffold helpers and both documentation streams, followed by the owned three-file
+audit patch. Do not merge the old PR #6 topic history or replay its schema overlay.
+
+## Historical readiness record — 16/11/2026
+
+The pending statements below describe that earlier snapshot and are superseded
+by the current scoped record above. No Linux/production acceptance is inferred.
+
 **REVIEW/SIGNOFF PENDING. Not finalized, not production-ready; no merge authorized.**
 
 ## Verified review record
@@ -37,3 +54,7 @@ GitHub PR bodies are stale: #6 still advertises 30 tests, #14 contains an unfill
 ## Evidence boundaries
 
 Tests use Python 3.12, mcp==2.3.0, canonical Draft 2020-12 validators and synthetic data on Windows. Pytest basetemp is explicitly placed in the writable workspace. Discovery is real SDK traffic; fixture data is not Linux evidence. No VM smoke, real OOM, sudo, group changes, service restart or Agent binder change is performed.
+
+## PR #14 audit finding and correction
+
+Schema validation alone accepted dangling event/check evidence references and duplicate evidence IDs from a worker. Two isolated-worker-result regressions failed before correction (missing reference and duplicate ID). Scaffold now validates unique evidence IDs and resolution of data evidence_id/evidence_refs, while leaving explicitly supplied baseline_evidence_refs external. Valid records still pass. All twelve valid canonical requests are additionally exercised over the official scaffold stdio entrypoint with no backend. This does not attest Linux truth or general-purpose redaction.
