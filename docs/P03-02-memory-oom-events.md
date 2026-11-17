@@ -5,6 +5,13 @@ It supersedes the historical wiring/cursor notes below: the opt-in SDK uses a
 connection-owned pager, while the standalone VM diagnostic worker stays stateless.
 Canonical Pagination remains yes. Older tests/VM evidence are not new binding acceptance.
 
+Historical fresh smoke on collector `1957acd`, executed by Trang on 2026-11-17,
+is preserved in `docs/evidence/p03-02-A-no-groups-20261117-195257.txt` and
+`docs/evidence/p03-02-B-journal-20261117-195408.txt`. Both returned partial, one
+synthetic event and one evidence, with the correct per-source history/access
+distinction; reader was restored to no supplementary groups in Trang's terminal.
+The dated reports do not prove this 18/11 SDK binding or real OOM behavior.
+
 Status: Draft (review fixes applied, waiting for re-review) | Owner: Trang | Support/review: Thuy
 Depends on: P03-01 (reader permissions), P01-01 (server scaffold, draft), P00-03 (contracts R3, `fd737fb`)
 Scope: one read-only tool. It does not change the contract, the scaffold or any other tool.
