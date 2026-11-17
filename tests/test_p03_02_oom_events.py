@@ -419,18 +419,17 @@ def test_worker_rejects_oversized_or_non_object_input():
     assert run_worker({"pad": "x" * 20000}).returncode == 2
 
 
-def test_linux_oom_flag_is_off_by_default_and_the_argv_is_fixed_in_code():
+def test_linux_oom_flag_is_off_by_default_and_uses_persistent_owner():
     pytest.importorskip("mcp")
     import run_mcp_server as entry
     assert entry.build_backends() == {}
-    backends = entry.build_backends(linux_oom=True)
-    assert list(backends) == ["memory_oom_events"]
-    argv = backends["memory_oom_events"]
-    assert len(argv) == 3 and os.path.isabs(argv[0]) and argv[1] == "-I"
-    assert Path(argv[2]) == ROOT / "src/mcp_server/oom_worker.py" and Path(argv[2]).is_file()
-    assert set(entry.build_backends(fixtures=True, linux_oom=True)) == {"service_status", "memory_oom_events"}
+    from src.mcp_server.oom_server import OomServer
+    app=entry.build_server(linux_oom=True,oom_session_id='s')
+    assert isinstance(app,OomServer) and app.backends=={}
+    assert set(entry.build_server(fixtures=True,linux_oom=True,oom_session_id='s').backends)=={'service_status'}
+    assert not isinstance(entry.build_server(),OomServer)
     parser = entry.build_parser()
-    assert {o for action in parser._actions for o in action.option_strings} == {"-h", "--help", "--fixtures", "--linux-oom"}
+    assert {o for action in parser._actions for o in action.option_strings} == {"-h", "--help", "--fixtures", "--linux-oom", "--oom-session-id"}
     assert parser.parse_args([]).linux_oom is False and parser.parse_args(["--linux-oom"]).linux_oom is True
 
 
@@ -445,7 +444,7 @@ def test_flag_enables_the_backend_through_the_real_stdio_server():
         async with Client(params, read_timeout_seconds=30) as client:
             return (await client.call_tool(oom.TOOL, dict(REQ))).structured_content
 
-    off, on = asyncio.run(call([])), asyncio.run(call(["--linux-oom"]))
+    off, on = asyncio.run(call([])), asyncio.run(call(["--linux-oom","--oom-session-id","s"]))
     for response in (off, on):
         contracts.TOOLS[oom.TOOL][4].validate(response)
     assert off["error_code"] == "UNSUPPORTED" and "coverage" not in off["data"]     # backend not enabled
