@@ -331,22 +331,27 @@
             "properties": {
               "unit": {
                 "type": "string",
-                "minLength": 1
+                "minLength": 1,
+                "maxLength": 128
               },
               "active_state": {
                 "type": "string",
-                "minLength": 1
+                "minLength": 1,
+                "maxLength": 128
               },
               "sub_state": {
                 "type": "string",
-                "minLength": 1
+                "minLength": 1,
+                "maxLength": 128
               },
               "load_state": {
                 "type": "string",
-                "minLength": 1
+                "minLength": 1,
+                "maxLength": 128
               },
               "description": {
-                "type": "string"
+                "type": "string",
+                "maxLength": 2048
               }
             },
             "required": [

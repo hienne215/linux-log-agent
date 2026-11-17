@@ -7,9 +7,24 @@
 **Python:** 3.12  
 **Transport:** stdio  
 **Contract version:** 1.0.0  
-**Status:** Contracts 1.0.0 revision 2026-11-15-R3 pending Hiền/Trang re-review; NOT finalized
+**Status:** Canonical contract 1.0.0 from PR #6 merged into main at `f9adf8f46dec32759be558a5b45bb229e64a3208`; PR #14 was squash merged at `a0206a1`; PR #22 collector adoption remains under independent review.
 
 **Current review entry point:** [R3 review response and handoff](SCRUM-12-review-R3-2026-11-15.md). R3 supersedes conflicting R2/R1 details; accepted coverage errors preserve IDs, execution_unknown requires executed=null, and proposals expire after 60 seconds. [R1 historical review](SCRUM-12-contract-review-2026-11-14.md) was accepted by Hiền for Integration R1 only.
+
+**Latest follow-up:** [Trang schema review response](SCRUM-12-schema-hardening-2026-11-17.md).
+This candidate tightens accepted inputs/data bounds without changing mock runtime,
+correlation, errors, transport or R3 lifecycle/coverage behavior. Prior scoped
+approvals are not approval of the new schema candidate.
+
+**17/11/2026 adoption record:** Approved schema revision `2502d44e803db9082581581659964450da6b46d9`
+was squash merged through PR #6. [Trang accepted findings 1–5, optional bounds and
+both restart result-unit anchors](https://github.com/hienne215/linux-log-agent/pull/6#pullrequestreview-5938306480);
+[Hiền accepted the integration-mapping delta](https://github.com/hienne215/linux-log-agent/pull/6#issuecomment-6947807969).
+These are scoped confirmations, not production/Linux/binder acceptance. Earlier
+candidate/pending wording below records the historical review stages. PR #14
+preserves its native_builder/coverage_error integration and is now merged. The
+P01-03 service_status collector remains a separate opt-in candidate; its integrated
+HEAD and Linux observations need separate review. No restart execution is enabled.
 
 ---
 
@@ -297,6 +312,54 @@ Handoff to Hiền (SCRUM-22): bind from manifest, validate the complete structur
 Handoff to Trang: please confirm production unit/source/profile allowlists, authentication/session ownership, permission-denied handling, and external coordinator/helper contracts. The mock proposal/status response remains deterministic and does not persist or execute actions; no real approval, root/sudo, restart or write retry exists.
 
 Review checklist and signoff for this revision are tracked in `SCRUM-12-contract-review-2026-11-14.md`; `SCRUM-12-followup-2026-11-14.md` remains the historical fix report. Technical finalization is a candidate until Hiền and Trang explicitly sign off on this revision; neither a previous audit nor an automated PASS is an APPROVED review. The 13/11 handoff is historical. No merge or Jira change is authorized by this follow-up.
+
+### 10.6 Schema-hardening candidate (2026-11-17)
+
+- All service-unit patterns use strict end-of-input `(?![\s\S])`, including
+  restart result-data branches. JSON files escape the backslashes. A trailing
+  newline is invalid; Python `$` behavior is not used as an input boundary.
+- `search_log.source_id` is an opaque application-owned ID, 1–128 characters:
+  lowercase ASCII letters/digits initially, then lowercase letters/digits, `_`
+  or `-`. Paths, dots, controls, whitespace and leading options are rejected.
+  This syntax is NOT a production source allowlist: a deployed reader must bind
+  approved IDs to trusted sources and reject unknown IDs. Existing mock IDs
+  (`mock-source`, `syslog-main`, `system-journal`) are fixtures, not production
+  authorization. No real reader or production ID mapping is introduced.
+- `search_log.query` denotes a case-sensitive literal Unicode substring, not a
+  regular expression; no implicit normalization or regex compilation. The mock
+  still synthesizes fixtures containing the query and does not perform real log
+  searching. The isolated matcher implements this literal primitive, not reader
+  authorization, redaction or full endpoint behavior.
+- `disk_usage.filesystem` accepts the logical selector `root`, or `/`, or an
+  absolute slash-separated selector with nonempty ASCII alphanumeric/underscore/
+  hyphen components (a component starts with alphanumeric/underscore). Maximum
+  length stays 255. No dots, `..`, empty components, trailing slash (except `/`),
+  controls, whitespace or leading options. `/dev/mock` remains a synthetic fixture;
+  it is not a verified device. This grammar grants no filesystem access. Production
+  requires an operator-owned mapping; the existing isolated disk core supports
+  only `root -> /` and does not gain support for arbitrary path selectors.
+- `check_config.issues` is at most 32 objects, each requiring exactly `code`
+  (1–128 characters), `severity` (`info`, `warning`, `error`) and `message`
+  (1–2048 characters); no extra properties. These are filtered diagnostics, never
+  raw stderr/path/exception dumps. Existing mock issues remain empty. The real
+  verifier stays disabled/BLOCKED; this schema does not authorize any profile.
+- `verify_fix.action_id` is at most 128 characters; baseline refs are at most 32
+  unique strings of 1–128 characters. Existing null/absent/empty semantics remain.
+  `check_types` has at most its 3 unique enum values; `detect_anomaly.signals` has
+  at most its 4 unique enum values, still allowing the previously valid empty list.
+- Additional safe data bounds cover nine non-R3-tool data schemas: pageable
+  entries/matches/units/ports at most 200; anomalies 50; verify checks 3; reference
+  arrays 32 with 128-character IDs; signal arrays 4. Descriptions/process/summary
+  text max 2048, states/service unit fields max 128, returned failed-unit names
+  max 255, addresses max 128, filesystem/mount selectors max 255, echoed source
+  IDs max 128 and queries max 500. Existing shorter caps remain in force. These
+  caps do not prove redaction or replace the complete serialized 64 KiB frame cap.
+  Optional bounds on the three previously accepted R3 tools, date-time strings
+  and common-envelope arrays are deferred; no claim that every node is bounded.
+
+This is an intentional narrowing of formerly permissive schemas. Clients with
+cached schemas and dependent collector branches must adopt the new candidate and
+revalidate; the compatibility notes in the follow-up identify exact consequences.
 
 ## 11. Validation Checklist
 

@@ -1,0 +1,44 @@
+# SYNTHETIC DEMO
+
+Toàn bộ evidence bên dưới là dữ liệu giả lập. Không gọi MCP, Ollama hoặc Linux tools.
+
+Trạng thái: Hoàn tất kịch bản giả lập; nhận định chưa xác minh thực tế.
+
+Trace ứng dụng: RECEIVED → ANALYZING → COLLECTING → ANALYZING → CONCLUDED → REPORTED
+
+- Bước 1: `service_status` — Đã đọc dữ liệu giả lập; refs: active-01.
+
+# Incident Report — read-only
+
+Báo cáo nội bộ; không xác nhận đã sửa lỗi hoặc thực hiện hành động ghi.
+
+- Status: concluded
+- Tool attempts: 1
+- LLM turns: 2
+- Execution outcome: response_received
+- Cleanup pending: false
+
+## Evidence / provenance
+
+### active\-01
+Source (untrusted data):
+> synthetic\:service\_status
+
+> nginx\.service\: active \(running\); dữ liệu giả lập, chưa kiểm tra HTTP\.
+
+
+## Nhận định
+
+Văn bản model chưa được xác minh về ngữ nghĩa.
+
+> Trong kịch bản giả lập, nginx\.service active; chưa xác minh HTTP health\.
+
+## Citations
+
+active\-01
+
+## Limitations
+
+- Citation hợp lệ chỉ chứng minh ID tồn tại, không chứng minh kết luận đúng.
+- Timeout/disconnect không chứng minh tool chưa thực thi hoặc đã rollback.
+- Nguồn evidence và độ bao phủ redaction cần được kiểm chứng riêng.

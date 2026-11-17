@@ -1,6 +1,25 @@
 # Dependency review readiness — 16/11/2026
 
 Scope: P00-03 / SCRUM-12 / PR #6, then P01-01 / SCRUM-15 / PR #14.
+**Current state — 17/11/2026:** PR #6 is merged at `f9adf8f46dec32759be558a5b45bb229e64a3208`,
+with canonical schemas identical to approved `2502d44`. PR #14 was squash merged
+at `a0206a1`; P03-01 docs were merged in main `f2a8f71`. These merges do not imply
+production/Linux acceptance. PR #22 now requires validation and independent review
+of its separate P01-03 collector integration.
+
+- [Trang scoped schema-hardening ACCEPTED](https://github.com/hienne215/linux-log-agent/pull/6#pullrequestreview-5938306480): five fixes, optional bounds and both restart result anchors.
+- [Hiền integration-mapping delta ACCEPTED](https://github.com/hienne215/linux-log-agent/pull/6#issuecomment-6947807969): source/contract scope only.
+- [Hiền adoption-plan review](https://github.com/hienne215/linux-log-agent/pull/14#issuecomment-6947817438): planning only; not independent acceptance of the unpublished audit or new scaffold HEAD.
+
+Current adoption uses a normal merge of the approved main squash commit, preserving
+scaffold helpers and both documentation streams, followed by the owned three-file
+audit patch. Do not merge the old PR #6 topic history or replay its schema overlay.
+
+## Historical readiness record — 16/11/2026
+
+The pending statements below describe that earlier snapshot and are superseded
+by the current scoped record above. No Linux/production acceptance is inferred.
+
 **REVIEW/SIGNOFF PENDING. Not finalized, not production-ready; no merge authorized.**
 
 ## Verified review record
@@ -41,3 +60,14 @@ Tests use Python 3.12, mcp==2.3.0, canonical Draft 2020-12 validators and synthe
 ## PR #14 audit finding and correction
 
 Schema validation alone accepted dangling event/check evidence references and duplicate evidence IDs from a worker. Two isolated-worker-result regressions failed before correction (missing reference and duplicate ID). Scaffold now validates unique evidence IDs and resolution of data evidence_id/evidence_refs, while leaving explicitly supplied baseline_evidence_refs external. Valid records still pass. All twelve valid canonical requests are additionally exercised over the official scaffold stdio entrypoint with no backend. This does not attest Linux truth or general-purpose redaction.
+
+## P01-03 dependency adoption — 17/11/2026
+
+The local PR #22 integration uses pinned main `f2a8f71b209c71349a9ba8d6f00ce5e380fac1dd`,
+not the historical scaffold topic. Approved canonical schemas and shared runtime
+are retained unchanged. Only the operator opt-in service_status worker is added;
+no default real backend, new reader privileges or blocked verifier is enabled.
+[Hiền's readiness review](https://github.com/hienne215/linux-log-agent/pull/22#issuecomment-6950623314)
+is source/dependency review, not final approval or positive Linux observation.
+Prior Ubuntu NOT_FOUND evidence stays scoped to its pinned HEAD; a positive read
+and independent review of the integrated candidate remain separate gates.

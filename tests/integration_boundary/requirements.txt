@@ -1,0 +1,4 @@
+# Prepared Python 3.12 environment; this file does not install anything.
+jsonschema==4.26.0
+referencing==0.37.0
+# Real stdio additionally uses ../mcp_client/requirements.txt (mcp==2.3.0).

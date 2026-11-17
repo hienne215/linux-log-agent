@@ -1,8 +1,14 @@
 # P01-03 / SCRUM-17 — read-only service_status collector
 
 Owner: Thủy. Status: **In Progress / local review candidate**, not independently accepted.
-Dependency: PR #6 cefd523d41ee71b7e76e385efa466f9aaa6c5188 and PR #14
-656f8c365a300270418e15b34ae1046d12fbcb44. Branch: codex/p01-03-service-status.
+Current dependency for local adoption: pinned main
+`f2a8f71b209c71349a9ba8d6f00ce5e380fac1dd`, containing PR #6 squash `f9adf8f`
+(approved canonical revision `2502d44`), PR #14 scaffold squash `a0206a1`, and
+merged P03-01 documentation. Branch: `codex/p01-03-main-dependency-adoption`;
+original PR #22 branch/HEAD remain unchanged until a separately authorized publish.
+Initial cefd523/656f8c3 dependencies describe the historical draft, not this
+integrated candidate. Merged permission documentation does not itself grant
+reader privileges or production deployment approval.
 Only service_status is implemented here; no list_failed_units/query_journal, Agent
 binder, restart, permissions provisioning or deployment changes.
 
@@ -156,3 +162,14 @@ Return exact collector/scaffold/contract SHAs, Linux/systemd/Python versions, re
 UID/groups, the read-only response and canonical validation/cleanup result. Do not
 publish raw credentials/logs. Label the evidence as Linux smoke only after actual
 execution; local Windows tests alone do not finalize this task.
+
+## Dependency-adoption evidence boundaries
+
+[Hiền's readiness review](https://github.com/hienne215/linux-log-agent/pull/22#issuecomment-6950623314)
+reports an earlier Ubuntu SDK NOT_FOUND path at published HEAD `8b530f5`; it is
+not a positive observation of a running nginx service. That historical evidence
+is not re-executed or relabeled by this Windows/offline integration. Preserve
+exact SHAs and independent executor scope. Current candidate tests/logs and
+versions are supplied separately; final independent review and appropriate
+read-only Linux positive observation remain pending. Do not change service state,
+allowlist or reader permissions to manufacture acceptance.
