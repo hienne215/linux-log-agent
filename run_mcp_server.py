@@ -1,4 +1,4 @@
-"""MCP scaffold; real disk_usage is explicitly operator-enabled only."""
+"""MCP scaffold; real read-only backends require one operator-selected profile."""
 import argparse
 import asyncio
 from pathlib import Path
@@ -13,6 +13,7 @@ def main():
     profile = parser.add_mutually_exclusive_group()
     profile.add_argument("--fixtures", action="store_true", help="enable one explicitly synthetic service_status worker")
     profile.add_argument("--linux-disk-usage", action="store_true", help="read only the configured root filesystem with statvfs")
+    profile.add_argument("--linux-service-status", action="store_true", help="read allowlisted Linux systemd service state")
     args = parser.parse_args()
     backends = {}
     if args.fixtures:
@@ -21,6 +22,9 @@ def main():
     elif args.linux_disk_usage:
         worker = Path(__file__).resolve().parent / "src/mcp_server/disk_usage_worker.py"
         backends["disk_usage"] = (sys.executable, "-I", str(worker))
+    elif args.linux_service_status:
+        worker = Path(__file__).resolve().parent / "src/mcp_server/service_status_worker.py"
+        backends["service_status"] = (sys.executable, "-I", str(worker))
     runner = WorkerRunner(timeout=5.0) if args.linux_disk_usage else None
     asyncio.run(ServerScaffold(backends=backends, runner=runner).serve())
 

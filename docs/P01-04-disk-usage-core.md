@@ -1,6 +1,59 @@
 # SCRUM-18 / P01-04: isolated read-only disk_usage core
 
-## Current MCP integration candidate — 18/11/2026
+## Integrated main service_status + disk_usage candidate — 18/11/2026
+
+Adopted approved main `af1c3f16bdde5b04b838b86ab0b72f8248647477` by normal
+merge on the existing PR #24 branch. Main's service_status collector/worker/tests,
+canonical schemas, scaffold/runner and security fixtures are preserved unchanged.
+The disk core/worker/evidence mapping and existing tests are also unchanged from
+`90c65374f60698eeb9286d22f581c719d8fa6fdc`.
+
+Entrypoint profiles are explicitly **mutually exclusive**:
+
+| Selection | Registered backend | Resource policy |
+|---|---|---|
+| No flag | None | Approved default scaffold runner |
+| `--fixtures` | Synthetic service_status only | Approved default scaffold runner |
+| `--linux-service-status` | Fixed service_status worker, nginx.service allowlist | Unchanged main runner/collector policy |
+| `--linux-disk-usage` | Fixed disk worker, root -> / only | Existing 5-second WorkerRunner policy |
+
+Combining any profiles, passing unknown flags or supplying a filesystem path as
+a CLI option value/positional argument is rejected before backend construction.
+This integration does not enable simultaneous real collectors, expand either
+allowlist, change subprocess commands or introduce a new authorization mode.
+`tests/test_disk_usage_profiles.py` checks exact registration and deadlines,
+invalid combinations, SDK behavior and native frame sizes. Its SDK real-profile
+launches run only on non-Linux test hosts to avoid real diagnostics; they are
+explicitly skipped on Linux. Separate synthetic disk/service SDK tests continue
+to cover successful observations. No existing test is weakened or modified.
+
+### Independent evidence and remaining VM gate
+
+[Hiền's independent review/smoke](https://github.com/hienne215/linux-log-agent/pull/24#issuecomment-6982947277)
+applies to old `90c6537`: 151 targeted PASS and one positive non-root Ubuntu
+laptop disk SDK call under UID1000. This is valid prior evidence, not a fresh
+execution or acceptance of this integrated candidate. The entrypoint selection
+delta requires independent review; Linux smoke of the new candidate is NOT RUN.
+
+Trang must use an already authorized least-privilege VM reader and the exact final
+candidate SHA; record `id`, Python/MCP versions and namespace scope. Do not change
+permissions/groups, install services, use sudo or manufacture nginx state for this
+check. Run each real profile separately: one connection and one SDK call per
+profile, no retries/reconnects. Use the disk snippet below and the approved
+[service_status handoff](P01-03-service-status.md), changing only the checkout SHA
+being attested. Both flags must be present in `--help`, and combined flags must
+exit2 without spawning a collector. Canonical error responses remain actual errors,
+not positive acceptance.
+
+For disk, verify root binding, finite values, inode flag, evidence source/time,
+correlation and text/structuredContent/isError consistency. For service, compare
+the four allowed properties under that same reader and verify nginx.service
+binding/provenance; if absent or denied, record the real error without host changes.
+Retain SDK context closure and scoped owned-process snapshots; cooperative closure
+does not prove every exceptional descendant-cleanup case. Keep PR #24 Draft and
+SCRUM-18 acceptance pending independent integrated-HEAD review and VM evidence.
+
+## Prior MCP integration candidate — 18/11/2026 (90c6537)
 
 The original core below is preserved unchanged. The following current candidate
 supersedes its historical "remaining MCP work" statements; it is author-run work,

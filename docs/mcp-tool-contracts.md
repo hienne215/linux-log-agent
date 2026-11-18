@@ -7,7 +7,7 @@
 **Python:** 3.12  
 **Transport:** stdio  
 **Contract version:** 1.0.0  
-**Status:** Canonical contract 1.0.0 from PR #6 merged into main at `f9adf8f46dec32759be558a5b45bb229e64a3208`; PR #14 adoption remains under independent review.
+**Status:** Canonical contract 1.0.0 from PR #6 merged into main at `f9adf8f46dec32759be558a5b45bb229e64a3208`; PR #14 was squash merged at `a0206a1`; PR #22 collector adoption remains under independent review.
 
 **Current review entry point:** [R3 review response and handoff](SCRUM-12-review-R3-2026-11-15.md). R3 supersedes conflicting R2/R1 details; accepted coverage errors preserve IDs, execution_unknown requires executed=null, and proposals expire after 60 seconds. [R1 historical review](SCRUM-12-contract-review-2026-11-14.md) was accepted by Hiền for Integration R1 only.
 
@@ -22,8 +22,9 @@ both restart result-unit anchors](https://github.com/hienne215/linux-log-agent/p
 [Hiền accepted the integration-mapping delta](https://github.com/hienne215/linux-log-agent/pull/6#issuecomment-6947807969).
 These are scoped confirmations, not production/Linux/binder acceptance. Earlier
 candidate/pending wording below records the historical review stages. PR #14
-preserves its native_builder/coverage_error integration; its new HEAD still needs
-independent review. No real collector or restart execution is enabled.
+preserves its native_builder/coverage_error integration and is now merged. The
+P01-03 service_status collector remains a separate opt-in candidate; its integrated
+HEAD and Linux observations need separate review. No restart execution is enabled.
 
 ---
 
