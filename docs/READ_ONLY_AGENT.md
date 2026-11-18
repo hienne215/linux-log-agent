@@ -137,3 +137,23 @@ PYTHONDONTWRITEBYTECODE=1 RUN_MCP_STDIO_SMOKE=1 \
 
 The explicit test paths support the legacy fixtures' imports without importing
 source from another checkout. Native SDK tests use local synthetic workers.
+
+## Live two tool verification at commit 523b959
+
+After the native-batch patch, one bounded live run on the laptop passed:
+Qwen3 returned native service_status(unit=nginx.service) and
+ disk_usage(filesystem=root) proposals in request one. The application validated
+and executed both sequentially via separate official SDK stdio profiles. Request
+two produced a conclusion referencing both existing evidence IDs. Coordinator
+used three decision turns; actual model requests were two. Diagnosis completed
+in 37.252 seconds, both model workers exited zero, SDK/model owners were released
+and cleanup_pending=false. Minimum sampled available RAM was 3.484 GiB with
+0.1-second sampling; transient dips between samples are not ruled out.
+
+Sources were collector.service_status.systemctl.v1 and
+collector.disk_usage.statvfs.v1. This verifies one read-only two-tool question on
+the laptop. It is not a reliability benchmark, semantic citation proof, positive
+HTTP health check or accepted VM deployment. The original failed live attempt
+remains FAIL; its exact rejection subreason was not captured. No third inference
+request, automatic retry, service mutation or new model was used in the successful
+session. Full runtime output remains local and is not committed.
