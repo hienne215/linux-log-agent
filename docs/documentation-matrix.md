@@ -120,3 +120,9 @@ The R2/R3/dependency entries above retain their historical review snapshots; see
 In Progress pending fresh integrated-HEAD tests and independent review. The
 scaffold still has no default real collector; Agent/CLI work from main is retained.
 No Jira status, production readiness or real Linux acceptance is asserted here.
+
+## P01-03 service_status collector
+
+[Read-only service_status handoff](P01-03-service-status.md): separate opt-in Linux backend, originally based on scaffold 656f8c3; local adoption now uses pinned main f2a8f71 with merged #6/#14/#13 dependencies. Local injected-API/SDK tests are not Linux smoke or independent acceptance; no other collector is included.
+
+Dependency update: PR #14 was squash merged at `a0206a1`. Earlier pending/in-progress entries retain their historical scope; this collector integration is still a local review candidate, not production or Linux acceptance.
