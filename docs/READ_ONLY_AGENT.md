@@ -117,8 +117,8 @@ FAIL for the requested two-tool live scenario. The original generic code cannot
 distinguish text-only, excess calls, unfinished generation or reasoning; do not
 assert one cause without evidence. Fixed-enum diagnostics now preserve that
 reason through IPC without content or raw reasoning. Bounded native-batch
-admission is covered offline, but a new live result has NOT been collected after
-these changes. The original working one-tool demo remains untouched.
+admission was then verified offline and in the subsequent live run documented
+below. The original one-tool checkout remains untouched and available as fallback.
 
 ## Focused test command
 
