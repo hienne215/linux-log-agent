@@ -24,13 +24,13 @@ It also tracks the status of project features, so planned work is never presente
 | Documentation matrix | `docs/documentation-matrix.md` | A | Proposed |
 | Pull Request template | `.github/pull_request_template.md` | A | Proposed |
 | Project outline (agreed scope) | `docs/proposal-v2.md` | Team | Planned |
-| MCP tool contracts (schemas) | `docs/mcp-tool-contracts.md` | Thủy; Hiền/Trang review | Proposed |
+| MCP tool contracts (schemas) | `docs/mcp-tool-contracts.md` | Thủy; Hiền/Trang review | Existing (PR #6 merged; scoped reviews) |
 | SCRUM-12 final contract review and collector handoff | `docs/SCRUM-12-contract-review-2026-11-14.md` | Thủy | Proposed |
 | P01-01 draft scaffold design and evidence | `docs/P01-01-server-scaffold.md` | Thủy; Hiền review | In Progress |
 | System architecture | `docs/architecture.md` | Team | Planned |
 | Security design | `docs/security-design.md` | C | Planned |
 | Evaluation scenarios and answer keys | `docs/evaluation-scenarios.md` | C | Planned |
-| Setup and install guide | `docs/setup-guide.md` | C | Planned |
+| Setup and install guide | `docs/setup-guide.md` | C | Proposed |
 | Test report | `docs/test-report.md` | C | Planned |
 | Final report (English) | `docs/report/` | Team | Planned |
 | Slides (English) | `docs/report/` | Team | Planned |
@@ -42,7 +42,7 @@ Scope follows the agreed outline: 12 core tools, 5 required scenarios.
 
 ### MCP tools
 
-The tool statuses below refer to real Linux collection/execution, not the existing 12-tool mock/fixtures. PR #6 provides official SDK stdio contracts and a mock server; final contract signoff is pending. In particular, the read-only Linux `service_status` collector has not been implemented in PR #6.
+The tool statuses below refer to real Linux collection/execution, not the existing 12-tool mock/fixtures. PR #6 provides official SDK stdio contracts and a mock server; PR #6 has been merged with scoped schema/integration confirmations; this is not real Linux acceptance. In particular, the read-only Linux `service_status` collector has not been implemented in PR #6.
 
 | Feature | Type | Owner | Status |
 |---|---|---|---|
@@ -68,13 +68,13 @@ The tool statuses below refer to real Linux collection/execution, not the existi
 |---|---|---|---|
 | MCP server (real Linux collectors) | Core | A | Planned |
 | MCP server scaffold (P01-01 draft; collectors unavailable) | Core | Thủy | In Progress |
-| MCP mock server and 12-tool contracts (PR #6) | Core | Thủy | Proposed |
+| MCP mock server and 12-tool contracts (PR #6) | Core | Thủy | Existing (merged; not real Linux acceptance) |
 | MCP client and agent loop | Core | B | Planned |
 | CLI | Core | B | Planned |
 | Markdown incident report | Core | B | Planned |
 | Privileged helper and approval flow | Core | C | Planned |
 | Audit log | Core | C | Planned |
-| Test VM and snapshot | Core | C | Planned |
+| Test VM and snapshot | Core | C | In Progress |
 | Evaluation runs (5 scenarios, 3 runs each) | Core | C | Planned |
 | Unit tests | Core | A | Planned |
 | Incident history (SQLite) | Optional | B | Planned |
@@ -111,3 +111,12 @@ The tool statuses below refer to real Linux collection/execution, not the existi
 ## Dependency audit — 16/11/2026
 
 [PR #6/#14 review readiness](dependency-review-readiness.md): scoped confirmations recorded; current integration, detailed schemas/transport and independent scaffold review remain pending. Not finalized or Done.
+
+## Squash dependency adoption — 17/11/2026
+
+PR #6 canonical 1.0.0/schema-hardening content was squash merged at `f9adf8f`.
+The R2/R3/dependency entries above retain their historical review snapshots; see
+[the current scoped review record](dependency-review-readiness.md). PR #14 remains
+In Progress pending fresh integrated-HEAD tests and independent review. The
+scaffold still has no default real collector; Agent/CLI work from main is retained.
+No Jira status, production readiness or real Linux acceptance is asserted here.

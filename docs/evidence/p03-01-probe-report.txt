@@ -1,0 +1,212 @@
+P03-01 report - 2026-11-14T23:52:58+07:00 - linux-log-lab
+Description:	Ubuntu 20.04.6 LTS
+5.15.0-139-generic
+
+### Buoc 1: tao user mcp-log-reader
+Adding system user `mcp-log-reader' (UID 129) ...
+Adding new group `mcp-log-reader' (GID 135) ...
+Adding new user `mcp-log-reader' (UID 129) with group `mcp-log-reader' ...
+Not creating home directory `/home/mcp-log-reader'.
+uid=129(mcp-log-reader) gid=135(mcp-log-reader) groups=135(mcp-log-reader)
+User mcp-log-reader is not allowed to run sudo on linux-log-lab.
+
+### Buoc 2: tao fixture
+  UNIT                LOAD   ACTIVE SUB    DESCRIPTION                              
+● lab-backend.service loaded failed failed Lab fixture - backend that always crashes
+
+LOAD   = Reflects whether the unit definition was properly loaded.
+ACTIVE = The high-level unit activation state, i.e. generalization of SUB.
+SUB    = The low-level unit activation state, values depend on unit type.
+
+1 loaded units listed.
+
+### Buoc 3: probe 3 lan
+
+##### PROBE A - khong co nhom nao
+=== id
+uid=129(mcp-log-reader) gid=135(mcp-log-reader) groups=135(mcp-log-reader)
+=== journalctl -n 2 --no-pager
+[0;1;39mHint: You are currently not seeing messages from other users and the system.[0m
+[0;1;39m      Users in groups 'adm', 'systemd-journal' can see all messages.[0m
+[0;1;39m      Pass -q to turn off this notice.[0m
+=== journalctl -u lab-backend.service -n 2 --no-pager
+[0;1;39mHint: You are currently not seeing messages from other users and the system.[0m
+[0;1;39m      Users in groups 'adm', 'systemd-journal' can see all messages.[0m
+[0;1;39m      Pass -q to turn off this notice.[0m
+=== journalctl -t lab-fixture -n 2 --no-pager
+[0;1;39mHint: You are currently not seeing messages from other users and the system.[0m
+[0;1;39m      Users in groups 'adm', 'systemd-journal' can see all messages.[0m
+[0;1;39m      Pass -q to turn off this notice.[0m
+=== journalctl -k --no-pager | grep -i 'out of memory' | tail -1
+[0;1;39mHint: You are currently not seeing messages from other users and the system.[0m
+[0;1;39m      Users in groups 'adm', 'systemd-journal' can see all messages.[0m
+[0;1;39m      Pass -q to turn off this notice.[0m
+=== dmesg | grep -i 'out of memory' | tail -1
+[  471.301396] Out of memory: Killed process 4242 (lab-oom) total-vm:409600kB, anon-rss:102400kB
+=== systemctl is-active nginx
+active
+=== systemctl --failed --no-pager | head -4
+  UNIT                LOAD   ACTIVE SUB    DESCRIPTION                              
+● lab-backend.service loaded failed failed Lab fixture - backend that always crashes
+=== df -h /
+Filesystem      Size  Used Avail Use% Mounted on
+/dev/sda5        24G  8.9G   14G  39% /
+=== ss -tlnp
+State    Recv-Q   Send-Q     Local Address:Port     Peer Address:Port  Process  
+LISTEN   0        128              0.0.0.0:22            0.0.0.0:*              
+LISTEN   0        511              0.0.0.0:80            0.0.0.0:*              
+=== nginx -t
+nginx: [alert] could not open error log file: open() "/var/log/nginx/error.log" failed (13: Permission denied)
+2026/11/14 23:53:05 [warn] 1291#1291: the "user" directive makes sense only if the master process runs with super-user privileges, ignored in /etc/nginx/nginx.conf:1
+nginx: the configuration file /etc/nginx/nginx.conf syntax is ok
+=== test -r /var/log/syslog && echo readable || echo denied
+denied
+=== test -r /var/log/auth.log && echo readable || echo denied
+denied
+=== test -r /var/log/nginx/error.log && echo readable || echo denied
+denied
+=== test -r /etc/nginx/nginx.conf && echo readable || echo denied
+readable
+=== test -r /etc/shadow && echo READABLE || echo denied
+denied
+=== test -r /etc/sudoers && echo READABLE || echo denied
+denied
+=== test -r /etc/ssh/ssh_host_rsa_key && echo READABLE || echo denied
+denied
+=== test -r /root && echo READABLE || echo denied
+denied
+=== test -r /home/qtrang/.bash_history && echo READABLE || echo denied
+denied
+=== sudo -n true
+sudo: a password is required
+
+##### PROBE B - nhom systemd-journal
+=== id
+uid=129(mcp-log-reader) gid=135(mcp-log-reader) groups=135(mcp-log-reader),101(systemd-journal)
+=== journalctl -n 2 --no-pager
+-- Logs begin at Mon 2026-11-02 02:12:54 +07, end at Sat 2026-11-14 23:53:05 +07. --
+Nov 14 23:53:05 linux-log-lab sudo[1345]:   qtrang : TTY=pts/0 ; PWD=/home/qtrang ; USER=mcp-log-reader ; COMMAND=/usr/bin/bash -c journalctl -n 2 --no-pager
+Nov 14 23:53:05 linux-log-lab sudo[1345]: pam_unix(sudo:session): session opened for user mcp-log-reader by qtrang(uid=0)
+=== journalctl -u lab-backend.service -n 2 --no-pager
+-- Logs begin at Mon 2026-11-02 02:12:54 +07, end at Sat 2026-11-14 23:53:06 +07. --
+Nov 14 23:53:00 linux-log-lab systemd[1]: lab-backend.service: Main process exited, code=exited, status=3/NOTIMPLEMENTED
+Nov 14 23:53:00 linux-log-lab systemd[1]: lab-backend.service: Failed with result 'exit-code'.
+=== journalctl -t lab-fixture -n 2 --no-pager
+-- Logs begin at Mon 2026-11-02 02:12:54 +07, end at Sat 2026-11-14 23:53:06 +07. --
+Nov 14 23:53:00 linux-log-lab lab-fixture[1224]: lab-fixture: database connection refused (127.0.0.1:5432)
+Nov 14 23:53:00 linux-log-lab lab-fixture[1226]: lab-fixture: slow request 5231ms
+=== journalctl -k --no-pager | grep -i 'out of memory' | tail -1
+Nov 14 23:53:00 linux-log-lab unknown: Out of memory: Killed process 4242 (lab-oom) total-vm:409600kB, anon-rss:102400kB
+=== dmesg | grep -i 'out of memory' | tail -1
+[  471.301396] Out of memory: Killed process 4242 (lab-oom) total-vm:409600kB, anon-rss:102400kB
+=== systemctl is-active nginx
+active
+=== systemctl --failed --no-pager | head -4
+  UNIT                LOAD   ACTIVE SUB    DESCRIPTION                              
+● lab-backend.service loaded failed failed Lab fixture - backend that always crashes
+=== df -h /
+Filesystem      Size  Used Avail Use% Mounted on
+/dev/sda5        24G  8.9G   14G  39% /
+=== ss -tlnp
+State    Recv-Q   Send-Q     Local Address:Port     Peer Address:Port  Process  
+LISTEN   0        128              0.0.0.0:22            0.0.0.0:*              
+LISTEN   0        511              0.0.0.0:80            0.0.0.0:*              
+=== nginx -t
+nginx: [alert] could not open error log file: open() "/var/log/nginx/error.log" failed (13: Permission denied)
+2026/11/14 23:53:06 [warn] 1391#1391: the "user" directive makes sense only if the master process runs with super-user privileges, ignored in /etc/nginx/nginx.conf:1
+nginx: the configuration file /etc/nginx/nginx.conf syntax is ok
+=== test -r /var/log/syslog && echo readable || echo denied
+denied
+=== test -r /var/log/auth.log && echo readable || echo denied
+denied
+=== test -r /var/log/nginx/error.log && echo readable || echo denied
+denied
+=== test -r /etc/nginx/nginx.conf && echo readable || echo denied
+readable
+=== test -r /etc/shadow && echo READABLE || echo denied
+denied
+=== test -r /etc/sudoers && echo READABLE || echo denied
+denied
+=== test -r /etc/ssh/ssh_host_rsa_key && echo READABLE || echo denied
+denied
+=== test -r /root && echo READABLE || echo denied
+denied
+=== test -r /home/qtrang/.bash_history && echo READABLE || echo denied
+denied
+=== sudo -n true
+sudo: a password is required
+
+##### PROBE C - nhom systemd-journal + adm
+=== id
+uid=129(mcp-log-reader) gid=135(mcp-log-reader) groups=135(mcp-log-reader),4(adm),101(systemd-journal)
+=== journalctl -n 2 --no-pager
+-- Logs begin at Mon 2026-11-02 02:12:54 +07, end at Sat 2026-11-14 23:53:07 +07. --
+Nov 14 23:53:07 linux-log-lab sudo[1445]:   qtrang : TTY=pts/0 ; PWD=/home/qtrang ; USER=mcp-log-reader ; COMMAND=/usr/bin/bash -c journalctl -n 2 --no-pager
+Nov 14 23:53:07 linux-log-lab sudo[1445]: pam_unix(sudo:session): session opened for user mcp-log-reader by qtrang(uid=0)
+=== journalctl -u lab-backend.service -n 2 --no-pager
+-- Logs begin at Mon 2026-11-02 02:12:54 +07, end at Sat 2026-11-14 23:53:07 +07. --
+Nov 14 23:53:00 linux-log-lab systemd[1]: lab-backend.service: Main process exited, code=exited, status=3/NOTIMPLEMENTED
+Nov 14 23:53:00 linux-log-lab systemd[1]: lab-backend.service: Failed with result 'exit-code'.
+=== journalctl -t lab-fixture -n 2 --no-pager
+-- Logs begin at Mon 2026-11-02 02:12:54 +07, end at Sat 2026-11-14 23:53:07 +07. --
+Nov 14 23:53:00 linux-log-lab lab-fixture[1224]: lab-fixture: database connection refused (127.0.0.1:5432)
+Nov 14 23:53:00 linux-log-lab lab-fixture[1226]: lab-fixture: slow request 5231ms
+=== journalctl -k --no-pager | grep -i 'out of memory' | tail -1
+Nov 14 23:53:00 linux-log-lab unknown: Out of memory: Killed process 4242 (lab-oom) total-vm:409600kB, anon-rss:102400kB
+=== dmesg | grep -i 'out of memory' | tail -1
+[  471.301396] Out of memory: Killed process 4242 (lab-oom) total-vm:409600kB, anon-rss:102400kB
+=== systemctl is-active nginx
+active
+=== systemctl --failed --no-pager | head -4
+  UNIT                LOAD   ACTIVE SUB    DESCRIPTION                              
+● lab-backend.service loaded failed failed Lab fixture - backend that always crashes
+=== df -h /
+Filesystem      Size  Used Avail Use% Mounted on
+/dev/sda5        24G  8.9G   14G  39% /
+=== ss -tlnp
+State    Recv-Q   Send-Q     Local Address:Port     Peer Address:Port  Process  
+LISTEN   0        128              0.0.0.0:22            0.0.0.0:*              
+LISTEN   0        511              0.0.0.0:80            0.0.0.0:*              
+=== nginx -t
+nginx: [alert] could not open error log file: open() "/var/log/nginx/error.log" failed (13: Permission denied)
+2026/11/14 23:53:07 [warn] 1491#1491: the "user" directive makes sense only if the master process runs with super-user privileges, ignored in /etc/nginx/nginx.conf:1
+nginx: the configuration file /etc/nginx/nginx.conf syntax is ok
+=== test -r /var/log/syslog && echo readable || echo denied
+readable
+=== test -r /var/log/auth.log && echo readable || echo denied
+readable
+=== test -r /var/log/nginx/error.log && echo readable || echo denied
+readable
+=== test -r /etc/nginx/nginx.conf && echo readable || echo denied
+readable
+=== test -r /etc/shadow && echo READABLE || echo denied
+denied
+=== test -r /etc/sudoers && echo READABLE || echo denied
+denied
+=== test -r /etc/ssh/ssh_host_rsa_key && echo READABLE || echo denied
+denied
+=== test -r /root && echo READABLE || echo denied
+denied
+=== test -r /home/qtrang/.bash_history && echo READABLE || echo denied
+denied
+=== sudo -n true
+sudo: a password is required
+
+### Buoc 4: ra soat log nhay cam (chi ten file va so luong)
+/var/log/boot.log
+/var/log/syslog
+/var/log/apt/history.log
+/var/log/apt/term.log
+/var/log/dmesg
+/var/log/dmesg.0
+/var/log/kern.log
+/var/log/auth.log
+/var/log/bootstrap.log
+/var/log/installer/syslog
+/var/log/installer/casper.log
+/var/log/installer/debug
+/var/log/dpkg.log
+so dong journal co tu khoa: 137
+
+uid=129(mcp-log-reader) gid=135(mcp-log-reader) groups=135(mcp-log-reader),4(adm),101(systemd-journal)
+### HET (user dang tam thoi o nhom systemd-journal va adm)

@@ -31,7 +31,7 @@
       "type": "string",
       "minLength": 1,
       "maxLength": 128,
-      "pattern": "^[a-zA-Z0-9][a-zA-Z0-9_.-]*\\.service$"
+      "pattern": "^[a-zA-Z0-9][a-zA-Z0-9_.-]*\\.service(?![\\s\\S])"
     },
     "since": {
       "type": "string",
@@ -57,14 +57,16 @@
           "no_new_failures",
           "port_listening"
         ]
-      }
+      },
+      "maxItems": 3
     },
     "action_id": {
       "type": [
         "string",
         "null"
       ],
-      "minLength": 1
+      "minLength": 1,
+      "maxLength": 128
     },
     "baseline_evidence_refs": {
       "type": [
@@ -74,8 +76,10 @@
       "uniqueItems": true,
       "items": {
         "type": "string",
-        "minLength": 1
-      }
+        "minLength": 1,
+        "maxLength": 128
+      },
+      "maxItems": 32
     }
   },
   "required": [

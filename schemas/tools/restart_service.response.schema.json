@@ -44,7 +44,7 @@
         "unit": {
           "type": "string",
           "maxLength": 128,
-          "pattern": "^[a-zA-Z0-9][a-zA-Z0-9_.-]*\\.service$"
+          "pattern": "^[a-zA-Z0-9][a-zA-Z0-9_.-]*\\.service(?![\\s\\S])"
         }
       },
       "required": [
@@ -98,7 +98,7 @@
         "unit": {
           "type": "string",
           "maxLength": 128,
-          "pattern": "^[a-zA-Z0-9][a-zA-Z0-9_.-]*\\.service$"
+          "pattern": "^[a-zA-Z0-9][a-zA-Z0-9_.-]*\\.service(?![\\s\\S])"
         }
       },
       "required": [

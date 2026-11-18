@@ -1,4 +1,3 @@
-
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "title": "list_failed_units Response Data",
@@ -9,17 +8,42 @@
       "items": {
         "type": "object",
         "properties": {
-          "unit": {"type": "string", "minLength": 1},
-          "active_state": {"const": "failed"},
-          "description": {"type": "string"}
+          "unit": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 255
+          },
+          "active_state": {
+            "const": "failed"
+          },
+          "description": {
+            "type": "string",
+            "maxLength": 2048
+          }
         },
-        "required": ["unit", "active_state", "description"],
+        "required": [
+          "unit",
+          "active_state",
+          "description"
+        ],
         "additionalProperties": false
-      }
+      },
+      "maxItems": 200
     },
-    "count": {"type": "integer", "minimum": 0},
-    "limit": {"type": "integer", "minimum": 1, "maximum": 200}
+    "count": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "limit": {
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 200
+    }
   },
-  "required": ["failed_units", "count", "limit"],
+  "required": [
+    "failed_units",
+    "count",
+    "limit"
+  ],
   "additionalProperties": false
 }

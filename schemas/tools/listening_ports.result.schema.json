@@ -347,16 +347,19 @@
                       "maximum": 65535
                     },
                     "address": {
-                      "type": "string"
+                      "type": "string",
+                      "maxLength": 128
                     },
                     "process": {
-                      "type": "string"
+                      "type": "string",
+                      "maxLength": 2048
                     },
                     "unit": {
                       "type": [
                         "string",
                         "null"
-                      ]
+                      ],
+                      "maxLength": 128
                     }
                   },
                   "required": [
@@ -367,7 +370,8 @@
                     "unit"
                   ],
                   "additionalProperties": false
-                }
+                },
+                "maxItems": 200
               },
               "count": {
                 "type": "integer",

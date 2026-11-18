@@ -336,7 +336,8 @@
                   "properties": {
                     "id": {
                       "type": "string",
-                      "minLength": 1
+                      "minLength": 1,
+                      "maxLength": 128
                     },
                     "type": {
                       "type": "string",
@@ -357,7 +358,8 @@
                       ]
                     },
                     "summary": {
-                      "type": "string"
+                      "type": "string",
+                      "maxLength": 2048
                     },
                     "observed_count": {
                       "type": "integer",
@@ -387,8 +389,10 @@
                       "type": "array",
                       "items": {
                         "type": "string",
-                        "minLength": 1
-                      }
+                        "minLength": 1,
+                        "maxLength": 128
+                      },
+                      "maxItems": 32
                     },
                     "detection_method": {
                       "type": "string",
@@ -408,7 +412,8 @@
                     "detection_method"
                   ],
                   "additionalProperties": false
-                }
+                },
+                "maxItems": 50
               },
               "analyzed_signals": {
                 "type": "array",
@@ -420,13 +425,16 @@
                     "oom_events",
                     "failed_logins"
                   ]
-                }
+                },
+                "maxItems": 4
               },
               "insufficient_signals": {
                 "type": "array",
                 "items": {
-                  "type": "string"
-                }
+                  "type": "string",
+                  "maxLength": 128
+                },
+                "maxItems": 4
               },
               "findings_truncated": {
                 "type": "boolean"
