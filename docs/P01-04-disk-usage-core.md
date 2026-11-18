@@ -1,5 +1,101 @@
 # SCRUM-18 / P01-04: isolated read-only disk_usage core
 
+## Current MCP integration candidate — 18/11/2026
+
+The original core below is preserved unchanged. The following current candidate
+supersedes its historical "remaining MCP work" statements; it is author-run work,
+not independent review or SCRUM-18 Done. Normal main dependency adoption uses
+`dbd279aa87876141767a0ce1a8e851cdcc83f34d` (approved #6/#14 already merged).
+All 40 schema-tree files and shared scaffold/security fixtures remain equal to
+that main. No journal/P03-01 policy dependency is needed for statvfs.
+
+`python run_mcp_server.py --linux-disk-usage` registers exactly the fixed
+`sys.executable -I <repository>/src/mcp_server/disk_usage_worker.py` backend.
+This operator option is mutually exclusive with `--fixtures`. Without it, disk
+remains UNSUPPORTED; Linux is required for real observations. No path, executable,
+mapping or command option comes from MCP input. Only selector `root` is authorized;
+wire null/traversal is INVALID_INPUT, while schema-valid `/` or `/tmp` is
+POLICY_DENIED before API access. Omission maps to the original core default.
+
+The child validates canonical input, calls the existing core, validates returned
+data/full envelope and checks the fixed binding before generating evidence.
+Success preserves all four correlation IDs. Evidence has random unique IDs,
+source `collector.disk_usage.statvfs.v1`, unit=null and a timestamp after the API
+returns. Its bounded excerpt is built only from validated root/numeric/boolean
+fields. `redacted=true` denotes this deliberately restricted projection, not a
+general redactor. No raw OS diagnostics or synthetic fallback is returned.
+The root is the reader process's namespace root, not proof of a host/device ID.
+
+Failures reuse the approved safe-error boundary: static code, no evidence,
+session_id=null and correlation placeholders `invalid-input`. IDs are preserved
+on successful validated observations, not error reflection. `isError` and text /
+structuredContent mapping remain owned by ServerScaffold. The worker bounds input
+to 16,384 bytes and output to 65,536 bytes; the parent enforces stdout 65,536,
+stderr 4,096 and the full native JSON-RPC response cap of 65,536 bytes.
+Duplicate JSON keys/nonstandard constants and invalid UTF-8 fail closed.
+
+The approved WorkerRunner provides a 5-second execution deadline and direct-child
+timeout/cancellation termination, drain/reap and retained cleanup ownership. This
+is not a hard wall-clock guarantee: process creation or an uninterruptible kernel
+statvfs call can delay confirmed cleanup; the parent refuses reuse until cleanup
+is confirmed. No shared runtime duplication or relaxed assertions are introduced.
+
+Offline tests use statvfs doubles and real SDK/child Python processes. Positive
+stdio fixtures label their source `synthetic.disk_usage.statvfs.test.v1` and never
+read the host filesystem. Permission/missing/unsupported failures, bad input,
+observation validation, bounds, timeout/cancellation/reaping and wire consistency
+are included. Real Linux smoke: **NOT RUN**. Independent review remains pending.
+
+### Safe Linux review smoke (not executed here)
+
+Use an approved non-root reader account, Python 3.12 and the pinned requirements
+(`mcp==2.3.0`). No sudo, permission change or package/service mutation is required.
+Run from an exact candidate checkout; save SHA and `pip freeze` separately. If
+the target cannot meet these prerequisites, stop rather than changing privileges.
+Run the snippet once; do not resend or reconnect after timeout/disconnect. An
+unknown outcome is retained until worker cleanup is confirmed.
+
+```python
+import asyncio
+import json
+from pathlib import Path
+import sys
+from mcp import ClientSession, StdioServerParameters
+from mcp.client.stdio import stdio_client
+import mock_mcp_server as contracts
+
+async def smoke():
+    params = StdioServerParameters(command=sys.executable, args=[
+        str(Path('run_mcp_server.py').resolve()), '--linux-disk-usage'])
+    async with stdio_client(params) as (read, write):
+        async with ClientSession(read, write) as session:
+            await session.initialize()
+            result = await session.call_tool('disk_usage', {
+                'schema_version': '1.0.0', 'session_id': 'linux-disk-review',
+                'trace_id': 'disk-trace', 'logical_tool_call_id': 'disk-call',
+                'attempt_id': 'disk-attempt', 'filesystem': 'root',
+                'include_inodes': True})
+            data = result.structured_content
+            contracts.TOOLS['disk_usage'][4].validate(data)
+            assert json.loads(result.content[0].text) == data
+            assert result.is_error == (data['status'] == 'error')
+            assert contracts.wire_size(result, 1) <= 65536
+            if not result.is_error:
+                assert data['data']['filesystem'] == 'root'
+                assert data['data']['mount_point'] == '/'
+                assert data['evidence'][0]['source'] == 'collector.disk_usage.statvfs.v1'
+            print(json.dumps(data, ensure_ascii=True))
+
+asyncio.run(asyncio.wait_for(smoke(), 30))
+```
+
+A successful smoke must be separately attested at the exact candidate SHA; an
+UNSUPPORTED/error response is not positive Linux acceptance. Numeric data is a
+snapshot and may change between calls. No production topology or authorization
+beyond this fixed root mapping is certified by the offline tests.
+
+## Historical isolated-core record
+
 Owner: Thủy. Local implementation candidate, not independent acceptance.
 Branch: codex/p01-04-disk-usage-core. Base: scaffold PR #14
 656f8c365a300270418e15b34ae1046d12fbcb44. Reference contracts: PR #6
