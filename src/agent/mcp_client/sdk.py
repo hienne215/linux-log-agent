@@ -6,6 +6,30 @@ import os
 from .client import MCPClientError, StdioConfig
 
 
+def _child_environment(config, inherited, *, platform=None, parent=None):
+    """Blank SDK inheritance, retaining only required Windows runtime metadata.
+
+    Never inherit USERPROFILE/HOME, tokens, proxy settings or the parent's PATH.
+    This is launcher configuration, not model-controlled request data.
+    """
+    env = dict.fromkeys(inherited, "")
+    env.update({"PATH": "/usr/bin:/bin", "PYTHONUNBUFFERED": "1"})
+    if (platform or os.name) == "nt":
+        import ntpath
+        source = os.environ if parent is None else parent
+        root = next((value for key, value in source.items() if key.upper() == "SYSTEMROOT"), None)
+        if (not isinstance(root, str) or not root or "\x00" in root
+                or not ntpath.isabs(root)):
+            raise MCPClientError("INVALID_CONFIG")
+        for key in tuple(env):
+            if key.upper() == "SYSTEMROOT":
+                del env[key]
+        env["SYSTEMROOT"] = root
+        env["PATH"] = ntpath.join(root, "System32")
+    env.update(config.env)
+    return env
+
+
 @asynccontextmanager
 async def sdk_peer(config: StdioConfig):
     try:
@@ -24,9 +48,7 @@ async def sdk_peer(config: StdioConfig):
 
     # SDK merges its baseline inherited env. Override every baseline entry, then
     # permit only configured noncredential variables; never mutate os.environ.
-    env = dict.fromkeys(DEFAULT_INHERITED_ENV_VARS, "")
-    env.update({"PATH": "/usr/bin:/bin", "PYTHONUNBUFFERED": "1"})
-    env.update(config.env)
+    env = _child_environment(config, DEFAULT_INHERITED_ENV_VARS)
     params = StdioServerParameters(command=config.command, args=list(config.args), env=env)
 
     class SessionPeer:

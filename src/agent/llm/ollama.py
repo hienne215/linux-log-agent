@@ -18,6 +18,16 @@ from .interface import AdapterError, Completion, Message, ToolCall, ToolDefiniti
 from .redaction import _clean, _is_secret_key
 
 
+POLICY_REASONS = frozenset({'INCOMPLETE_GENERATION', 'REASONING_PRESENT',
+    'MULTIPLE_TOOL_CALLS', 'TOOL_REQUIRED', 'EMPTY_RESPONSE', 'TOKEN_LIMIT'})
+
+
+def _policy_error(reason):
+    error = AdapterError('OUTPUT_POLICY')
+    error.reason = reason  # Fixed application enum; never provider text/reasoning.
+    return error
+
+
 @dataclass(frozen=True)
 class OllamaConfig:
     model: str = 'qwen3:4b-instruct-2507-q4_K_M'
@@ -29,6 +39,7 @@ class OllamaConfig:
     timeout_seconds: float = 45
     max_response_bytes: int = 262144
     max_request_bytes: int = 131072
+    max_tool_calls: int = 1  # Application-owned admission cap; not an Ollama API field.
 
     def __post_init__(self):
         # Literal loopback only: no DNS, proxies, credentials, query or custom paths.
@@ -37,7 +48,7 @@ class OllamaConfig:
         if not isinstance(self.model, str) or not self.model or len(self.model) > 256:
             raise AdapterError('INVALID_CONFIG')
         for value, low, high in ((self.num_ctx, 1, 4096), (self.num_predict, 1, 256),
-                                 (self.num_thread, 1, 4),
+                                 (self.num_thread, 1, 4), (self.max_tool_calls, 1, 8),
                                  (self.max_response_bytes, 1024, 1048576),
                                  (self.max_request_bytes, 1024, 1048576)):
             if type(value) is not int or not low <= value <= high:
@@ -244,7 +255,7 @@ class OllamaAdapter:
         if response.get('model') != self.config.model:
             raise AdapterError('MALFORMED_RESPONSE')
         if response.get('done') is not True or response.get('done_reason') != 'stop':
-            raise AdapterError('OUTPUT_POLICY')
+            raise _policy_error('INCOMPLETE_GENERATION')
         message = response.get('message')
         if not isinstance(message, dict) or message.get('role') != 'assistant':
             raise AdapterError('MALFORMED_RESPONSE')
@@ -253,14 +264,14 @@ class OllamaAdapter:
         if not isinstance(text, str) or not isinstance(thinking, str):
             raise AdapterError('MALFORMED_RESPONSE')
         if thinking.strip() or '<think>' in text.lower() or '</think>' in text.lower():
-            raise AdapterError('OUTPUT_POLICY')
+            raise _policy_error('REASONING_PRESENT')
         clean = _clean(text)
         redacted |= clean != text
         native = message.get('tool_calls', [])
         if not isinstance(native, list):
             raise AdapterError('MALFORMED_RESPONSE')
-        if len(native) > 1:
-            raise AdapterError('OUTPUT_POLICY')
+        if len(native) > self.config.max_tool_calls:
+            raise _policy_error('MULTIPLE_TOOL_CALLS')
         calls = []
         for item in native:
             if not isinstance(item, dict) or not isinstance(item.get('function'), dict):
@@ -270,7 +281,7 @@ class OllamaAdapter:
             _call(call, validators)
             calls.append(call)
         if not calls and (require_tool or not clean.strip()):
-            raise AdapterError('OUTPUT_POLICY')
+            raise _policy_error('TOOL_REQUIRED' if require_tool else 'EMPTY_RESPONSE')
         metrics = {}
         for key in ('prompt_eval_count', 'eval_count', 'eval_duration', 'total_duration'):
             value = response.get(key)
@@ -279,7 +290,7 @@ class OllamaAdapter:
             metrics[key] = value
         count, duration = metrics['eval_count'], metrics['eval_duration']
         if count is not None and count > self.config.num_predict:
-            raise AdapterError('OUTPUT_POLICY')
+            raise _policy_error('TOKEN_LIMIT')
         seconds = duration / 1e9 if duration is not None else None
         total = metrics['total_duration']
         usage = Usage(metrics['prompt_eval_count'], count, seconds,
