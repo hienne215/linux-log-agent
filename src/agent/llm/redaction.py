@@ -15,8 +15,11 @@ from .interface import AdapterError
 
 _CONTROL = re.compile(r'[\x00-\x08\x0b\x0c\x0e-\x1f\x7f]')
 _PRIVATE = re.compile(r'-----BEGIN [A-Z ]*PRIVATE KEY-----')
+# NFKC aliases of identifier punctuation must be tokenized as one key.
+# Normalize only the extracted key in _is_secret_key, never the whole message.
+_KEY_PUNCT = r".\-\u2024\ufe33\ufe34\ufe4d-\ufe4f\ufe52\ufe63\uff0d\uff0e\uff3f"
 _FIELD = re.compile(
-    r'''(?<![\w.\-\uff3f])(?P<key>"(?:\\.|[^"\\\r\n])*"|'(?:\\.|[^'\\\r\n])*'|(?:--)?[\w\uff3f][\w.\-\uff3f]*)'''
+    rf'''(?<![\w{_KEY_PUNCT}])(?P<key>"(?:\\.|[^"\\\r\n])*"|'(?:\\.|[^'\\\r\n])*'|(?:--)?[\w{_KEY_PUNCT}][\w{_KEY_PUNCT}]*)'''
     r'''(?P<separator>[ \t]*[:=][ \t]*|[ \t]+is[ \t]+)''', re.IGNORECASE)
 _AUTH = re.compile(r'(?i)(\bauthorization[ \t]*:[ \t]*)(?:basic|bearer)[ \t]+[^\s,;]+')
 _BEARER = re.compile(r'(?i)(\bbearer[ \t]+)[A-Za-z0-9._~+/=-]+')
@@ -24,8 +27,10 @@ _BEARER = re.compile(r'(?i)(\bbearer[ \t]+)[A-Za-z0-9._~+/=-]+')
 _URL_PREFIX = r'(?:[a-z][a-z0-9+.-]*://|(?<![\w:/])//)'
 _URL_AUTHORITY = re.compile(
     r'(?P<prefix>' + _URL_PREFIX + r')(?P<authority>[^/?#\s<>"\'`]+)', re.IGNORECASE)
+# Include CR/LF here so the explicit whitespace check rejects ambiguous
+# multiline authorities instead of silently skipping credential-bearing URLs.
 _URL_USERINFO = re.compile(
-    r'(?P<prefix>' + _URL_PREFIX + r')(?P<userinfo>[^/\r\n?#<>]*)@', re.IGNORECASE)
+    r'(?P<prefix>' + _URL_PREFIX + r')(?P<userinfo>[^/?#<>]*)@', re.IGNORECASE)
 _OBSCURED_URL = re.compile(r'[a-z][a-z0-9+.-]*:(?P<slashes>[\\/]{2,})', re.IGNORECASE)
 _ENCODED_URL = re.compile(r'[a-z][a-z0-9+.-]*%3a(?:%2f){2}', re.IGNORECASE)
 _SHORT_P = re.compile(r'(?<!\S)-p(?=\S)')

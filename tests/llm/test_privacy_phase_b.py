@@ -205,5 +205,70 @@ class PrivacyAsyncBoundaryTests(unittest.IsolatedAsyncioTestCase):
         self.assertTrue('UNTRUSTED OBSERVATIONS' in messages[-1].content)
 
 
+class PrivacyReviewerRegressions(unittest.TestCase):
+    def test_nfkc_key_aliases_before_http(self):
+        for separator in ('－', '︳', '︴', '﹍', '﹎', '﹏', '﹣', '．', '․', '﹒', '＿'):
+            key = 'ＭＹＳＱＬ' + separator + 'ＰＷＤ'
+            for text in (key + '=' + VALUE,
+                         json.dumps({'payload': key + '=' + VALUE}),
+                         json.dumps({key: VALUE})):
+                for role in ('user', 'tool'):
+                    with self.subTest(separator=ord(separator), role=role):
+                        transport = Mock(post=Mock(return_value=response()))
+                        message = Message(role, text, tool_name='mock_read' if role == 'tool' else None)
+                        OllamaAdapter(transport=transport).complete((message,), (TOOL,))
+                        self.assertTrue(VALUE not in transport.post.call_args.args[1].decode(),
+                                        'credential reached mock HTTP; value omitted')
+
+    def test_multiline_url_authority_rejected_before_http(self):
+        for newline in ('\n', '\r', '\r\n'):
+            for authority in (newline + USER + ':' + VALUE,
+                              USER + ':' + newline + VALUE):
+                url = 'postgres://' + authority + '@fixture.invalid/db'
+                for text in (url, json.dumps({'nested': [{'url': url}]}), json.dumps(json.dumps({'url': url}))):
+                    with self.subTest(newline=repr(newline)):
+                        transport = Mock()
+                        with self.assertRaises(AdapterError) as caught:
+                            OllamaAdapter(transport=transport).complete((Message('tool', text, tool_name='mock_read'),), (TOOL,))
+                        self.assertTrue(str(caught.exception) == 'DATA_POLICY')
+                        transport.post.assert_not_called()
+
+    def test_benign_unicode_message_not_normalized(self):
+        text = 'The ＭＹＳＱＬ－ＰＷＤ variable; 状態：正常。'
+        self.assertTrue(_clean(text) == text)
+
+
+class PrivacyReviewerIPCRegressions(unittest.IsolatedAsyncioTestCase):
+    async def test_nfkc_alias_sanitized_before_ipc(self):
+        from dataclasses import asdict
+        from agent.llm.async_adapter import AsyncOllamaAdapter
+        safe = OllamaAdapter(transport=Mock(post=Mock(return_value=response()))).complete((Message('user', 'Synthetic only'),))
+        for separator in ('－', '︳'):
+            adapter = AsyncOllamaAdapter(seconds=5, max_calls=1)
+            packets = []
+            async def perform(payload, abort):
+                packets.append(payload)
+                return json.dumps({'ok': True, 'completion': asdict(safe)}).encode()
+            adapter._perform = perform
+            await adapter.complete((Message('tool', 'ＭＹＳＱＬ' + separator + 'ＰＷＤ=' + VALUE, tool_name='mock_read'),), (TOOL,))
+            await adapter.finish_cleanup()
+            self.assertTrue(len(packets) == 1 and VALUE.encode() not in packets[0], 'credential reached IPC; value omitted')
+            self.assertFalse(adapter.cleanup_pending)
+
+    async def test_multiline_authority_rejected_before_ipc(self):
+        from unittest.mock import AsyncMock
+        from agent.llm.async_adapter import AsyncOllamaAdapter, AsyncLLMError
+        for newline in ('\n', '\r', '\r\n'):
+            adapter = AsyncOllamaAdapter(seconds=5, max_calls=1)
+            adapter._perform = AsyncMock()
+            url = 'postgres://' + newline + USER + ':' + VALUE + '@fixture.invalid/db'
+            with self.assertRaises(AsyncLLMError) as caught:
+                await adapter.complete((Message('user', json.dumps({'nested': {'url': url}})),), (TOOL,))
+            self.assertTrue(str(caught.exception) == 'DATA_POLICY')
+            adapter._perform.assert_not_called()
+            await adapter.finish_cleanup()
+            self.assertTrue(adapter.calls_used == 0 and not adapter.cleanup_pending)
+
+
 if __name__ == '__main__':
     unittest.main()
