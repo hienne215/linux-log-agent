@@ -1,4 +1,4 @@
-"""Canonical read-only service/disk boundary; transport and collectors stay unchanged."""
+"""Canonical read-only diagnostic boundary; transport and collectors stay unchanged."""
 import asyncio
 from copy import deepcopy
 import json
@@ -16,6 +16,22 @@ BUSINESS = {'type': 'object', 'properties': {'unit': {'const': 'nginx.service'}}
             'required': ['unit'], 'additionalProperties': False}
 
 
+POLICIES = {
+    'service_status': (SOURCE, BUSINESS, 'Read current systemd state of nginx.service only. No repair.'),
+    'disk_usage': ('collector.disk_usage.statvfs.v1', {
+        'type': 'object', 'properties': {'filesystem': {'const': 'root'}},
+        'required': ['filesystem'], 'additionalProperties': False},
+        'Read disk usage and available bytes of the root filesystem only. No file reads or repair.'),
+    'list_failed_units': ('collector.list_failed_units.systemctl.v1', {
+        'type': 'object', 'properties': {}, 'additionalProperties': False},
+        'Read a bounded complete snapshot of failed systemd units. Descriptions withheld. No repair.'),
+    'listening_ports': ('collector.listening_ports.ss.v1', {
+        'type': 'object', 'properties': {'protocol': {'const': 'tcp'}, 'port': {'const': 80}},
+        'required': ['protocol', 'port'], 'additionalProperties': False},
+        'Read listening TCP port 80 sockets. No process/service attribution or remote reachability claim.'),
+}
+
+
 class CanonicalReadBinding:
     """Application IDs and authorization; caller retains SDK cleanup ownership.
 
@@ -23,13 +39,11 @@ class CanonicalReadBinding:
     provenance stays in the ledger; Observation is only an untrusted projection.
     """
     def __init__(self, client, root, *, redact, tool):
-        if tool not in ('service_status', 'disk_usage'):
+        if tool not in POLICIES:
             raise ValueError('TOOL_NOT_ALLOWED')
         self.tool = tool
-        self.source = SOURCE if tool == TOOL else 'collector.disk_usage.statvfs.v1'
-        self.business = BUSINESS if tool == TOOL else {
-            'type': 'object', 'properties': {'filesystem': {'const': 'root'}},
-            'required': ['filesystem'], 'additionalProperties': False}
+        self.source, business, self.description = POLICIES[tool]
+        self.business = deepcopy(business)
         self.client, self.redact = client, redact
         folder = Path(root) / 'schemas/tools'
         self.schemas = tuple(json.loads((folder / (self.tool + suffix)).read_text())
@@ -46,10 +60,7 @@ class CanonicalReadBinding:
 
     @property
     def trusted_tool(self):
-        return TrustedTool(self.tool,
-            ('Read current systemd state of nginx.service only. No repair.' if self.tool == TOOL
-             else 'Read disk usage and available bytes of the root filesystem only. No file reads or repair.'),
-            deepcopy(self.business), True)
+        return TrustedTool(self.tool, self.description, deepcopy(self.business), True)
 
     @property
     def evidence(self):
@@ -73,6 +84,8 @@ class CanonicalReadBinding:
         request = {**_copy(arguments), **self.correlation}
         if self.tool == 'disk_usage':
             request['include_inodes'] = True  # Application-owned optional value, never model-owned.
+        if self.tool == 'list_failed_units':
+            request['limit'] = 100
         self.validators[0].validate(request)
         self._used = True
         self.execution_state = 'unknown'
@@ -116,9 +129,22 @@ class CanonicalReadBinding:
                 if self.tool == TOOL:
                     if data['unit'] != 'nginx.service':
                         raise ValueError()
-                elif (data['filesystem'] != 'root' or data['mount_point'] != '/'
+                elif self.tool == 'disk_usage' and (data['filesystem'] != 'root' or data['mount_point'] != '/'
                         or data['inodes_included'] is not True):
                     raise ValueError()
+                if self.tool == 'list_failed_units':
+                    if (data['limit'] != 100 or data['count'] != len(data['failed_units'])
+                            or envelope['next_cursor'] is not None
+                            or len({r['unit'] for r in data['failed_units']}) != data['count']
+                            or any(r['description'] != '[REDACTED]' for r in data['failed_units'])):
+                        raise ValueError()
+                if self.tool == 'listening_ports':
+                    if (data['count'] != len(data['ports']) or envelope['next_cursor'] is not None
+                            or any(r['protocol'] != 'tcp' or r['port'] != 80 or r['process'] != ''
+                                   or r['unit'] is not None
+                                   or r['address'] not in {'0.0.0.0', '::', '*', '127.0.0.1', '::1', '[REDACTED]'}
+                                   for r in data['ports'])):
+                        raise ValueError()
                 if not envelope['evidence']:
                     raise ValueError()
             ids = set()
@@ -171,3 +197,10 @@ class ServiceBinding(CanonicalReadBinding):
 class DiskBinding(CanonicalReadBinding):
     def __init__(self, client, root, *, redact):
         super().__init__(client, root, redact=redact, tool='disk_usage')
+
+
+class DiagnosticBinding(CanonicalReadBinding):
+    def __init__(self, client, root, *, redact, tool):
+        if tool not in ('list_failed_units', 'listening_ports'):
+            raise ValueError('TOOL_NOT_ALLOWED')
+        super().__init__(client, root, redact=redact, tool=tool)

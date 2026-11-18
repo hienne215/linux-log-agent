@@ -9,7 +9,7 @@ import sys
 import time
 
 from .interface import AdapterError, Completion, Message, ToolCall, ToolDefinition, Usage
-from .ollama import OllamaConfig, _validators, _call, _pairs, POLICY_REASONS
+from .ollama import OllamaConfig, _validators, _call, _pairs, POLICY_REASONS, ERROR_REASONS
 from .redaction import _clean
 
 MAX_IPC = 1024 * 1024
@@ -52,7 +52,7 @@ def _completion(raw, tools, config):
             code = packet.get('code')
             reason = packet.get('reason')
             if (code not in SAFE_CODES or not set(packet) <= {'ok', 'code', 'reason'}
-                    or ('reason' in packet and (code != 'OUTPUT_POLICY' or reason not in POLICY_REASONS))):
+                    or ('reason' in packet and (reason not in ERROR_REASONS.get(code, ())))):
                 raise ValueError()
             error = LLMTimeout(code) if code == 'TIMEOUT' else AsyncLLMError(code)
             error.reason = reason

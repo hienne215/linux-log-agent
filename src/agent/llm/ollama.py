@@ -22,6 +22,18 @@ POLICY_REASONS = frozenset({'INCOMPLETE_GENERATION', 'REASONING_PRESENT',
     'MULTIPLE_TOOL_CALLS', 'TOOL_REQUIRED', 'EMPTY_RESPONSE', 'TOKEN_LIMIT'})
 
 
+ARGUMENT_REASONS = frozenset({'UNKNOWN_TOOL', 'ARGUMENTS_NOT_OBJECT', 'INVALID_CALL',
+    'REQUIRED_ARGUMENT', 'UNEXPECTED_ARGUMENT', 'ARGUMENT_TYPE', 'ARGUMENT_VALUE',
+    'ARGUMENT_SCHEMA'})
+ERROR_REASONS = {'OUTPUT_POLICY': POLICY_REASONS, 'INVALID_ARGUMENTS': ARGUMENT_REASONS}
+
+
+def _argument_error(reason):
+    error = AdapterError('INVALID_ARGUMENTS')
+    error.reason = reason  # No tool name, field path, invalid value or provider text.
+    return error
+
+
 def _policy_error(reason):
     error = AdapterError('OUTPUT_POLICY')
     error.reason = reason  # Fixed application enum; never provider text/reasoning.
@@ -156,19 +168,25 @@ def _validators(tools):
 
 
 def _call(call, validators):
-    if (not isinstance(call, ToolCall) or not isinstance(call.name, str) or call.name not in validators
-            or not isinstance(call.arguments, dict)
-            or (call.provider_id is not None and (not isinstance(call.provider_id, str)
-                                                 or not call.provider_id or len(call.provider_id) > 256
-                                                 or _clean(call.provider_id) != call.provider_id))):
-        raise AdapterError('INVALID_ARGUMENTS')
+    if not isinstance(call, ToolCall) or not isinstance(call.name, str):
+        raise _argument_error('INVALID_CALL')
+    if call.name not in validators:
+        raise _argument_error('UNKNOWN_TOOL')
+    if not isinstance(call.arguments, dict):
+        raise _argument_error('ARGUMENTS_NOT_OBJECT')
+    if call.provider_id is not None and (not isinstance(call.provider_id, str)
+            or not call.provider_id or len(call.provider_id) > 256
+            or _clean(call.provider_id) != call.provider_id):
+        raise _argument_error('INVALID_CALL')
     _safe_json(call.arguments)
     try:
         validators[call.name].validate(call.arguments)
-    except ValidationError:
-        raise AdapterError('INVALID_ARGUMENTS') from None
+    except ValidationError as error:
+        reason = {'required': 'REQUIRED_ARGUMENT', 'additionalProperties': 'UNEXPECTED_ARGUMENT',
+                  'type': 'ARGUMENT_TYPE', 'const': 'ARGUMENT_VALUE', 'enum': 'ARGUMENT_VALUE'}.get(
+                      error.validator, 'ARGUMENT_SCHEMA')
+        raise _argument_error(reason) from None
     except Exception:
-        # Includes unresolved local refs; never fetch external schemas.
         raise AdapterError('INVALID_SCHEMA') from None
 
 
