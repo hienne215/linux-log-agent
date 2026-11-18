@@ -1,0 +1,25 @@
+P03-03 follow-up to Thuy design comment 6949749483
+Date: 2026-11-17
+Executor: Codex for Trang, author-run; not independent reviewer signoff
+Platform: Windows / Python 3.12.7
+Base: main f9adf8f46dec32759be558a5b45bb229e64a3208
+Branch: feature/P03-03-failed-logins
+
+Command:
+python -m pytest -q tests/test_p03_03_failed_logins.py tests/test_p03_03_owner_policy.py tests/test_tool_schemas.py tests/test_response_schema.py --basetemp=.p03-03-owner-final
+
+Observed output:
+........................................................................ [ 47%]
+........................................................................ [ 94%]
+.........                                                                [100%]
+153 passed in 2.84s
+Exit code: 0
+
+99 task-specific cases, 54 existing schema cases. Fixture keys are synthetic;
+permission checks, inode reuse and key-path walks use mocked OS observations.
+Owner close models EOF lifecycle but is not connected to shared SDK callbacks.
+Bounded subprocess probes invoke Python fixtures, not journalctl/auth readers.
+No real auth attempts, VM key provisioning, chmod/chown, groups or services.
+
+No shared runtime/schema/Agent/OOM change in this task branch. Design and binding
+review remain required; no SDK/VM/production PASS or Jira Done is claimed.

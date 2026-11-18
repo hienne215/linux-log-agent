@@ -1,0 +1,4 @@
+{"__CURSOR":"synthetic-journal-1","__REALTIME_TIMESTAMP":"1794916801000000","SYSLOG_IDENTIFIER":"sshd","_PID":"4201","MESSAGE":"Failed password for invalid user fixture-user from 192.0.2.10 port 50001 ssh2"}
+{"__CURSOR":"synthetic-journal-1","__REALTIME_TIMESTAMP":"1794916801000000","SYSLOG_IDENTIFIER":"sshd","_PID":"4201","MESSAGE":"Failed password for invalid user fixture-user from 192.0.2.10 port 50001 ssh2"}
+{"__CURSOR":"synthetic-journal-2","__REALTIME_TIMESTAMP":"1794916802000000","SYSLOG_IDENTIFIER":"sshd","_PID":"4202","MESSAGE":"Failed publickey for root from 2001:db8::10 port 50002 ssh2"}
+{"__CURSOR":"synthetic-journal-3","__REALTIME_TIMESTAMP":"1794916803000000","SYSLOG_IDENTIFIER":"sudo","_PID":"4203","MESSAGE":"pam_unix(sudo:auth): authentication failure; logname=fixture-user uid=1000 euid=0 tty=/dev/pts/1 ruser=fixture-user rhost= user=fixture-user"}

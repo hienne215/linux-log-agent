@@ -1,0 +1,3 @@
+2026-11-17T12:00:01+00:00 fixture-host sshd[4201]: Failed password for invalid user fixture-user from 192.0.2.10 port 50001 ssh2
+2026-11-17T12:00:02+00:00 fixture-host sshd[4202]: Failed publickey for root from 2001:db8::10 port 50002 ssh2
+2026-11-17T12:00:03+00:00 fixture-host sudo[4203]: pam_unix(sudo:auth): authentication failure; logname=fixture-user uid=1000 euid=0 tty=/dev/pts/1 ruser=fixture-user rhost= user=fixture-user

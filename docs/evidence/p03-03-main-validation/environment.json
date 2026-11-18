@@ -1,0 +1,20 @@
+{
+  "python": "3.12.7 (tags/v3.12.7:0b05ead, Oct  1 2024, 03:06:41) [MSC v.1941 64 bit (AMD64)]",
+  "base": "f2a8f71b209c71349a9ba8d6f00ce5e380fac1dd",
+  "source_tested": "5030183c118d0d40d356643d03445b7f0089ecd0",
+  "packages": {
+    "mcp": "2.3.0",
+    "jsonschema": "4.26.0",
+    "pytest": "9.2.0",
+    "referencing": "0.37.0",
+    "rfc3339-validator": "0.1.4"
+  },
+  "source_blobs": {
+    "src/mcp_server/failed_login_events.py": "a3f29eb8a9d849f82265e151c1fb6c2069f8f4da",
+    "src/mcp_server/failed_login_sources.py": "c1ebc80b67d3455f640cd4ad75370b4c073439f4",
+    "src/mcp_server/failed_logins_adapter.py": "de71ea0143d5e5710799fa7150d083ce52217ef2",
+    "src/mcp_server/failed_logins_owner.py": "e78e39d3fe67fa503789196dd0864f0aff087a93",
+    "tests/test_p03_03_failed_logins.py": "dcd4f0825eeca3412069fa65fa5387567dbfa32b",
+    "tests/test_p03_03_owner_policy.py": "ab05e4549bf3d4d050323540a7663913b406f7b0"
+  }
+}
