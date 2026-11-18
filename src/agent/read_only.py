@@ -1,4 +1,4 @@
-"""Canonical service/disk Agent. Real collectors by default; no arbitrary commands."""
+"""Canonical read-only diagnostic Agent. Real collectors by default; no arbitrary commands."""
 import argparse
 import asyncio
 from dataclasses import replace
@@ -22,11 +22,13 @@ from agent.llm.ollama import OllamaConfig
 from agent.llm.redaction import _clean
 from agent.local_service import terminal_summary as service_summary
 from agent.mcp_client import StdioConfig, StdioMCPClient, MCPClientError
-from agent.service_binding import ServiceBinding, DiskBinding
+from agent.service_binding import ServiceBinding, DiskBinding, DiagnosticBinding
 
 ROOT = Path(__file__).resolve().parents[2]
 SCOPES = {'service': ('service_status',), 'disk': ('disk_usage',),
-          'both': ('service_status', 'disk_usage')}
+          'both': ('service_status', 'disk_usage'),
+          'failed': ('list_failed_units',), 'ports': ('listening_ports',),
+          'diagnostics': ('service_status', 'disk_usage', 'list_failed_units', 'listening_ports')}
 
 
 class CanonicalRouter:
@@ -43,11 +45,16 @@ class CanonicalRouter:
         session, trace = uuid4().hex, uuid4().hex
         for name in SCOPES[scope]:
             flag = '--linux-service-status' if name == 'service_status' else '--linux-disk-usage'
+            args = ('-B', str(root/'run_mcp_server.py'), flag)
+            if name in ('list_failed_units', 'listening_ports'):
+                args = ('-B', str(root/'src/agent/diagnostic_server.py'), '--tool', name)
             client = StdioMCPClient(StdioConfig(command=sys.executable,
-                args=('-B', str(root/'run_mcp_server.py'), flag),
+                args=args,
                 allowed_tools=frozenset({name}), request_timeout=15))
             cls = ServiceBinding if name == 'service_status' else DiskBinding
-            binding = cls(client, root, redact=_clean)
+            binding = (DiagnosticBinding(client, root, redact=_clean, tool=name)
+                       if name in ('list_failed_units', 'listening_ports')
+                       else cls(client, root, redact=_clean))
             binding.session_id, binding.trace_id = session, trace
             self.bindings[name] = binding
 
@@ -99,7 +106,7 @@ class CanonicalRouter:
 
 
 class ReadOnlySession(DemoSession):
-    """Reuse full-session model/executor/client cleanup; max 2 dispatches/3 turns."""
+    """Reuse full-session model/executor/client cleanup; bounded dispatches/turns selected by trusted scope."""
     def __init__(self, *, scope='both', backend='ollama', seconds=120):
         if scope not in SCOPES or backend not in ('mock', 'ollama'):
             raise ValueError('INVALID_CONFIG')
@@ -108,9 +115,9 @@ class ReadOnlySession(DemoSession):
         names = frozenset(self.client.bindings)
         turns = len(names) + 1
         if backend == 'ollama':
-            self.adapter = _LiveAdapter(OllamaConfig(max_tool_calls=len(names)), seconds=seconds, max_calls=turns)
+            self.adapter = _LiveAdapter(OllamaConfig(max_tool_calls=len(names)), seconds=seconds, max_calls=2)
         else:
-            self.adapter = AsyncOllamaAdapter(OllamaConfig(max_tool_calls=len(names)), seconds=seconds, max_calls=turns,
+            self.adapter = AsyncOllamaAdapter(OllamaConfig(max_tool_calls=len(names)), seconds=seconds, max_calls=2,
                 _worker_command=(sys.executable, '-B', '-m', 'agent.read_only_mock_worker'))
         tools = self.client.tools
         self.model = AsyncDecisionSource(self.adapter,
@@ -164,6 +171,24 @@ def terminal_summary(report, results):
         text = text.replace('Bằng chứng:', '\n'.join(lines)+'\nBằng chứng:', 1)
         if 'service_status' not in results:
             text = text.replace('Chưa có trạng thái service được xác nhận trong phiên này.\n', '')
+    extra = []
+    failed = results.get('list_failed_units')
+    if isinstance(failed, dict) and failed.get('status') in ('ok', 'partial'):
+        data = failed['data']
+        extra.append('Dịch vụ/unit đang failed: '+str(data['count']))
+        extra.extend('  '+r['unit']+' — failed' for r in data['failed_units'])
+        extra.append('  Nguồn: systemctl; mô tả được giữ kín; không tự khởi động lại.')
+    ports = results.get('listening_ports')
+    if isinstance(ports, dict) and ports.get('status') in ('ok', 'partial'):
+        data = ports['data']
+        extra.append('Socket TCP lắng nghe cổng 80: '+str(data['count']))
+        extra.extend('  '+('['+r['address']+']' if ':' in r['address'] else r['address'])+':80'
+                     for r in data['ports'])
+        extra.append('  Không xác định tiến trình sở hữu, không chứng minh HTTP hoạt động.')
+    if extra:
+        if 'service_status' not in results:
+            text = text.replace('Chưa có trạng thái service được xác nhận trong phiên này.\n', '')
+        text = text.replace('Bằng chứng:', '\n'.join(extra)+'\nBằng chứng:', 1)
     text = text.replace('Phạm vi: chỉ đọc trạng thái nginx.service, không thay đổi hệ thống.',
                         'Phạm vi: chỉ đọc các tool được cấp quyền, không thay đổi hệ thống.')
     return text

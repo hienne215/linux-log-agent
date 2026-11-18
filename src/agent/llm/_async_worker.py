@@ -5,7 +5,7 @@ import sys
 
 from .async_adapter import MAX_IPC, SAFE_CODES
 from .interface import AdapterError, Message, ToolCall, ToolDefinition
-from .ollama import OllamaAdapter, OllamaConfig, _pairs, POLICY_REASONS
+from .ollama import OllamaAdapter, OllamaConfig, _pairs, POLICY_REASONS, ERROR_REASONS
 
 
 def serve(transport=None):
@@ -28,7 +28,7 @@ def serve(transport=None):
     except AdapterError as error:
         packet = {'ok': False, 'code': error.code if error.code in SAFE_CODES else 'WORKER_FAILURE'}
         reason = getattr(error, 'reason', None)
-        if packet['code'] == 'OUTPUT_POLICY' and reason in POLICY_REASONS:
+        if reason in ERROR_REASONS.get(packet['code'], ()):
             packet['reason'] = reason
     except Exception:
         packet = {'ok': False, 'code': 'WORKER_FAILURE'}
