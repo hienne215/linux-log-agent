@@ -9,7 +9,7 @@ import sys
 import time
 
 from .interface import AdapterError, Completion, Message, ToolCall, ToolDefinition, Usage
-from .ollama import OllamaConfig, _validators, _call, _pairs
+from .ollama import OllamaConfig, _validators, _call, _pairs, POLICY_REASONS
 from .redaction import _clean
 
 MAX_IPC = 1024 * 1024
@@ -50,9 +50,13 @@ def _completion(raw, tools, config):
             raise ValueError()
         if packet['ok'] is False:
             code = packet.get('code')
-            if code not in SAFE_CODES:
+            reason = packet.get('reason')
+            if (code not in SAFE_CODES or not set(packet) <= {'ok', 'code', 'reason'}
+                    or ('reason' in packet and (code != 'OUTPUT_POLICY' or reason not in POLICY_REASONS))):
                 raise ValueError()
-            raise LLMTimeout(code) if code == 'TIMEOUT' else AsyncLLMError(code)
+            error = LLMTimeout(code) if code == 'TIMEOUT' else AsyncLLMError(code)
+            error.reason = reason
+            raise error
         if set(packet) != {'ok', 'completion'}:
             raise ValueError()
         item = packet['completion']
@@ -63,7 +67,7 @@ def _completion(raw, tools, config):
             raise ValueError()
         validators = _validators(tools)
         calls = tuple(ToolCall(**call) for call in item['tool_calls'])
-        if len(calls) > 1 or (bool(calls) != (item['kind'] == 'tool_calls')):
+        if len(calls) > config.max_tool_calls or (bool(calls) != (item['kind'] == 'tool_calls')):
             raise ValueError()
         for call in calls:
             _call(call, validators)
