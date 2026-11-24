@@ -29,6 +29,33 @@ def response(**overrides):
 
 
 class AdapterTests(unittest.TestCase):
+    def test_structured_conclusion_is_opt_in_and_never_replaces_native_tools(self):
+        from agent.llm.ollama import CONCLUSION_SCHEMA
+        plain=response(message={'role':'assistant','content':'{"conclusion":"Synthetic","citations":["ev-test"]}'})
+        for enabled,tools in ((False,()),(True,()),(True,(TOOL,))):
+            transport=Mock();transport.post.return_value=json.dumps(response() if tools else plain).encode()
+            OllamaAdapter(OllamaConfig(structured_conclusion=enabled),transport=transport).complete(MESSAGES,tools)
+            payload=json.loads(transport.post.call_args.args[1])
+            if enabled and not tools:self.assertEqual(payload['format'],CONCLUSION_SCHEMA)
+            else:self.assertNotIn('format',payload)
+            self.assertEqual(payload['options']['num_predict'],256)
+        for invalid in ('json',None,1,{}):
+            with self.assertRaises(AdapterError):OllamaConfig(structured_conclusion=invalid)
+
+    def test_citation_enum_is_application_owned_bounded_and_detached(self):
+        from agent.llm.ollama import CONCLUSION_SCHEMA
+        refs=['ev-existing'];config=OllamaConfig(structured_conclusion=True,conclusion_citations=refs)
+        refs.append('forged')
+        transport=Mock();transport.post.return_value=json.dumps(response(message={'role':'assistant',
+            'content':'{"conclusion":"Synthetic","citations":["ev-existing"]}'})).encode()
+        OllamaAdapter(config,transport=transport).complete(MESSAGES)
+        payload=json.loads(transport.post.call_args.args[1])
+        self.assertEqual(payload['format']['properties']['citations']['items']['enum'],['ev-existing'])
+        self.assertNotIn('enum',CONCLUSION_SCHEMA['properties']['citations']['items'])
+        for invalid in (['duplicate','duplicate'],['bad\nreference'],['x'*129],[None],list(map(str,range(65)))):
+            with self.assertRaises(AdapterError):OllamaConfig(structured_conclusion=True,conclusion_citations=invalid)
+        with self.assertRaises(AdapterError):OllamaConfig(conclusion_citations=('ev-existing',))
+
     def run_response(self, value, *, require_tool=False, tools=(TOOL,), messages=None):
         transport = Mock()
         transport.post.return_value = json.dumps(value).encode()

@@ -67,3 +67,38 @@ def save_report(name, content):
             os.close(directory)
         if parent is not None:
             os.close(parent)
+
+
+def read_report(name):
+    """Read one owned private report; no traversal, symlink, FIFO or side effect."""
+    if not valid_name(name):
+        raise StoreError('INVALID_REPORT_NAME')
+    directory = descriptor = None
+    try:
+        directory = os.open('reports', os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW)
+        info = os.fstat(directory)
+        if info.st_uid != os.geteuid() or stat.S_IMODE(info.st_mode) & 0o022:
+            raise StoreError('UNSAFE_REPORT_DIRECTORY')
+        descriptor = os.open(name, os.O_RDONLY | os.O_NOFOLLOW | os.O_NONBLOCK, dir_fd=directory)
+        info = os.fstat(descriptor)
+        if (not stat.S_ISREG(info.st_mode) or info.st_uid != os.geteuid()
+                or stat.S_IMODE(info.st_mode) != 0o600 or info.st_nlink != 1
+                or info.st_size > 70000):
+            raise StoreError('UNSAFE_REPORT_FILE')
+        data = bytearray()
+        while chunk := os.read(descriptor, 4096):
+            data.extend(chunk)
+            if len(data) > 70000:
+                raise StoreError('REPORT_TOO_LARGE')
+        text = data.decode('utf-8', errors='strict')
+        # Treat saved reports as data, never terminal escape instructions.
+        if re.search(r'[\x00-\x08\x0b-\x1f\x7f-\x9f\u202a-\u202e\u2066-\u2069]',text):
+            raise StoreError('UNSAFE_REPORT_CONTENT')
+        return text
+    except StoreError:
+        raise
+    except (OSError, UnicodeError):
+        raise StoreError('REPORT_READ_FAILED') from None
+    finally:
+        if descriptor is not None:os.close(descriptor)
+        if directory is not None:os.close(directory)

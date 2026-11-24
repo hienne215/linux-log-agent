@@ -20,6 +20,10 @@ REQUIRED = {'run_id','mode','protocol','config_sha256','revision','latency_scope
 ROOT = Path(__file__).resolve().parents[2]
 REF = '990f41f68c8ef13218bf825bd57ff233a8c82f1c'
 BENCHMARK = 'tests/benchmarks/instruct_full_results/20261101T170502Z/results.json'
+ARCHIVE_HASHES = {
+    BENCHMARK: '472bef128482cc2f0491b1ebb2e68486245a0061cb2b561c15e71976e2d336ab',
+    'tests/benchmarks/cases.json': 'a1c55728a3d614f2c9f8eca7c165999967ad9069ffb680cf2b2425a9ebc0d90a',
+}
 
 
 def digest(data):
@@ -278,7 +282,17 @@ def evaluate(dataset):
 
 
 def _git(path):
-    return subprocess.check_output(['git','show',REF+':'+path],cwd=ROOT,stderr=subprocess.DEVNULL)
+    if path not in ARCHIVE_HASHES:
+        raise ValueError('UNSUPPORTED_ARCHIVE')
+    try:
+        raw = subprocess.check_output(['git','show',REF+':'+path],cwd=ROOT,stderr=subprocess.DEVNULL)
+    except (OSError, subprocess.CalledProcessError):
+        # A source ZIP has no Git history. Only these exact historical artifacts
+        # are accepted; changed local observations cannot replace the benchmark.
+        raw = (ROOT/path).read_bytes()
+    if digest(raw) != ARCHIVE_HASHES[path]:
+        raise ValueError('CHANGED_ARCHIVE')
+    return raw
 
 
 def benchmark_example():

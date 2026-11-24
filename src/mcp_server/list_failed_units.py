@@ -3,6 +3,7 @@
 import asyncio
 import json
 import re
+from .process_cleanup import finish_process
 
 
 ARGV = ('/usr/bin/systemctl', '--system', '--no-pager', '--no-ask-password',
@@ -103,11 +104,6 @@ async def _read(stream, budget):
         kept.extend(chunk)
 
 
-async def _discard(stream):
-    while await stream.read(4096):
-        pass
-
-
 async def _run():
     spawn = asyncio.create_task(asyncio.create_subprocess_exec(
         *ARGV, stdin=asyncio.subprocess.DEVNULL, stdout=asyncio.subprocess.PIPE,
@@ -121,21 +117,7 @@ async def _run():
             stdout, stderr, code = await asyncio.gather(*readers, process.wait())
             return code, stdout, stderr
     finally:
-        # Retain an in-flight spawn even if timeout/cancellation occurred first.
-        if process is None:
-            try:
-                process = await asyncio.shield(spawn)
-            except Exception:
-                pass
-        if process is not None:
-            try:
-                if process.returncode is None:
-                    process.kill()
-            finally:
-                for reader in readers:
-                    reader.cancel()
-                await asyncio.gather(*readers, return_exceptions=True)
-                await asyncio.gather(_discard(process.stdout), _discard(process.stderr), process.wait())
+        await finish_process(spawn,process,readers)
 
 
 async def collect_failed_units(limit: int = 100) -> dict:

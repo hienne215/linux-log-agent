@@ -1,0 +1,43 @@
+[Unit]
+Description=Linux Log Agent lab-only filtered read gateway
+After=dbus.service systemd-tmpfiles-setup.service
+Requires=dbus.service
+ConditionHost=linux-log-lab-hien
+ConditionVirtualization=kvm
+
+[Service]
+Type=notify
+NotifyAccess=main
+User=root
+Group=mcp-log-reader
+# Only this filtered TCB service reads fixed log files; never the Agent/reader.
+SupplementaryGroups=adm
+ExecStart=/opt/linux-log-agent/runtime/bin/python -I -B -m agent.diagnostics.read_gateway
+WorkingDirectory=/
+RuntimeDirectory=linux-log-agent-read
+RuntimeDirectoryMode=0750
+UMask=0077
+NoNewPrivileges=yes
+CapabilityBoundingSet=
+ProtectSystem=strict
+ProtectHome=yes
+PrivateTmp=yes
+PrivateDevices=yes
+PrivateNetwork=yes
+ProtectKernelTunables=yes
+ProtectKernelModules=yes
+ProtectControlGroups=yes
+RestrictSUIDSGID=yes
+LockPersonality=yes
+RestrictAddressFamilies=AF_UNIX
+InaccessiblePaths=/etc/linux-log-agent /var/lib/linux-log-agent/approval /var/lib/linux-log-agent/helper /run/linux-log-agent/control /run/linux-log-agent/helper
+ReadWritePaths=/run/linux-log-agent-read
+TimeoutStartSec=15
+TimeoutStopSec=30
+KillMode=control-group
+Restart=no
+MemoryMax=256M
+TasksMax=32
+
+[Install]
+WantedBy=multi-user.target

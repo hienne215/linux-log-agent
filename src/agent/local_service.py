@@ -1,11 +1,11 @@
 """Local service_status demo: real Linux MCP, explicit mock/live LLM choice."""
-import argparse
 import asyncio
 from pathlib import Path
 import sys
 import time
 
 from agent.cli.report_store import save_report, valid_name, StoreError
+from agent.cli.__main__ import SafeParser
 from agent.cli.synthetic import write_requested
 from agent.coordinator import Coordinator, Report
 from agent.incident_report import render_markdown, _ANSI, _CONTROL
@@ -18,8 +18,9 @@ from agent.llm.interface import ToolDefinition
 from agent.llm.redaction import _clean
 from agent.mcp_client import StdioMCPClient, StdioConfig
 from agent.service_binding import ServiceBinding
+from agent.runtime import runtime_root
 
-ROOT = Path(__file__).resolve().parents[2]
+ROOT = runtime_root()
 
 
 class LocalServiceSession(DemoSession):
@@ -174,7 +175,7 @@ def terminal_summary(report, details):
 
 
 def main(argv=None):
-    parser = argparse.ArgumentParser(description=__doc__, allow_abbrev=False)
+    parser = SafeParser(description=__doc__, allow_abbrev=False)
     parser.add_argument('--backend', choices=('mock', 'ollama'), default='ollama',
                         help='AI backend (default: ollama; mock for scripted testing)')
     parser.add_argument('--question')

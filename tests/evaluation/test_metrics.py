@@ -8,6 +8,7 @@ import subprocess
 import sys
 import tempfile
 import unittest
+from unittest.mock import patch
 
 import metrics as m
 
@@ -170,6 +171,19 @@ class MetricsTests(unittest.TestCase):
 
 class ReviewRegressionTests(unittest.TestCase):
     """Artificial protocol/assessment fixtures, never reviewer approvals."""
+    def test_historical_source_archive_is_exact_without_git(self):
+        with patch.object(m.subprocess,'check_output',side_effect=FileNotFoundError):
+            result=m.evaluate(m.benchmark_example())
+        metric=result['cohorts'][0]['metrics']['tool_and_exact_arguments_accuracy']
+        self.assertEqual((metric['numerator'],metric['denominator']),(18,18))
+
+    def test_changed_archive_never_becomes_historical_evidence(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root=Path(directory);path=root/m.BENCHMARK;path.parent.mkdir(parents=True)
+            path.write_text('{}')
+            with patch.object(m,'ROOT',root),patch.object(m.subprocess,'check_output',side_effect=FileNotFoundError):
+                with self.assertRaisesRegex(ValueError,'CHANGED_ARCHIVE'):m.benchmark_example()
+
     def with_protocol(self, *runs, expected=15, minimum=1.0, reference='b'*64):
         return {**dataset(*runs),'protocols':{'unit-fixture':{'expected_runs':expected,
             'minimum_coverage':minimum,'protocol_sha256':reference}}}

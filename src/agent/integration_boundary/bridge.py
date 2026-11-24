@@ -121,13 +121,17 @@ class ToolBridge:
     is still independently required by StdioMCPClient. Redaction is mandatory.
     """
     def __init__(self, client: MCPClient, tools: tuple[TrustedTool, ...], *,
-                 redact: Callable[[str], str], budget: BridgeBudget | None = None):
+                 redact: Callable[[str], str], budget: BridgeBudget | None = None,
+                 proposal_only: frozenset[str] = frozenset()):
         if not callable(redact) or not isinstance(tools, tuple) or not tools or len(tools) > 64:
             raise BoundaryError("INVALID_CONFIG")
         self._budget = budget or BridgeBudget()
         if not isinstance(self._budget, BridgeBudget):
             raise BoundaryError("INVALID_CONFIG")
         self._client, self._redact = client, redact
+        if type(proposal_only) is not frozenset or not proposal_only<=frozenset({'restart_service'}):
+            raise BoundaryError('INVALID_CONFIG')
+        self._proposal_only=proposal_only
         self._tools: dict[str, TrustedTool] = {}
         self._validators = {}
         for tool in tools:
@@ -317,7 +321,7 @@ class ToolBridge:
         self._phase, self._execution_state = "not_dispatched", "not_dispatched"
         if not isinstance(name, str) or name not in self._tools:
             raise BoundaryError("UNKNOWN_TOOL")
-        if not self._tools[name].read_only:
+        if not self._tools[name].read_only and name not in self._proposal_only:
             raise BoundaryError("WRITE_NOT_ALLOWED")
         if type(arguments) is not dict:
             raise BoundaryError("INVALID_ARGUMENTS")

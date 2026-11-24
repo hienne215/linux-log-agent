@@ -155,6 +155,34 @@ class ActionTests(unittest.TestCase):
                 self.assertEqual(termios.tcgetattr(slave),original)
         finally:termios.tcsetattr(slave,termios.TCSANOW,original);os.close(master);os.close(slave)
 
+    def test_cleanup_owner_survives_stdin_wrapper_closing(self):
+        master,slave=os.openpty();original=termios.tcgetattr(slave)
+        actual=termios.tcsetattr;count=0;p=ui.Proposal()
+        def fail_restore(*args):
+            nonlocal count
+            count+=1
+            if count>1:raise OSError('synthetic restoration failure')
+            return actual(*args)
+        try:
+            with os.fdopen(os.dup(slave),'r') as stdin,os.fdopen(os.dup(slave),'w') as stdout:
+                with patch.object(ui.selectors,'DefaultSelector') as selector, \
+                        patch.object(ui.os,'read',return_value=('DONG_Y '+p.identifier+'\n').encode()), \
+                        patch.object(ui.termios,'tcsetattr',side_effect=fail_restore):
+                    selector.return_value.__enter__.return_value.select.return_value=[object()]
+                    decision=ui.confirm(p,stdin=stdin,stdout=stdout)
+                self.assertEqual(decision.status,ui.Status.REJECTED)
+                self.assertTrue(p.cleanup_pending)
+                owned=p._terminal[0]
+            # Retry occurs after the borrowed stdin/stdout wrappers were closed.
+            os.fstat(owned)
+            p.finish_cleanup()
+            self.assertFalse(p.cleanup_pending)
+            self.assertEqual(termios.tcgetattr(slave),original)
+            with self.assertRaises(OSError):os.fstat(owned)
+        finally:
+            actual(slave,termios.TCSANOW,original)
+            os.close(master);os.close(slave)
+
     def test_different_terminal_is_denied(self):
         class TTY(io.StringIO):
             def isatty(self):return True

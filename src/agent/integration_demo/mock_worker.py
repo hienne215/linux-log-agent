@@ -1,7 +1,7 @@
 """Owned Adapter worker with fake HTTP transport; never opens a network socket."""
 import json
 import sys
-from .fixtures import SCENARIOS, steps, conclusion
+from .fixtures import SCENARIOS, steps, conclusion, arguments as tool_arguments
 from agent.llm._async_worker import serve
 from agent.llm.interface import AdapterError
 
@@ -31,7 +31,8 @@ class MockHTTP:
         elif self.fault == 'unknown':
             name, arguments = 'unknown_tool', {'unit': 'nginx.service'}
         elif len(observations) < len(sequence):
-            name, arguments = sequence[len(observations)], {'unit': 'nginx.service'}
+            name = sequence[len(observations)]
+            arguments = tool_arguments(name)
         else:
             message = {'role': 'assistant', 'content': json.dumps(
                 {'conclusion': conclusion(self.scenario),

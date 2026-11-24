@@ -35,6 +35,16 @@ class Decision:
 
 
 @dataclass(frozen=True)
+class SessionInfo:
+    session_id: str
+    trace_id: str
+    started_at: str
+    completed_at: str
+    elapsed_ms: int
+    backend: str
+
+
+@dataclass(frozen=True)
 class Report:
     status: str
     conclusion: str = field(default='', repr=False)
@@ -45,6 +55,8 @@ class Report:
     cleanup_pending: bool = False
     execution_state: str = "not_dispatched"
     conclusion_verified: bool = False
+    state_trace: tuple[str, ...] = ()
+    session: SessionInfo | None = field(default=None, repr=False)
 
 
 class DecisionSource(Protocol):
@@ -79,10 +91,12 @@ class Coordinator:
     def __init__(self, model: DecisionSource, executor: Executor, *, read_only: frozenset[str],
                  scope_allows: Callable, interpret: Callable, redact: Callable,
                  max_tools=8, max_turns=6, seconds=120, max_bytes=65536,
-                 clock=time.monotonic, cleanup_seconds=8):
+                 clock=time.monotonic, cleanup_seconds=8,proposal_only=frozenset()):
         if (type(read_only) is not frozenset or not read_only
                 or any(type(n) is not str or not n for n in read_only)
                 or 'restart_service' in read_only
+                or type(proposal_only) is not frozenset or not proposal_only<=frozenset({'restart_service'})
+                or bool(proposal_only & read_only)
                 or type(max_tools) is not int or not 1 <= max_tools <= 8
                 or type(max_turns) is not int or not 1 <= max_turns <= 6
                 or type(seconds) not in (int, float) or not math.isfinite(seconds) or not 0 < seconds <= 120
@@ -93,6 +107,7 @@ class Coordinator:
             raise ValueError('INVALID_CONFIG')
         self.model, self.executor = model, executor
         self.read_only, self.scope_allows = read_only, scope_allows
+        self.proposal_only=proposal_only
         self.interpret, self.redact, self.clock = interpret, redact, clock
         self.max_tools, self.max_turns, self.seconds, self.max_bytes = max_tools, max_turns, seconds, max_bytes
         self.report: Report | None = None
@@ -261,11 +276,13 @@ class Coordinator:
 
         def finish(status, conclusion='', citations=()):
             terminal = {'concluded': 'CONCLUDED', 'limited': 'CONCLUDED',
+                        'approval_required':'AWAITING_APPROVAL',
                         'cancelled': 'CANCELLED', 'budget_exhausted': 'BUDGET_EXHAUSTED'}.get(status, 'ERROR')
             self._transition(terminal)
             self._transition('REPORTED')
             self.report = Report(status, conclusion, tuple(evidence.values()), citations,
-                                 calls, turns, self._cleanup_pending, execution_state)
+                                 calls, turns, self._cleanup_pending, execution_state,
+                                 state_trace=self.state_history)
             return self.report
 
         try:
@@ -301,7 +318,7 @@ class Coordinator:
                     if limited:
                         conclusion = 'không đủ bằng chứng để kết luận; dữ liệu bị giới hạn, có thể do quyền truy cập.'
                     return finish('limited' if limited else 'concluded', conclusion, decision.citations)
-                if type(decision.tool) is not str or decision.tool not in self.read_only:
+                if type(decision.tool) is not str or decision.tool not in self.read_only|self.proposal_only:
                     return finish('policy_denied')
                 if calls >= self.max_tools:
                     return finish('budget_exhausted')
@@ -355,6 +372,10 @@ class Coordinator:
                 observations.append(next_observation)
                 if dispatch_expired or getattr(result, 'budget_exhausted', False) or self.clock() >= deadline:
                     return finish('budget_exhausted')
+                if decision.tool in self.proposal_only:
+                    # Stop before any further model turn. A proposal is not an
+                    # observation, approval, execution or successful remediation.
+                    return finish('approval_required',citations=tuple(evidence))
         except asyncio.CancelledError:
             self._cleanup_pending = self._operation is not None or self._executor_pending()
             finish('cancelled')

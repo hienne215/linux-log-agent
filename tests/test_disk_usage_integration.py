@@ -99,7 +99,7 @@ def test_safe_collection_failure(observed, error, code, capsys):
     {'inodes_included': False}])
 def test_invalid_observation_never_becomes_evidence(observed, monkeypatch, change):
     data = disk.collect_disk_usage() | change
-    monkeypatch.setattr(worker, 'collect_disk_usage', lambda *a: data)
+    monkeypatch.setattr(worker, 'collect_disk_usage', lambda *a,**kw: data)
     response = worker.collect_response(ARGS)
     assert response['error_code'] == 'EXECUTION_UNKNOWN' and response['evidence'] == []
     assert MARKER not in json.dumps(response)

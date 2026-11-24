@@ -1,5 +1,10 @@
 # Canonical read only Agent
 
+> Historical two-tool integration notes follow. For the current local eleven-tool
+> launcher, supported inputs, verification limits and remaining runtime blockers,
+> see [DIAGNOSTIC_TOOLS.md](DIAGNOSTIC_TOOLS.md). This document's older test counts
+> and launch defaults do not establish current all-tool acceptance.
+
 Application-owned integration for `service_status` (`nginx.service` only) and
 `disk_usage` (`root` mapped to `/` in the collector namespace). This branch is
 based on PR #24 HEAD `1b183c2`, which includes main `af1c3f1`; PR #24 is still

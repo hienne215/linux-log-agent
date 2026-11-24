@@ -1,5 +1,6 @@
 """Bounded, non-streaming Ollama adapter. No tool dispatcher or retries."""
 import json
+from copy import deepcopy
 from http.client import HTTPException
 import math
 import re
@@ -27,6 +28,13 @@ ARGUMENT_REASONS = frozenset({'UNKNOWN_TOOL', 'ARGUMENTS_NOT_OBJECT', 'INVALID_C
     'ARGUMENT_SCHEMA'})
 ERROR_REASONS = {'OUTPUT_POLICY': POLICY_REASONS, 'INVALID_ARGUMENTS': ARGUMENT_REASONS}
 
+# Optional application-owned response format for a conclusion-only request.
+# Never applied to a native-tool selection. Local citation checks remain required.
+CONCLUSION_SCHEMA = {'type':'object','properties':{
+    'conclusion':{'type':'string','minLength':1,'maxLength':2048},
+    'citations':{'type':'array','items':{'type':'string'},'minItems':1,'maxItems':64}},
+    'required':['conclusion','citations'],'additionalProperties':False}
+
 
 def _argument_error(reason):
     error = AdapterError('INVALID_ARGUMENTS')
@@ -52,8 +60,20 @@ class OllamaConfig:
     max_response_bytes: int = 262144
     max_request_bytes: int = 131072
     max_tool_calls: int = 1  # Application-owned admission cap; not an Ollama API field.
+    structured_conclusion: bool = False  # Opt in; preserve existing sync Adapter defaults.
+    conclusion_citations: tuple[str, ...] = ()  # Application evidence IDs, not model input.
 
     def __post_init__(self):
+        if type(self.structured_conclusion) is not bool:
+            raise AdapterError('INVALID_CONFIG')
+        if (type(self.conclusion_citations) not in (tuple,list) or len(self.conclusion_citations)>64
+                or any(type(ref) is not str or not 1<=len(ref)<=128 or not ref.isprintable()
+                       for ref in self.conclusion_citations)
+                or len(set(self.conclusion_citations))!=len(self.conclusion_citations)
+                or (self.conclusion_citations and not self.structured_conclusion)):
+            raise AdapterError('INVALID_CONFIG')
+        # IPC JSON arrays become lists; detach and freeze at both boundaries.
+        object.__setattr__(self,'conclusion_citations',tuple(self.conclusion_citations))
         # Literal loopback only: no DNS, proxies, credentials, query or custom paths.
         if self.endpoint not in ('http://127.0.0.1:11434', 'http://[::1]:11434'):
             raise AdapterError('INVALID_CONFIG')
@@ -243,6 +263,10 @@ class OllamaAdapter:
         if tools:
             payload['tools'] = [{'type': 'function', 'function': {'name': t.name,
                                 'description': _clean(t.description), 'parameters': t.parameters}} for t in tools]
+        elif config.structured_conclusion:
+            payload['format'] = deepcopy(CONCLUSION_SCHEMA)
+            if config.conclusion_citations:
+                payload['format']['properties']['citations']['items']['enum'] = list(config.conclusion_citations)
         # Omit think entirely for the approved non-thinking Instruct model.
         try:
             body = json.dumps(payload, ensure_ascii=False, allow_nan=False).encode('utf-8')

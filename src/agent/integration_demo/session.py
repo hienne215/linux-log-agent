@@ -12,7 +12,7 @@ from agent.llm.decision_source import AsyncDecisionSource, run_coordinator
 from agent.llm.interface import ToolDefinition
 from agent.llm.redaction import _clean
 from agent.mcp_client import StdioMCPClient, StdioConfig
-from .fixtures import SCENARIOS, TOOLS, PARAMETERS, steps, observation
+from .fixtures import SCENARIOS, TOOLS, PARAMETERS, steps, observation, parameters, arguments
 from .backends import Backend, BackendError, select_backend, create_adapter
 
 
@@ -49,7 +49,7 @@ class DemoSession:
         self.deadline = time.monotonic() + seconds
         self.scenario = scenario
         names = frozenset(steps(scenario))
-        definitions = tuple(ToolDefinition(n, TOOLS[n], PARAMETERS) for n in steps(scenario))
+        definitions = tuple(ToolDefinition(n, TOOLS[n], parameters(n)) for n in steps(scenario))
         self.adapter = create_adapter(self.backend, scenario=scenario, seconds=seconds,
                                       _mock_fault=_model_fault)
         self.model = AsyncDecisionSource(self.adapter, definitions, read_only=names)
@@ -61,7 +61,7 @@ class DemoSession:
                                  budget=BridgeBudget(max_calls=8, total_seconds=seconds,
                                                      request_seconds=_request_seconds))
         self.coordinator = Coordinator(self.model, self.bridge, read_only=names,
-            scope_allows=lambda name,args: name in names and args == {'unit': 'nginx.service'},
+            scope_allows=lambda name,args: name in names and args == arguments(name),
             interpret=lambda message: interpret(message, scenario), redact=_clean,
             seconds=seconds, max_turns=min(_max_turns, 2) if self.backend is Backend.OLLAMA else _max_turns,
             max_tools=1 if self.backend is Backend.OLLAMA else 8)

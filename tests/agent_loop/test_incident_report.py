@@ -6,6 +6,11 @@ from agent.incident_report import render_markdown,ReportError
 def redact(text):return text.replace('synthetic-secret','[REDACTED]')
 
 class IncidentReportTests(unittest.TestCase):
+    def test_approval_required_is_reported_without_execution_claim(self):
+        text=render_markdown(Report('approval_required'),redact=redact)
+        self.assertIn('approval_required',text)
+        self.assertIn('không xác nhận đã restart',text)
+        self.assertIn('chờ người dùng duyệt',text)
     def report(self,**kwargs):
         fields=dict(status='concluded',conclusion='nginx active',evidence=(Evidence('ev1','synthetic:service','active'),),citations=('ev1',),tool_calls=1,llm_turns=2,execution_state='response_received')
         fields.update(kwargs);return Report(**fields)

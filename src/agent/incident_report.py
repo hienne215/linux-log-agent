@@ -5,12 +5,14 @@ Rendering cannot verify provenance/diagnosis or turn citations into factual proo
 """
 import html
 import re
-from agent.coordinator import Report, Evidence
+from agent.coordinator import Report, Evidence, SessionInfo
+from datetime import datetime
 
 _ANSI = re.compile(r'\x1b\][^\x07\x1b]*(?:\x07|\x1b\\)|\x1b\[[0-?]*[ -/]*[@-~]')
 _CONTROL = re.compile(r'[\x00-\x08\x0b-\x1f\x7f-\x9f\u202a-\u202e\u2066-\u2069]')
 _MARKDOWN = re.compile(r'([\\`*_{}\[\]()#+.!|>~:/-])')
 _STATUSES = frozenset({'concluded','limited','budget_exhausted','cancelled',
+                      'approval_required',
                       'policy_denied','cleanup_pending','insufficient_evidence',
                       'invalid_evidence','invalid_arguments','invalid_decision',
                       'data_policy','output_limit','tool_error','tool_timeout',
@@ -48,6 +50,29 @@ def render_markdown(report: Report, *, redact, max_bytes=65536) -> str:
                 or type(report.tool_calls) is not int or not 0 <= report.tool_calls <= 8
                 or type(report.llm_turns) is not int or not 0 <= report.llm_turns <= 6):
             raise ReportError('INVALID_REPORT')
+        if (type(report.state_trace) is not tuple or len(report.state_trace)>32
+                or any(state not in {'RECEIVED','ANALYZING','COLLECTING','CONCLUDED',
+                    'AWAITING_APPROVAL','CANCELLED','BUDGET_EXHAUSTED','ERROR','REPORTED'}
+                    for state in report.state_trace)):
+            raise ReportError('INVALID_TRACE')
+        metadata=[]
+        if report.session is not None:
+            info=report.session
+            if (type(info) is not SessionInfo or info.backend not in {'mock','ollama','none'}
+                    or type(info.elapsed_ms) is not int or not 0<=info.elapsed_ms<2**53
+                    or any(type(value) is not str or re.fullmatch('[0-9a-f]{32}',value) is None
+                           for value in (info.session_id,info.trace_id))):
+                raise ReportError('INVALID_SESSION')
+            stamps=[]
+            for value in (info.started_at,info.completed_at):
+                if type(value) is not str or re.fullmatch(r'\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{6}Z',value) is None:
+                    raise ReportError('INVALID_SESSION')
+                stamps.append(datetime.fromisoformat(value.replace('Z','+00:00')))
+            if stamps[1]<stamps[0]:raise ReportError('INVALID_SESSION')
+            metadata=[f'- Session ID: {info.session_id}',f'- Trace ID: {info.trace_id}',
+                f'- Started (UTC): {info.started_at}',f'- Completed (UTC): {info.completed_at}',
+                f'- Diagnosis elapsed: {info.elapsed_ms/1000:.3f} s (cleanup excluded)',
+                f'- Configured model backend: {info.backend} (not proof of inference success)']
         evidence={}
         for item in report.evidence:
             if (type(item) is not Evidence or type(item.id) is not str or not item.id
@@ -71,6 +96,12 @@ def render_markdown(report: Report, *, redact, max_bytes=65536) -> str:
                f'- Execution outcome: {report.execution_state}',
                f'- Cleanup pending: {str(report.cleanup_pending).lower()}', '',
                '## Evidence / provenance', '']
+        if metadata:
+            lines[4:4]=metadata+['']
+        if report.state_trace:
+            lines[4:4]=['## Application state trace','', ' → '.join(report.state_trace),'']
+        if report.status=='approval_required':
+            lines.insert(3,'Đề xuất đang chờ người dùng duyệt riêng; báo cáo không xác nhận đã restart.\n')
         if not evidence:
             lines.append('Không có evidence đã được kiểm tra để trích dẫn.')
         for identifier,(source,text) in evidence.items():

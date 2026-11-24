@@ -46,6 +46,15 @@ class CLITests(unittest.TestCase):
                 for ref in refs:
                     self.assertIn(ref.replace('-', '\\-'), out)
 
+    def test_state_trace_display_is_single_and_rejects_disagreement(self):
+        from dataclasses import replace
+        outcome=asyncio.run(run_demo('active','Read the synthetic active fixture'))
+        text=format_outcome(outcome)
+        self.assertEqual(text.count('Trace ứng dụng:'),1)
+        self.assertNotIn('## Application state trace',text)
+        forged=replace(outcome,report=replace(outcome.report,state_trace=('ERROR','REPORTED')))
+        with self.assertRaises(ValueError):format_outcome(forged)
+
     def test_permission_denied_does_not_invent_cause(self):
         code, out, _ = self.invoke('--scenario', 'permission-denied', '--question', 'Đọc journal')
         self.assertEqual(code, 1)

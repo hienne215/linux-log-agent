@@ -27,7 +27,7 @@ def _counter(stats, name):
     return value
 
 
-def collect_disk_usage(filesystem: str | None = None, include_inodes: bool = True) -> dict:
+def collect_disk_usage(filesystem: str | None = None, include_inodes: bool = True, *, _inode_details=None) -> dict:
     """Return canonical disk_usage data for an application-owned mount mapping.
 
     None is an internal default only: the canonical wire schema rejects explicit
@@ -37,6 +37,8 @@ def collect_disk_usage(filesystem: str | None = None, include_inodes: bool = Tru
     without claiming a physical device identity or host/container equivalence.
     """
     if type(include_inodes) is not bool:
+        raise DiskUsageError("INVALID_INPUT")
+    if _inode_details is not None and type(_inode_details) is not dict:
         raise DiskUsageError("INVALID_INPUT")
     if filesystem is None:
         filesystem = DEFAULT_FILESYSTEM
@@ -90,6 +92,10 @@ def collect_disk_usage(filesystem: str | None = None, include_inodes: bool = Tru
         raise
     except Exception:
         raise DiskUsageError("EXECUTION_UNKNOWN") from None
+    if include_inodes and _inode_details is not None:
+        # Same validated statvfs observation, not a second racy filesystem read.
+        # Kept in canonical evidence while preserving v1 response-data shape.
+        _inode_details.update(total=files,free=files_free,available=files_available)
     return {"filesystem": filesystem, "mount_point": mount_point,
             "used_percent": used_percent, "available_bytes": available_bytes,
             "inodes_included": include_inodes}

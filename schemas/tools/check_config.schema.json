@@ -9,7 +9,8 @@
       "enum": [
         "ssh",
         "firewall",
-        "systemd"
+        "systemd",
+        "nginx"
       ],
       "description": "Predefined configuration validation profile."
     },

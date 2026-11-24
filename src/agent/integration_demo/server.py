@@ -38,6 +38,18 @@ async def query_journal(unit: Literal['nginx.service']) -> dict[str, Any]:
     return await result('query_journal')
 
 
+@server.tool()
+async def check_config(profile: Literal['nginx']) -> dict[str, Any]:
+    """Read synthetic syntax fixture only; no file, executable or write."""
+    return await result('check_config')
+
+
+@server.tool()
+async def verify_fix(unit: Literal['nginx.service']) -> dict[str, Any]:
+    """Read synthetic HTTP-health fixture only; never opens a socket."""
+    return await result('verify_fix')
+
+
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('--scenario', choices=SCENARIOS, required=True)

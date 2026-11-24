@@ -6,6 +6,8 @@ ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT))
 if len(sys.argv) >= 3 and sys.argv[1] == 'worker':
     from src.agent import diagnostic_worker as worker
+    from agent.diagnostics import read_gateway
+    read_gateway.enabled=lambda:False  # Fixture IO only, even on an opted-in lab VM.
     tool = sys.argv[2]
     if len(sys.argv) == 4:
         # This child is synthetic: writes its own PID only, sleeps, never reads Linux data.

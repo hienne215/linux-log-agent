@@ -27,7 +27,8 @@ def collect_response(arguments):
     started = contracts.current_time()
     tick = time.monotonic()
     try:
-        data = collect_disk_usage(arguments.get("filesystem"), arguments.get("include_inodes", True))
+        inode_details={}
+        data = collect_disk_usage(arguments.get("filesystem"), arguments.get("include_inodes", True),_inode_details=inode_details)
         json.dumps(data, allow_nan=False)
         observed = contracts.current_time()
         response = contracts.make_response(TOOL, arguments["trace_id"],
@@ -42,7 +43,8 @@ def collect_response(arguments):
             observed_at=observed, source=SOURCE, unit=None,
             excerpt=("filesystem=root mount_point=/ "
                      f"used_percent={data['used_percent']} available_bytes={data['available_bytes']} "
-                     f"inodes_included={data['inodes_included']}"),
+                     f"inodes_included={data['inodes_included']}"+
+                     (f" inodes_total={inode_details['total']} inodes_free={inode_details['free']} inodes_available={inode_details['available']}" if data['inodes_included'] else '')),
             redacted=True, truncated=False)]
         response.update(started_at=started, completed_at=contracts.current_time(),
                         duration_ms=int((time.monotonic() - tick) * 1000))

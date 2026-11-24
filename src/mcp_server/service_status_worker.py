@@ -6,6 +6,7 @@ import signal
 import sys
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
+sys.path.insert(0, str(Path(__file__).resolve().parents[2] / 'src'))
 from src.mcp_server.service_status import collect
 
 

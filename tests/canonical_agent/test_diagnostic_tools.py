@@ -31,7 +31,7 @@ def arguments(tool):
 class WorkerTests(unittest.IsolatedAsyncioTestCase):
     async def test_policy_denies_before_collection(self):
         for tool, bad in [('list_failed_units', {'limit': 1}),('list_failed_units',{'cursor':'x'}),
-                          ('listening_ports',{'protocol':'tcp','port':22}),
+                          ('listening_ports',{'protocol':'tcp','port':22,'unit':'sshd.service'}),
                           ('listening_ports',{'protocol':'tcp','port':80,'unit':'nginx.service'})]:
             with patch('agent.diagnostic_worker.collect_failed_units',new_callable=AsyncMock) as failed,patch(
                     'agent.diagnostic_worker.collect_listening_ports',new_callable=AsyncMock) as ports:

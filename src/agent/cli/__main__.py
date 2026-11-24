@@ -1,7 +1,7 @@
 """Run `python -m agent.cli --help`. Synthetic only; no real backend selection."""
 import argparse
 import asyncio
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 import math
 import re
 import sys
@@ -80,7 +80,11 @@ def format_outcome(outcome):
     if (type(outcome.trace) is not tuple or len(outcome.trace) > 24
             or any(type(state) is not str or state not in _STATES for state in outcome.trace)):
         raise ValueError('INVALID_TRACE')
-    rendered = render_markdown(outcome.report, redact=redact)
+    if outcome.report.state_trace and outcome.report.state_trace != outcome.trace:
+        raise ValueError('INVALID_TRACE')
+    # This CLI already prints the same validated trace above the incident body.
+    # Keep the source Report intact; suppress only the duplicate presentation.
+    rendered = render_markdown(replace(outcome.report,state_trace=()), redact=redact)
     trace = ' → '.join(outcome.trace) or 'Chưa có trace.'
     evidence_ids = {item.id for item in outcome.report.evidence}
     events = []

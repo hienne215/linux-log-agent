@@ -5,17 +5,32 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "linux-log-agent"
 version = "0.1.0"
-description = "Read-only synthetic Agent coordinator and MCP foundation"
+description = "Local read-only Linux diagnostic Agent with evidence and bounded MCP tools"
+readme = "README.md"
 requires-python = ">=3.12"
-dependencies = ["jsonschema==4.26.0", "referencing==0.37.0"]
+dependencies = ["jsonschema==4.26.0", "referencing==0.37.0", "rfc3339-validator==0.1.4"]
 
 [project.optional-dependencies]
 mcp = ["mcp==2.3.0"]
+control = ["dbus-next==0.2.3"]
+test = ["pytest==9.2.0"]
 
-[tool.setuptools.packages.find]
-where = ["src"]
-include = ["agent*"]
-namespaces = false
+[tool.setuptools]
+packages = ["agent", "agent.cli", "agent.diagnostics", "agent.llm", "agent.mcp_client", "agent.integration_boundary", "agent.integration_demo", "control_plane", "src.mcp_server", "schemas", "schemas.tools"]
+py-modules = ["mock_mcp_server", "run_mcp_server"]
+
+[tool.setuptools.package-dir]
+agent = "src/agent"
+control_plane = "src/control_plane"
+"src.mcp_server" = "src/mcp_server"
+schemas = "schemas"
+
+[tool.setuptools.package-data]
+schemas = ["*.json"]
+"schemas.tools" = ["*.json"]
+control_plane = ["README.md"]
 
 [project.scripts]
 lla-demo = "agent.cli.__main__:main"
+linux-log-agent = "agent.read_only:main"
+linux-log-action = "control_plane.command:main"

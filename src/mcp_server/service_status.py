@@ -8,10 +8,13 @@ import sys
 import time
 
 import mock_mcp_server as contracts
+from .process_cleanup import finish_process
+from agent.diagnostics.service_snapshot import format_snapshot
 
-ALLOWED_UNITS = frozenset({'nginx.service'})  # Reviewed application policy, not MCP input.
+ALLOWED_UNITS = frozenset({'nginx.service','ssh.service','cron.service'})  # Local operator-owned read-only policy, never discovery/model-owned.
 EXECUTABLES = ('/usr/bin/systemctl', '/bin/systemctl')
 PROPERTIES = ('Id', 'LoadState', 'ActiveState', 'SubState')
+DETAIL_PROPERTIES = ('ExecMainCode', 'ExecMainStatus', 'NRestarts')
 TIMEOUT = 5.0
 STDOUT_LIMIT = 8192
 STDERR_LIMIT = 4096
@@ -37,7 +40,7 @@ def command(unit):
     if executable is None:
         raise CollectionFailure('UNSUPPORTED')
     return (executable, '--no-pager', '--no-ask-password', 'show',
-            '--property=' + ','.join(PROPERTIES), '--', unit)
+            '--property=' + ','.join(PROPERTIES + DETAIL_PROPERTIES), '--', unit)
 
 
 async def read_bounded(stream, limit):
@@ -57,35 +60,17 @@ async def run(argv):
     process = None
     tasks = []
     try:
-        process = await asyncio.shield(spawn)
-        tasks = [asyncio.create_task(read_bounded(process.stdout, STDOUT_LIMIT)),
-                 asyncio.create_task(read_bounded(process.stderr, STDERR_LIMIT))]
         try:
-            stdout, stderr, code = await asyncio.wait_for(
-                asyncio.gather(*tasks, process.wait()), TIMEOUT)
-        except asyncio.TimeoutError:
+            async with asyncio.timeout(TIMEOUT):
+                process = await asyncio.shield(spawn)
+                tasks = [asyncio.create_task(read_bounded(process.stdout, STDOUT_LIMIT)),
+                         asyncio.create_task(read_bounded(process.stderr, STDERR_LIMIT))]
+                stdout, stderr, code = await asyncio.gather(*tasks, process.wait())
+        except TimeoutError:
             raise CollectionFailure('TIMEOUT') from None
         return code, stdout, stderr
     finally:
-        if process is None:
-            try:  # Cancellation during OS spawn must not abandon the resulting child.
-                process = await asyncio.shield(spawn)
-            except Exception:
-                pass
-        if process is not None:
-            if process.returncode is None:
-                try:
-                    process.kill()
-                except ProcessLookupError:
-                    pass
-            for task in tasks:
-                task.cancel()
-            await asyncio.gather(*tasks, return_exceptions=True)
-            async def discard(stream):
-                while await stream.read(4096):
-                    pass
-            # Killing alone does not confirm pipe EOF. Do not abandon a known child.
-            await asyncio.gather(discard(process.stdout), discard(process.stderr), process.wait())
+        await finish_process(spawn,process,tasks)
 
 
 def parse(stdout, unit):
@@ -94,13 +79,24 @@ def parse(stdout, unit):
         values = {}
         for line in text.splitlines():
             key, value = line.split('=', 1)
-            if key not in PROPERTIES or key in values:
+            if key not in PROPERTIES + DETAIL_PROPERTIES or key in values:
                 raise ValueError
             values[key] = value
-        if set(values) != set(PROPERTIES) or values['Id'] != unit:
+        if not set(PROPERTIES) <= set(values) or values['Id'] != unit:
             raise ValueError
         if values['LoadState'] not in LOAD or values['ActiveState'] not in ACTIVE or values['SubState'] not in SUB:
             raise ValueError
+        # Older fixtures/peers may lack these optional observations. Never infer
+        # a zero exit/restart count from omission or an empty property.
+        for key in DETAIL_PROPERTIES:
+            if key in values:
+                raw = values[key]
+                if raw == '':values[key] = None
+                elif raw.isascii() and raw.isdecimal() and len(raw) <= 10:
+                    value = int(raw)
+                    if value > (6 if key == 'ExecMainCode' else 2**32-1):raise ValueError()
+                    values[key] = value
+                else:raise ValueError()
         return values
     except (ValueError, UnicodeError):
         raise CollectionFailure('EXECUTION_UNKNOWN') from None
@@ -142,11 +138,15 @@ async def collect(arguments, *, execute=run, platform_name=None):
         observed = contracts.current_time()
         data = dict(unit=arguments['unit'], active_state=values['ActiveState'],
                     sub_state=values['SubState'], load_state=values['LoadState'], description='[REDACTED]')
+        details = None
+        if any(key in values for key in DETAIL_PROPERTIES):
+            details = dict(zip(('exec_main_code','exec_main_status','restart_count'),
+                               (values.get(key) for key in DETAIL_PROPERTIES)))
         response = contracts.make_response(name, arguments['trace_id'], arguments['logical_tool_call_id'],
             arguments['attempt_id'], data, arguments['session_id'], evidence=[dict(
                 evidence_id='ev-' + secrets.token_urlsafe(24), source=SOURCE,
                 observed_at=observed, unit=arguments['unit'],
-                excerpt=f"unit={data['unit']}; load={data['load_state']}; active={data['active_state']}; sub={data['sub_state']}",
+                excerpt=format_snapshot(data,details),
                 redacted=True, truncated=False)])
     except PermissionError:
         response = contracts.safe_error(name, {}, 'PERMISSION_DENIED', rule='permission')

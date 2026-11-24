@@ -361,7 +361,8 @@
                       "enum": [
                         "service_active",
                         "no_new_failures",
-                        "port_listening"
+                        "port_listening",
+                        "http_health"
                       ]
                     },
                     "result": {

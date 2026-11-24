@@ -6,6 +6,8 @@ import io
 import json
 from pathlib import Path
 import sys
+import os
+import tempfile
 import unittest
 from unittest.mock import AsyncMock, patch
 
@@ -121,6 +123,83 @@ class DiskTests(unittest.IsolatedAsyncioTestCase):
 
 
 class RouterTests(unittest.IsolatedAsyncioTestCase):
+    async def test_config_permission_error_explains_unverified_syntax_without_raw_error(self):
+        result=contracts.safe_error('check_config',{},'PERMISSION_DENIED',rule='collection')
+        result['message']='raw-private-canary'  # Untrusted diagnostics must not be displayed.
+        text=terminal_summary(Report('tool_error'),{'check_config':result})
+        self.assertIn('Không đủ quyền hoặc sandbox',text)
+        self.assertIn('Chưa thể kết luận cấu hình đúng hay sai',text)
+        self.assertNotIn('raw-private-canary',text)
+        self.assertNotIn('cấu hình hợp lệ',text)
+
+    async def test_invalid_model_proposal_starts_no_mcp_process(self):
+        from agent.llm.interface import Completion,ToolCall,Usage
+        session=ReadOnlySession(scope='all',backend='mock')
+        session.adapter.complete=AsyncMock(return_value=Completion('tool_calls','',
+            (ToolCall('restart_service',{'unit':'nginx.service'}),),
+            Usage(None,None,None,None,None),0,session.adapter.config.model,'stop'))
+        for b in session.client.bindings.values():
+            b.client.connect=AsyncMock()
+        report=await session.run('Synthetic invalid proposal')
+        self.assertEqual(report.tool_calls,0);self.assertFalse(report.evidence)
+        self.assertNotEqual(report.status,'concluded')
+        self.assertFalse(session.client._attempted);self.assertFalse(session.cleanup_pending)
+        for b in session.client.bindings.values():b.client.connect.assert_not_awaited()
+
+    async def test_startup_is_local_and_only_selected_tool_connects(self):
+        from agent.mcp_client import ToolPage
+        r=CanonicalRouter('all')
+        for name,b in r.bindings.items():
+            b.client=AsyncMock()
+            b.client._owner=None
+            b.client.list_tools.return_value=ToolPage((dict(name=name,inputSchema=b.schemas[0],outputSchema=b.schemas[2]),))
+            b.call_tool=AsyncMock(return_value='selected-result')
+        await r.connect()
+        for b in r.bindings.values():b.client.connect.assert_not_awaited()
+        self.assertEqual(await r.call_tool('memory_oom_events',{}),'selected-result')
+        r.bindings['memory_oom_events'].client.connect.assert_awaited_once()
+        r.bindings['memory_oom_events'].client.list_tools.assert_awaited_once()
+        for name,b in r.bindings.items():
+            if name!='memory_oom_events':b.client.connect.assert_not_awaited()
+        await r.disconnect()
+        with self.assertRaises(MCPClientError):await r.call_tool('memory_oom_events',{})
+
+    async def test_invalid_or_write_tool_does_not_start_any_server(self):
+        r=CanonicalRouter('all')
+        for b in r.bindings.values():b.client=AsyncMock()
+        await r.connect()
+        for name,args in [('restart_service',{}),('service_status',{'unit':'sshd.service'}),
+                          ('memory_oom_events',{'command':'shell'})]:
+            with self.assertRaises(MCPClientError):await r.call_tool(name,args)
+        for b in r.bindings.values():b.client.connect.assert_not_awaited()
+
+    async def test_bad_discovery_is_not_dispatched_or_reconnected(self):
+        from agent.mcp_client import ToolPage
+        r=CanonicalRouter('oom');b=r.bindings['memory_oom_events']
+        b.client=AsyncMock();b.client.list_tools.return_value=ToolPage(())
+        b.call_tool=AsyncMock()
+        await r.connect()
+        for _ in range(2):
+            with self.assertRaises(MCPClientError):await r.call_tool('memory_oom_events',{})
+        b.client.connect.assert_awaited_once();b.call_tool.assert_not_awaited()
+        await r.disconnect();b.client.disconnect.assert_awaited_once()
+
+    async def test_cancel_during_lazy_connect_retains_owner_for_cleanup(self):
+        r=CanonicalRouter('oom');b=r.bindings['memory_oom_events'];entered=asyncio.Event()
+        b.client=FakeClient()
+        async def connect():
+            b.client._owner=object();entered.set();await asyncio.Event().wait()
+        b.client.connect=connect
+        async def disconnect():b.client._owner=None
+        b.client.disconnect=AsyncMock(side_effect=disconnect)
+        await r.connect()
+        task=asyncio.create_task(r.call_tool('memory_oom_events',{}))
+        await entered.wait();task.cancel()
+        with self.assertRaises(asyncio.CancelledError):await task
+        self.assertIsNotNone(r._owner)
+        await r.disconnect();self.assertIsNone(r._owner)
+        with self.assertRaises(MCPClientError):await r.call_tool('memory_oom_events',{})
+
     async def test_session_ids_shared_and_no_write_tool(self):
         r=CanonicalRouter('both');s,d=r.bindings.values()
         self.assertEqual((s.session_id,s.trace_id),(d.session_id,d.trace_id))
@@ -157,6 +236,51 @@ class RouterTests(unittest.IsolatedAsyncioTestCase):
 
 
 class CLITests(unittest.TestCase):
+    def test_full_health_summary_does_not_deny_the_http_check_it_just_performed(self):
+        report=Report('limited','',(),(),1,2)
+        result=dict(status='partial',data=dict(checks=[
+            dict(check_type='service_active',result='pass'),
+            dict(check_type='http_health',result='pass'),
+            dict(check_type='no_new_failures',result='unknown')]))
+        text=terminal_summary(report,{'verify_fix':result})
+        self.assertIn('HTTP tại 127.0.0.1:80: đạt kiểm tra này',text)
+        self.assertIn('Lỗi journal mới: chưa xác minh đầy đủ',text)
+        self.assertNotIn('Chưa kiểm tra: website',text)
+        self.assertIn('chưa xác minh đã sửa thành công',text)
+
+    def test_report_preserves_full_safe_ledger_without_overwrite(self):
+        report=Report('concluded','Synthetic conclusion.',
+            (Evidence('ev-disk-test','test','synthetic'),),('ev-disk-test',),1,2)
+        result=response(dict(trace_id='t',logical_tool_call_id='c',attempt_id='a',session_id='s'))
+        result['evidence'].append({**result['evidence'][0],'evidence_id':'ev-ledger-only'})
+        before=os.getcwd()
+        try:
+            with tempfile.TemporaryDirectory() as directory:
+                os.chdir(directory)
+                with patch('agent.read_only.drive',AsyncMock(return_value=(report,{'disk_usage':result}))),redirect_stdout(io.StringIO()),redirect_stderr(io.StringIO()):
+                    self.assertEqual(main(['--backend','mock','--question','check disk','--report','safe.md']),0)
+                    target=Path('reports/safe.md');original=target.read_bytes()
+                    self.assertIn(b'ev-ledger-only',original)
+                    self.assertIn(b'Full canonical ledger',original)
+                    self.assertEqual(target.stat().st_mode & 0o777,0o600)
+                    self.assertEqual(main(['--backend','mock','--question','check disk','--report','safe.md']),3)
+                    self.assertEqual(target.read_bytes(),original)
+        finally:os.chdir(before)
+
+    def test_report_rejects_unsafe_ledger_without_persisting_secrets(self):
+        report=Report('concluded','Synthetic conclusion.',(),(),1,2)
+        result=response(dict(trace_id='t',logical_tool_call_id='c',attempt_id='a',session_id='s'))
+        result['evidence'][0]['excerpt']='MYSQL_PWD=fixture-private-canary'
+        before=os.getcwd()
+        try:
+            with tempfile.TemporaryDirectory() as directory:
+                os.chdir(directory);stdout=io.StringIO();stderr=io.StringIO()
+                with patch('agent.read_only.drive',AsyncMock(return_value=(report,{'disk_usage':result}))),redirect_stdout(stdout),redirect_stderr(stderr):
+                    self.assertEqual(main(['--backend','mock','--question','check disk','--report','unsafe.md']),3)
+                self.assertFalse(Path('reports/unsafe.md').exists())
+                self.assertNotIn('fixture-private-canary',stdout.getvalue()+stderr.getvalue())
+        finally:os.chdir(before)
+
     def test_disk_summary_does_not_invent_service_status(self):
         r=response(dict(trace_id='t',logical_tool_call_id='c',attempt_id='a',session_id='s'))
         report=Report('concluded','Synthetic conclusion.',(Evidence('ev-disk-test','test','synthetic'),),('ev-disk-test',),1,2)

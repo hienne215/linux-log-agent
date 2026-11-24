@@ -42,7 +42,7 @@ def test_states_are_observed_not_synthetic(active,sub,load,executable):
     assert value['status']=='ok'
     assert value['data']==dict(unit='nginx.service',active_state=active,sub_state=sub,load_state=load,description='[REDACTED]')
     assert calls==[('/usr/bin/systemctl','--no-pager','--no-ask-password','show',
-                    '--property=Id,LoadState,ActiveState,SubState','--','nginx.service')]
+                    '--property=Id,LoadState,ActiveState,SubState,ExecMainCode,ExecMainStatus,NRestarts','--','nginx.service')]
     evidence=value['evidence'][0]
     assert evidence['source']==svc.SOURCE and evidence['unit']=='nginx.service'
     assert 'synthetic' not in evidence['source'] and evidence['redacted'] and not evidence['truncated']

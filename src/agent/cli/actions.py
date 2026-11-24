@@ -80,6 +80,7 @@ class Proposal:
                 termios.tcflush(fd, termios.TCIFLUSH)
             finally:
                 termios.tcsetattr(fd, termios.TCSANOW, original)
+            os.close(fd)
             self._terminal = None  # keep owner if either operation failed
 
     def display(self):
@@ -114,8 +115,13 @@ def _read_choice(proposal, stdin, stdout):
     No thread, async owner, MCP/LLM session or detached timeout task is created.
     Do not use input() or a fallback pipe. TTY is a guard, not human authentication.
     """
-    fd = stdin.fileno()
-    original = termios.tcgetattr(fd)
+    # Own the restoration descriptor independently of the caller's stdin.
+    fd = os.dup(stdin.fileno())
+    try:
+        original = termios.tcgetattr(fd)
+    except BaseException:
+        os.close(fd)
+        raise
     proposal._terminal = (fd, original)
     attrs = list(original)
     attrs[3] = (attrs[3] | termios.ICANON | termios.ISIG) & ~(termios.ECHO | termios.ECHONL)
